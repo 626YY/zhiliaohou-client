@@ -112,7 +112,8 @@ export function petCharmHtml(skin: PetSkin, atlasUrl?:string): string {
   if(atlasUrl){
     const crops:Record<PetSkin['charm'],readonly [number,number,number,number]>={bone:[132,17,253,339],flower:[624,17,275,357],fish:[130,392,282,356],moon:[624,392,260,339],berry:[180,794,188,330],bread:[629,772,266,350],orange:[171,1156,205,338],planet:[587,1156,305,338]}
     const [x,y,w,h]=crops[skin.charm]
-    return `<svg class="pet-charm" data-charm="${skin.charm}" data-pet-side="${skin.side==='left'?'right':'left'}" viewBox="0 0 ${w} ${h}" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><image href="${escapeAttribute(atlasUrl)}" x="${-x}" y="${-y}" width="1024" height="1536"/></svg>`
+    const clipId='pet-charm-clip-'+skin.id
+    return `<svg class="pet-charm" data-charm="${skin.charm}" data-pet-side="${skin.side==='left'?'right':'left'}" viewBox="0 0 ${w} ${h}" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="${clipId}"><rect width="${w}" height="${h}"/></clipPath></defs><image clip-path="url(#${clipId})" href="${escapeAttribute(atlasUrl)}" x="${-x}" y="${-y}" width="1024" height="1536"/></svg>`
   }
   const art: Record<PetSkin['charm'],string> = {
     bone:'<path d="M8 35C1 28 0 40 5 41C0 47 8 52 11 45L22 49C25 56 33 50 28 46C35 43 29 34 24 41L13 38Z" fill="var(--pet-menu)"/><path d="m15 64 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z" fill="var(--pet-charm-yellow)"/>',

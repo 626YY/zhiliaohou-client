@@ -29,6 +29,6 @@ for source in sorted(folder.glob('frame-*.png')):
             simple.pop()
         simple.append(point)
     contour='M'+'L'.join(f'{x} {y}' for x,y in simple)+'Z'
-    svg=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}"><path d="{contour}" fill="white" stroke="white" stroke-width="8" stroke-linejoin="round"/></svg>\n'
+    svg=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" preserveAspectRatio="none"><path d="{contour}" fill="white" stroke="white" stroke-width="8" stroke-linejoin="round"/></svg>\n'
     source.with_suffix('.mask.svg').write_text(svg,encoding='utf-8')
     print(source.stem,'SVG clip generated',len(simple),'points')

@@ -1,0 +1,110 @@
+from pathlib import Path
+import hashlib,json,shutil,subprocess,zipfile,yaml
+
+root=Path.cwd().resolve()
+version=json.loads((root/'package.json').read_text(encoding='utf-8'))['version']
+(root/'output/open-source-audit').mkdir(parents=True,exist_ok=True)
+dest=root/'output/open-source/zhiliaohou-client'
+marker=dest/'.prepared-by-zhiliaohou-export'
+if dest.exists() and any(dest.iterdir()) and not marker.exists():
+    raise RuntimeError('Refusing to overwrite an unrelated export directory')
+if (dest/'.git').exists() and subprocess.check_output(['git','-C',str(dest),'status','--porcelain'],text=True).strip():
+    raise RuntimeError('Commit or save changes in the existing source export before refreshing it')
+dest.mkdir(parents=True,exist_ok=True)
+marker.write_text('Managed source export for 626YY/zhiliaohou-client\n',encoding='utf-8')
+copied=[];excluded=[]
+def copy(relative):
+    source=root/relative
+    target=dest/relative
+    target.parent.mkdir(parents=True,exist_ok=True)
+    shutil.copy2(source,target)
+    copied.append(str(relative).replace('\\','/'))
+
+root_files=['package.json','package-lock.json','electron.vite.config.ts','postcss.config.js','tailwind.config.js','tsconfig.json','tsconfig.node.json','tsconfig.web.json','.npmrc','LICENSE','README.md','THIRD_PARTY_NOTICES.md']
+for name in root_files:copy(Path(name))
+for folder in ['src','tools','connector-assets','assets/emoji72','public']:
+    for source in sorted((root/folder).rglob('*')):
+        if not source.is_file():continue
+        if source.is_symlink() or not source.resolve().is_relative_to(root):raise RuntimeError('External symlink is not exportable')
+        rel=source.relative_to(root)
+        posix=rel.as_posix()
+        if '__pycache__' in rel.parts or '.bak' in source.name or source.suffix in ['.pyc','.log','.zip','.exe','.dll','.pdb']:
+            excluded.append(posix);continue
+        if posix.startswith('src/renderer/public/mod-images/'):
+            excluded.append(posix);continue
+        if posix.startswith('tools/') and source.name.startswith(('publish','deploy')):
+            excluded.append(posix);continue
+        copy(rel)
+for name in ['afterPack.js','icon.ico','icon.png','icon-256.png','license-policy.json','license-provider.json','更新说明.txt']:
+    copy(Path('build')/name)
+
+# 采用已提交、已在线的 Mod 清单，不混入另一个任务尚未提交的 0.2.17 数据。
+archive=root/'output/open-source-audit/catalog-head.zip'
+subprocess.run(['git','archive','--format=zip','--output='+str(archive),'HEAD','mods-catalog'],check=True)
+with zipfile.ZipFile(archive) as z:
+    for item in z.infolist():
+        name=item.filename
+        if item.is_dir() or Path(name).suffix.lower() not in ['.json','.md','.txt']:
+            continue
+        target=(dest/name).resolve()
+        if not target.is_relative_to(dest):raise RuntimeError('Invalid archive member')
+        target.parent.mkdir(parents=True,exist_ok=True)
+        target.write_bytes(z.read(item))
+        copied.append(name)
+
+# 保留平台礼物元数据，不在源码仓库再分发平台图片。
+for source in (root/'gift-assets/douyin').glob('*.json'):copy(source.relative_to(root))
+(dest/'gift-assets/douyin/README.md').write_text('# 礼物图\n\n本目录保留同步用元数据。平台礼物图片不随源码快照分发；需要时运行 `npm run gifts:sync`，并遵循素材来源的相关许可。\n',encoding='utf-8')
+
+# 旧版时间框数据来自既有二进制资源；公开代码保留三种模式，使用本项目独立的矢量框替代这些位图。
+(dest/'src/shared/countdownArt.ts').write_text('''// 公开源码快照的通用矢量替代框；原生产位图未再分发。
+import { frameDataUri } from './countdownFrame'
+export const COUNTDOWN_ART = {
+  mode1_cyan: frameDataUri({variant:'paper',stroke:'#218cad',fill:'#e6f7fa',fillAlpha:1,strokeWidth:2,glow:false}),
+  mode1_orange: frameDataUri({variant:'paper',stroke:'#b56733',fill:'#fff2de',fillAlpha:1,strokeWidth:2,glow:false}),
+  mode2_frame: frameDataUri({variant:'paper',stroke:'#705989',fill:'#f2eafa',fillAlpha:1,strokeWidth:2,glow:false})
+}
+''',encoding='utf-8')
+
+provider=root/'build/license-provider.json'
+config=json.loads(provider.read_text(encoding='utf-8'))
+assert not any('private' in key.lower() or 'secret' in key.lower() or 'password' in key.lower() or 'token' in key.lower() for key in config)
+(dest/'build/license-provider.example.json').write_text(json.dumps(config,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+builder=yaml.safe_load((root/'electron-builder.yml').read_text(encoding='utf-8'))
+builder['directories']['output']='release'
+builder['win']['signAndEditExecutable']=False
+builder.pop('publish',None)
+builder['extraResources']=[x for x in builder['extraResources'] if x.get('from') not in ['ffmpeg','pyembed','output/local-card-mod']]
+builder['extraResources'] += [{'from':'LICENSE','to':'LICENSE-client.txt'},{'from':'THIRD_PARTY_NOTICES.md','to':'THIRD_PARTY_NOTICES.md'}]
+(dest/'electron-builder.yml').write_text(yaml.safe_dump(builder,allow_unicode=True,sort_keys=False),encoding='utf-8')
+
+ignore='''node_modules/
+out/
+output/
+release/
+release-latest/
+.playwright-cli/
+pyembed/
+ffmpeg/
+*.log
+*.tsbuildinfo
+**/__pycache__/
+*.py[cod]
+*.bak*
+.env*
+!.env.example
+**/*cookie*.txt
+**/*.key
+**/auth.json
+**/settings.json
+**/*.sqlite3
+.prepared-by-zhiliaohou-export
+'''
+(dest/'.gitignore').write_text(ignore,encoding='utf-8')
+(dest/'.gitattributes').write_text('* text=auto\n*.png binary\n*.jpg binary\n*.ico binary\n*.ttf binary\n*.mp3 binary\n',encoding='utf-8')
+(dest/'CHANGELOG.md').write_text('# 更新记录\n\n## 0.3.62（2026-09-20）\n\n- 首次公开客户端源码快照。\n- 新增八套萌宠时间皮肤，与实时礼物菜单整套结合。\n- 独立配件轻摆、菜单伸缩、长文字与计时格式适配。\n- 保留客户端、连接器和通用开发验收工具，补充许可与构建说明。\n',encoding='utf-8')
+
+report={'source':str(root),'destination':str(dest),'version':version,'files':len(copied),'excluded':excluded,'transformations':['Current source snapshot without private Git history','Committed Mod metadata only; no Mod/game binary archives','Platform gift images and game promotional images excluded','Production deployment tools excluded','Legacy extracted bitmap countdown frames replaced with independently authored SVG frames','Public build configuration excludes unavailable optional binaries and private publishing destination','Public keys retained; no signing private keys or account data included']}
+(root/'output/open-source-audit/export-report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+print('SOURCE SNAPSHOT PREPARED',len(copied),'files;',len(excluded),'excluded')
