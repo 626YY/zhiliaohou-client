@@ -1095,7 +1095,7 @@ export interface TimeWidgetConfig {
   cellBg?: string // 礼物格底色
   cellBorder?: string // 礼物格边框色
   cellAlpha?: number // 礼物格底色透明度
-  petMotion?: boolean // 萌宠皮肤的轻微呼吸和吊饰摆动，默认开启
+  petMotion?: boolean // 萌宠皮肤配件的轻微摆动，默认开启
   giftNameSize?: number
   giftTextSize?: number
   giftIconSize?: number

@@ -21,13 +21,15 @@
 ## 开发环境
 
 - Windows 10 / 11，64 位。
-- Node.js 22 或更新版本。本次验证环境为 Node.js 26.7.0、npm 11.19.0。
+- 推荐使用 **Node.js 24 LTS**，本项目提供 `.nvmrc`。本次完整安装与构建使用 Node.js 24.19.0、npm 11.19.0 验证。
 - Python 3.11：运行 Python 连接器时需要。
 
 ```sh
 npm ci
 npm run dev
 ```
+
+本机测试中，Node.js 26.7.0 运行 Electron 33 的安装脚本会提前退出，留下不完整的运行时；请使用上面的 Node 24 LTS。npm 11.19 的依赖安装脚本按项目许可运行，`package.json` 仅允许锁定版本的 Electron 和 esbuild 安装脚本。升级这两个依赖时，需要重新审核并更新对应条目。
 
 检查和构建：
 

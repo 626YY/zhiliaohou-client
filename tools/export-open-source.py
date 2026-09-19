@@ -20,7 +20,7 @@ def copy(relative):
     shutil.copy2(source,target)
     copied.append(str(relative).replace('\\','/'))
 
-root_files=['package.json','package-lock.json','electron.vite.config.ts','postcss.config.js','tailwind.config.js','tsconfig.json','tsconfig.node.json','tsconfig.web.json','.npmrc','LICENSE','README.md','THIRD_PARTY_NOTICES.md']
+root_files=['package.json','package-lock.json','electron.vite.config.ts','postcss.config.js','tailwind.config.js','tsconfig.json','tsconfig.node.json','tsconfig.web.json','.npmrc','.nvmrc','LICENSE','README.md','THIRD_PARTY_NOTICES.md']
 for name in root_files:copy(Path(name))
 for folder in ['src','tools','connector-assets','assets/emoji72','public']:
     for source in sorted((root/folder).rglob('*')):
