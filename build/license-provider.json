@@ -1,0 +1,13 @@
+{
+  "provider": "card",
+  "baseUrl": "https://47.251.93.171:8770/card",
+  "publicKey": "0KsgBcsJNtEuWV2BKF-CAINWeX0zuaIn1i0YFwEfqw0",
+  "identityMode": "existing",
+  "migrateLegacyCredentials": true,
+  "modPublicKeys": {
+    "game:4wheel-challenge": {
+      "fingerprint": "541e8c8b45166378c1ead989325888c48d35abdf921045bb29d81c470b04be49",
+      "keyXml": "<RSAKeyValue><Modulus>uB2SR4y3tB3Ieufe3NbEkA2Nuu88jhit4o2fGIckqWf4Svcpeychps7kG2+uwn0ublzsLA8RvvGMjT7ESh1YamwDAMELkB/FbekbCZJxyqhfsOJVQoA9eIBdfljxz8Sz3U/xvuEvYiumyw724yxF/N8VtF0X0W//F3wk72FhsETodxdHO/GJGmv5SsQTDA7ubnAjePUvyOUMqsEqVLLvJJsLrGjqzNMVjcog8X4LV5WXxP0zWLrOcNpF5hXEKmC5di2VH1v7/XkV7WYOWoZ5BXZjJeuHTEYBQJx3EA/obQYXLBQqEegcrTNqFI+SkYe/gXDRwIMhI6Wi+AWZnk+TSQ==</Modulus><Exponent>AQAB</Exponent></RSAKeyValue>"
+    }
+  }
+}

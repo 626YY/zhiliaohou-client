@@ -1,0 +1,260 @@
+[
+  {
+    "id": "nuke",
+    "name": "炸毁游戏",
+    "cat": "法师 Boss",
+    "danger": true
+  },
+  {
+    "id": "bossriot",
+    "name": "书灵暴动",
+    "cat": "法师 Boss",
+    "danger": true
+  },
+  {
+    "id": "descend",
+    "name": "法师降临",
+    "cat": "法师 Boss",
+    "danger": true
+  },
+  {
+    "id": "berserk",
+    "name": "狂暴连锁",
+    "cat": "法师 Boss",
+    "danger": true
+  },
+  {
+    "id": "scramble",
+    "name": "大乱序",
+    "cat": "法师 Boss",
+    "danger": true
+  },
+  {
+    "id": "bookrain",
+    "name": "书雨",
+    "cat": "法师 Boss",
+    "danger": true
+  },
+  {
+    "id": "tornado",
+    "name": "书海龙卷",
+    "cat": "法师 Boss"
+  },
+  {
+    "id": "blackhole",
+    "name": "黑洞",
+    "cat": "法师 Boss"
+  },
+  {
+    "id": "bonk",
+    "name": "一嘴巴子",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "slipdrop",
+    "name": "妖风缠手",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "pickpocket",
+    "name": "顺手牵书",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "slowself",
+    "name": "蜗牛诅咒",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "freeze",
+    "name": "定身术",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "manadrain",
+    "name": "魔力封印",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "sendbook",
+    "name": "天降诅咒书",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "swap",
+    "name": "书互换",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "swaptype",
+    "name": "贴签反转",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "runaway",
+    "name": "书群逃亡",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "giant",
+    "name": "巨型书",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "invisible",
+    "name": "隐身书",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "slowmo",
+    "name": "时间冻结",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "danmaku",
+    "name": "弹幕变书名",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "unfinish",
+    "name": "拆行回退",
+    "cat": "黑粉干扰",
+    "danger": true
+  },
+  {
+    "id": "chaos",
+    "name": "混乱骰子",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "mirror",
+    "name": "镜像诅咒",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "fakebsod",
+    "name": "假黑屏",
+    "cat": "黑粉干扰",
+    "danger": true
+  },
+  {
+    "id": "recolor",
+    "name": "邪典染色",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "quake",
+    "name": "书架地震",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "taunt",
+    "name": "法师嘲讽",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "backstab",
+    "name": "背后袭书",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "chandelier",
+    "name": "吊灯魅影",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "whisper",
+    "name": "禁书低语",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "sealgate",
+    "name": "封印之门",
+    "cat": "黑粉干扰"
+  },
+  {
+    "id": "blessshelf",
+    "name": "圣光赐架",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "seekbooks",
+    "name": "智能寻书",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "fanbook",
+    "name": "心意之书",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "hasten",
+    "name": "疾风祝福",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "manaburst",
+    "name": "魔力涌泉",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "autoshelve",
+    "name": "自动上架",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "grabsame",
+    "name": "抓同系列",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "gravity",
+    "name": "重力",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "impulse",
+    "name": "冲刺",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "teleport",
+    "name": "传送",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "highlight",
+    "name": "高亮同系列",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "shield",
+    "name": "自动施法",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "escort",
+    "name": "灵书护送",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "resonance",
+    "name": "同类共鸣",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "purify",
+    "name": "净化",
+    "cat": "红粉魔法"
+  },
+  {
+    "id": "blindbox",
+    "name": "禁书盲盒",
+    "cat": "特殊"
+  },
+  {
+    "id": "sign",
+    "name": "灵魂印记",
+    "cat": "特殊"
+  }
+]

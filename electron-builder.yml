@@ -1,0 +1,58 @@
+appId: com.zhiliao.client
+productName: 知了猴整蛊台
+copyright: Copyright © 2026 知了猴工作室
+directories:
+  buildResources: build
+  output: release
+afterPack: build/afterPack.js
+files:
+- out/**
+- package.json
+- build/icon.png
+extraResources:
+- from: build/license-provider.json
+  to: license-provider.json
+- from: build/license-policy.json
+  to: license-policy.json
+- from: build/更新说明.txt
+  to: 说明.txt
+- from: mods-catalog
+  to: mods-catalog
+  filter:
+  - '**/*'
+  - '!**/*.bak*'
+- from: gift-assets/douyin
+  to: gift-assets/douyin
+  filter:
+  - '**/*'
+- from: build/icon.ico
+  to: build/icon.ico
+- from: assets/emoji72
+  to: emoji72
+- from: node_modules/sql.js/dist/sql-wasm.wasm
+  to: sql.js/sql-wasm.wasm
+- from: connector-assets
+  to: connector-assets
+- from: LICENSE
+  to: LICENSE-client.txt
+- from: THIRD_PARTY_NOTICES.md
+  to: THIRD_PARTY_NOTICES.md
+win:
+  target:
+  - target: nsis
+    arch:
+    - x64
+  icon: build/icon.ico
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 知了猴整蛊台
+  artifactName: ${productName}-Setup-${version}.exe
+  uninstallDisplayName: 知了猴整蛊台
+npmRebuild: false
+releaseInfo:
+  releaseNotesFile: build/更新说明.txt

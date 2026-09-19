@@ -1,0 +1,176 @@
+{
+ "data": {
+  "gifts": [
+   {
+    "id": 16115,
+    "name": "5200",
+    "diamond_count": 299,
+    "describe": "送出5200",
+    "image": {
+     "url_list": [
+      "https://p3-webcast.douyinpic.com/img/webcast/5190023541b3042478d59e46e89a7aed.png~tplv-obj.png",
+      "https://p11-webcast.douyinpic.com/img/webcast/5190023541b3042478d59e46e89a7aed.png~tplv-obj.png"
+     ],
+     "uri": "webcast/5190023541b3042478d59e46e89a7aed.png",
+     "height": 0,
+     "width": 0,
+     "avg_color": "#FFF1EB",
+     "image_type": 0,
+     "open_web_url": "",
+     "is_animated": false,
+     "flex_setting_list": [],
+     "text_setting_list": []
+    },
+    "is_displayed_on_panel": false,
+    "gift_offline_time": 0
+   },
+   {
+    "id": 16525,
+    "name": "GG",
+    "diamond_count": 9,
+    "describe": "送出GG",
+    "image": {
+     "url_list": [
+      "https://p3-webcast.douyinpic.com/img/webcast/741bec2f173b5d96aa46154b758d11de.png~tplv-obj.png",
+      "https://p11-webcast.douyinpic.com/img/webcast/741bec2f173b5d96aa46154b758d11de.png~tplv-obj.png"
+     ],
+     "uri": "webcast/741bec2f173b5d96aa46154b758d11de.png",
+     "height": 0,
+     "width": 0,
+     "avg_color": "#EBEBFF",
+     "image_type": 0,
+     "open_web_url": "",
+     "is_animated": false,
+     "flex_setting_list": [],
+     "text_setting_list": []
+    },
+    "is_displayed_on_panel": false,
+    "gift_offline_time": 0
+   },
+   {
+    "id": 16103,
+    "name": "梅园许愿",
+    "diamond_count": 999,
+    "describe": "梅影雪色，愿得君心",
+    "image": {
+     "url_list": [
+      "https://p3-webcast.douyinpic.com/img/webcast/c8e4bd11f270055d24022a044b3cdf8f.png~tplv-obj.png",
+      "https://p11-webcast.douyinpic.com/img/webcast/c8e4bd11f270055d24022a044b3cdf8f.png~tplv-obj.png"
+     ],
+     "uri": "webcast/c8e4bd11f270055d24022a044b3cdf8f.png",
+     "height": 0,
+     "width": 0,
+     "avg_color": "#666666",
+     "image_type": 0,
+     "open_web_url": "",
+     "is_animated": false,
+     "flex_setting_list": [],
+     "text_setting_list": []
+    },
+    "is_displayed_on_panel": false,
+    "gift_offline_time": 0
+   },
+   {
+    "id": 16126,
+    "name": "惊鸿一舞",
+    "diamond_count": 1299,
+    "describe": "一舞惊鸿，满座皆惊",
+    "image": {
+     "url_list": [
+      "https://p3-webcast.douyinpic.com/img/webcast/85846d05831cad4d35fef30e40e77790.png~tplv-obj.png",
+      "https://p11-webcast.douyinpic.com/img/webcast/85846d05831cad4d35fef30e40e77790.png~tplv-obj.png"
+     ],
+     "uri": "webcast/85846d05831cad4d35fef30e40e77790.png",
+     "height": 0,
+     "width": 0,
+     "avg_color": "#89A37C",
+     "image_type": 0,
+     "open_web_url": "",
+     "is_animated": false,
+     "flex_setting_list": [],
+     "text_setting_list": []
+    },
+    "is_displayed_on_panel": false,
+    "gift_offline_time": 0
+   },
+   {
+    "id": 16127,
+    "name": "熹妃回宫",
+    "diamond_count": 1599,
+    "describe": "熹妃回宫，锋芒再现",
+    "image": {
+     "url_list": [
+      "https://p3-webcast.douyinpic.com/img/webcast/3557d52f1b408c3ff15aa227a5ea4423.png~tplv-obj.png",
+      "https://p11-webcast.douyinpic.com/img/webcast/3557d52f1b408c3ff15aa227a5ea4423.png~tplv-obj.png"
+     ],
+     "uri": "webcast/3557d52f1b408c3ff15aa227a5ea4423.png",
+     "height": 0,
+     "width": 0,
+     "avg_color": "#A3C4CC",
+     "image_type": 0,
+     "open_web_url": "",
+     "is_animated": false,
+     "flex_setting_list": [],
+     "text_setting_list": []
+    },
+    "is_displayed_on_panel": false,
+    "gift_offline_time": 0
+   },
+   {
+    "id": 16045,
+    "name": "踏雪红梅",
+    "diamond_count": 3500,
+    "describe": "送出踏雪红梅",
+    "image": {
+     "url_list": [
+      "https://p3-webcast.douyinpic.com/img/webcast/36efcecd47ec508aa00678adf0ad1839.png~tplv-obj.png",
+      "https://p11-webcast.douyinpic.com/img/webcast/36efcecd47ec508aa00678adf0ad1839.png~tplv-obj.png"
+     ],
+     "uri": "webcast/36efcecd47ec508aa00678adf0ad1839.png",
+     "height": 0,
+     "width": 0,
+     "avg_color": "#C8E0BC",
+     "image_type": 0,
+     "open_web_url": "",
+     "is_animated": false,
+     "flex_setting_list": [],
+     "text_setting_list": []
+    },
+    "is_displayed_on_panel": false,
+    "gift_offline_time": 0
+   }
+  ],
+  "pages": [
+   {
+    "page_type": 1,
+    "page_name": "热门",
+    "gifts": [
+     {
+      "id": 16103,
+      "name": "梅园许愿",
+      "diamond_count": 999,
+      "image": {
+       "url_list": [
+        "https://p3-webcast.douyinpic.com/img/webcast/c8e4bd11f270055d24022a044b3cdf8f.png~tplv-obj.png",
+        "https://p11-webcast.douyinpic.com/img/webcast/c8e4bd11f270055d24022a044b3cdf8f.png~tplv-obj.png"
+       ],
+       "uri": "webcast/c8e4bd11f270055d24022a044b3cdf8f.png",
+       "height": 0,
+       "width": 0,
+       "avg_color": "#666666",
+       "image_type": 0,
+       "open_web_url": "",
+       "is_animated": false,
+       "flex_setting_list": [],
+       "text_setting_list": []
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "extra": {
+  "now": 1788704942970
+ },
+ "status_code": 0
+}

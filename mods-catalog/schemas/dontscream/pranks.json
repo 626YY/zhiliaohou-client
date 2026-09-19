@@ -1,0 +1,530 @@
+[
+  {
+    "id": "lunge",
+    "name": "突脸暴击",
+    "cat": "贴脸暴击",
+    "danger": false
+  },
+  {
+    "id": "bridecam",
+    "name": "冥婚贴脸",
+    "cat": "贴脸暴击",
+    "danger": false
+  },
+  {
+    "id": "mummycam",
+    "name": "木乃伊糊脸",
+    "cat": "贴脸暴击",
+    "danger": false
+  },
+  {
+    "id": "banshee",
+    "name": "女妖尖啸",
+    "cat": "贴脸暴击",
+    "danger": false
+  },
+  {
+    "id": "zombiegirl",
+    "name": "尸妹贴脸",
+    "cat": "贴脸暴击",
+    "danger": false
+  },
+  {
+    "id": "mutant",
+    "name": "变异体冲脸",
+    "cat": "贴脸暴击",
+    "danger": false
+  },
+  {
+    "id": "paracreature",
+    "name": "异形突袭",
+    "cat": "贴脸暴击",
+    "danger": false
+  },
+  {
+    "id": "zombiecam",
+    "name": "僵尸糊脸",
+    "cat": "贴脸暴击",
+    "danger": false
+  },
+  {
+    "id": "spidercam",
+    "name": "蜘蛛糊脸",
+    "cat": "贴脸暴击",
+    "danger": false
+  },
+  {
+    "id": "mummyrun",
+    "name": "木乃伊扑脸",
+    "cat": "冲脸狂奔",
+    "danger": false
+  },
+  {
+    "id": "drownedrun",
+    "name": "溺亡女扑脸",
+    "cat": "冲脸狂奔",
+    "danger": false
+  },
+  {
+    "id": "sprint",
+    "name": "亡命狂奔",
+    "cat": "冲脸狂奔",
+    "danger": false
+  },
+  {
+    "id": "witch",
+    "name": "烧焦女巫",
+    "cat": "冲脸狂奔",
+    "danger": false
+  },
+  {
+    "id": "vampire",
+    "name": "吸血鬼",
+    "cat": "冲脸狂奔",
+    "danger": false
+  },
+  {
+    "id": "zombiegirlrun",
+    "name": "尸妹冲刺",
+    "cat": "冲脸狂奔",
+    "danger": false
+  },
+  {
+    "id": "zombierun",
+    "name": "丧尸狂奔",
+    "cat": "冲脸狂奔",
+    "danger": false
+  },
+  {
+    "id": "moosedash",
+    "name": "驼鹿冲撞",
+    "cat": "冲脸狂奔",
+    "danger": false
+  },
+  {
+    "id": "monster",
+    "name": "召唤猎人",
+    "cat": "猎人追杀",
+    "danger": true
+  },
+  {
+    "id": "clown",
+    "name": "小丑追杀",
+    "cat": "猎人追杀",
+    "danger": true
+  },
+  {
+    "id": "bear",
+    "name": "黑熊出没",
+    "cat": "猎人追杀",
+    "danger": true
+  },
+  {
+    "id": "executioner",
+    "name": "刽子手",
+    "cat": "猎人追杀",
+    "danger": true
+  },
+  {
+    "id": "satanic",
+    "name": "邪教徒",
+    "cat": "猎人追杀",
+    "danger": true
+  },
+  {
+    "id": "scorpion",
+    "name": "巨蝎逼近",
+    "cat": "猎人追杀",
+    "danger": true
+  },
+  {
+    "id": "flyingbug",
+    "name": "飞虫扑面",
+    "cat": "猎人追杀",
+    "danger": true
+  },
+  {
+    "id": "hangdrop",
+    "name": "天降吊尸",
+    "cat": "坠落突袭",
+    "danger": true
+  },
+  {
+    "id": "scabies",
+    "name": "爆体而亡",
+    "cat": "坠落突袭",
+    "danger": false
+  },
+  {
+    "id": "bodyparts",
+    "name": "碎尸满天飞",
+    "cat": "坠落突袭",
+    "danger": false
+  },
+  {
+    "id": "planeengine",
+    "name": "引擎坠地",
+    "cat": "坠落突袭",
+    "danger": false
+  },
+  {
+    "id": "zombieinvis",
+    "name": "隐形尸影",
+    "cat": "鬼女怨灵",
+    "danger": false
+  },
+  {
+    "id": "ghostcrawl",
+    "name": "反关节爬行",
+    "cat": "鬼女怨灵",
+    "danger": false
+  },
+  {
+    "id": "ghostwalk",
+    "name": "诡步鬼女",
+    "cat": "鬼女怨灵",
+    "danger": false
+  },
+  {
+    "id": "ghoststalk",
+    "name": "阴魂不散",
+    "cat": "鬼女怨灵",
+    "danger": false
+  },
+  {
+    "id": "headless",
+    "name": "无头女尾随",
+    "cat": "鬼女怨灵",
+    "danger": false
+  },
+  {
+    "id": "agony",
+    "name": "痛苦哀嚎",
+    "cat": "鬼女怨灵",
+    "danger": false
+  },
+  {
+    "id": "invisstalk",
+    "name": "隐形尾随者",
+    "cat": "鬼女怨灵",
+    "danger": false
+  },
+  {
+    "id": "playerghost",
+    "name": "你自己的鬼魂",
+    "cat": "鬼女怨灵",
+    "danger": false
+  },
+  {
+    "id": "bridecry",
+    "name": "泣血新娘",
+    "cat": "冥婚新娘",
+    "danger": false
+  },
+  {
+    "id": "bridescream",
+    "name": "新娘悲鸣",
+    "cat": "冥婚新娘",
+    "danger": false
+  },
+  {
+    "id": "mummycrawl",
+    "name": "木乃伊爬行",
+    "cat": "爬行尾随",
+    "danger": false
+  },
+  {
+    "id": "spidera",
+    "name": "大蜘蛛",
+    "cat": "爬行尾随",
+    "danger": false
+  },
+  {
+    "id": "spiderb",
+    "name": "蛛群逼近",
+    "cat": "爬行尾随",
+    "danger": false
+  },
+  {
+    "id": "bloodycrawl",
+    "name": "血女爬行",
+    "cat": "爬行尾随",
+    "danger": false
+  },
+  {
+    "id": "bloodyfast",
+    "name": "血女疾爬",
+    "cat": "爬行尾随",
+    "danger": false
+  },
+  {
+    "id": "mummyarmy",
+    "name": "木乃伊军团",
+    "cat": "群魔乱舞",
+    "danger": false
+  },
+  {
+    "id": "drowned",
+    "name": "溺亡女",
+    "cat": "诡异伫立",
+    "danger": false
+  },
+  {
+    "id": "npc",
+    "name": "神秘人影",
+    "cat": "诡异伫立",
+    "danger": false
+  },
+  {
+    "id": "oldwitch",
+    "name": "老巫婆破土",
+    "cat": "诡异伫立",
+    "danger": false
+  },
+  {
+    "id": "scarecrow",
+    "name": "稻草人",
+    "cat": "诡异伫立",
+    "danger": false
+  },
+  {
+    "id": "astronaut",
+    "name": "深空来客",
+    "cat": "诡异伫立",
+    "danger": false
+  },
+  {
+    "id": "statue",
+    "name": "会动的石像",
+    "cat": "诡异伫立",
+    "danger": false
+  },
+  {
+    "id": "mart1",
+    "name": "便利店怪客",
+    "cat": "诡异伫立",
+    "danger": false
+  },
+  {
+    "id": "deadman",
+    "name": "地上的尸体",
+    "cat": "诡异伫立",
+    "danger": false
+  },
+  {
+    "id": "owl",
+    "name": "猫头鹰掠过",
+    "cat": "动物搞笑",
+    "danger": false
+  },
+  {
+    "id": "pig",
+    "name": "背后猪",
+    "cat": "动物搞笑",
+    "danger": false
+  },
+  {
+    "id": "fox",
+    "name": "背后狐狸",
+    "cat": "动物搞笑",
+    "danger": false
+  },
+  {
+    "id": "ufo",
+    "name": "不明飞行物",
+    "cat": "动物搞笑",
+    "danger": false
+  },
+  {
+    "id": "teddy",
+    "name": "泰迪熊狂奔",
+    "cat": "动物搞笑",
+    "danger": false
+  },
+  {
+    "id": "cart",
+    "name": "自走购物车",
+    "cat": "道具异象",
+    "danger": false
+  },
+  {
+    "id": "door",
+    "name": "凭空一扇门",
+    "cat": "道具异象",
+    "danger": false
+  },
+  {
+    "id": "well",
+    "name": "古井无波",
+    "cat": "道具异象",
+    "danger": false
+  },
+  {
+    "id": "ball",
+    "name": "滚过来的球",
+    "cat": "道具异象",
+    "danger": false
+  },
+  {
+    "id": "camper",
+    "name": "荒野露营车",
+    "cat": "道具异象",
+    "danger": false
+  },
+  {
+    "id": "cassette",
+    "name": "自动播放的录音机",
+    "cat": "道具异象",
+    "danger": false
+  },
+  {
+    "id": "scream",
+    "name": "凄厉尖叫",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "strangesound",
+    "name": "怪声",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "baby",
+    "name": "婴儿啼哭",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "alien",
+    "name": "外星尖啸",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "demon",
+    "name": "恶魔咆哮",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "groan",
+    "name": "低沉呻吟",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "shriek",
+    "name": "刺耳尖叫",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "whispers",
+    "name": "耳边低语",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "breath",
+    "name": "耳后喘息",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "knock",
+    "name": "砸门声",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "insect",
+    "name": "虫爬耳道",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "thunder",
+    "name": "炸雷",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "twig",
+    "name": "有人踩断了树枝",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "twigbig",
+    "name": "身后大响",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "branches",
+    "name": "树丛炸响",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "rustle",
+    "name": "草丛窸窣",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "voices",
+    "name": "林中人语",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "movement",
+    "name": "有东西在动",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "wind",
+    "name": "阴风",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "creaks",
+    "name": "木头吱呀",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "interior",
+    "name": "屋里有动静",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "intmove",
+    "name": "隔壁有人走",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "daytime",
+    "name": "白日异响",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "random",
+    "name": "随机惊吓",
+    "cat": "声音惊吓",
+    "danger": false
+  },
+  {
+    "id": "blindbox",
+    "name": "惊吓盲盒",
+    "cat": "盲盒",
+    "danger": false
+  }
+]

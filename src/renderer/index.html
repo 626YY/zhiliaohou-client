@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>知了猴整蛊台</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: http://localhost:*"
+    />
+    <script>
+      // 应用加载前先按本地偏好设好主题，避免选白天/米色的用户启动时闪一下黑色
+      ;(function () {
+        try {
+          var m = localStorage.getItem('zl-theme') || 'auto'
+          var h = new Date().getHours()
+          var eff = m === 'auto' ? (h >= 6 && h < 18 ? 'light' : 'dark') : m
+          if (eff === 'dark' || eff === 'light' || eff === 'cream') {
+            document.documentElement.dataset.theme = eff
+          }
+        } catch (e) {}
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

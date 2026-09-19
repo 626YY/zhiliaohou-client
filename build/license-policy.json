@@ -1,0 +1,5 @@
+{
+  "enforce": false,
+  "since": "2026-09-19",
+  "note": "2026-09-19 起暂停卡密检查：平台连不上就断授权太影响直播，先全部免检；要恢复时往更新源放一份 enforce=true 的 license-policy.json 或发新版客户端"
+}

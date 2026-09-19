@@ -1,0 +1,6 @@
+Twemoji graphics
+Source: https://github.com/jdecked/twemoji (originally twitter/twemoji)
+Copyright: Twitter, Inc. and Twemoji contributors.
+License: Creative Commons Attribution 4.0 International (CC-BY-4.0).
+The full license is provided in LICENSE-GRAPHICS.txt.
+The application renders the supplied graphics as emoji; no ownership of the original artwork is claimed.

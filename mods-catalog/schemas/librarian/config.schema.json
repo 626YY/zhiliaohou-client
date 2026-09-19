@@ -1,0 +1,379 @@
+{
+  "version": "1.1.0",
+  "groups": [
+    {
+      "id": "spell",
+      "name": "法术设置"
+    },
+    {
+      "id": "live",
+      "name": "直播互动"
+    },
+    {
+      "id": "state",
+      "name": "主播状态"
+    },
+    {
+      "id": "boss",
+      "name": "Boss 与新整蛊"
+    },
+    {
+      "id": "shelf",
+      "name": "整理与成就"
+    }
+  ],
+  "fields": [
+    {
+      "key": "Cooldown",
+      "label": "法术冷却（秒）",
+      "type": "number",
+      "group": "spell",
+      "default": 0.5,
+      "min": 0,
+      "desc": "两次法术之间的最小间隔，防止刷屏卡死。"
+    },
+    {
+      "key": "NukeQuits",
+      "label": "炸毁游戏真退出",
+      "type": "boolean",
+      "group": "spell",
+      "default": true,
+      "desc": "打开后「爱的爆炸」会播完炸毁动画再退出游戏；关掉则只演不退。"
+    },
+    {
+      "key": "LikeBoxEnabled",
+      "label": "点赞开盲盒",
+      "type": "boolean",
+      "group": "live",
+      "default": true,
+      "desc": "点赞攒满阈值后开启禁书盲盒。"
+    },
+    {
+      "key": "LikeBoxThreshold",
+      "label": "点赞开盒阈值",
+      "type": "number",
+      "group": "live",
+      "default": 200,
+      "min": 10,
+      "desc": "攒满这么多赞开一盒。批量点赞按商+余数压批，最多连开 3 盒。"
+    },
+    {
+      "key": "FollowBoxEnabled",
+      "label": "关注开盲盒",
+      "type": "boolean",
+      "group": "live",
+      "default": true,
+      "desc": "新关注开一盒；每日次数见下方。"
+    },
+    {
+      "key": "FollowBoxDaily",
+      "label": "关注开盒每日上限",
+      "type": "number",
+      "group": "live",
+      "default": 1,
+      "min": 0,
+      "desc": "每天最多因关注开几盒。0 = 关闭。超出只欢迎不开盒。"
+    },
+    {
+      "key": "BadgeBoxEnabled",
+      "label": "灯牌/粉丝团开盲盒",
+      "type": "boolean",
+      "group": "live",
+      "default": true,
+      "desc": "灯牌或粉丝团进场开一盒。"
+    },
+    {
+      "key": "BadgeBoxDaily",
+      "label": "灯牌开盒每日上限",
+      "type": "number",
+      "group": "live",
+      "default": 1,
+      "min": 0,
+      "desc": "每天最多因灯牌/粉丝团开几盒。0 = 关闭。"
+    },
+    {
+      "key": "SignGifts",
+      "label": "灵魂印记礼物",
+      "type": "list",
+      "group": "live",
+      "default": [
+        "粉丝团灯牌",
+        "人气票"
+      ],
+      "desc": "这些礼物会把观众名字写到书上。"
+    },
+    {
+      "key": "BoxExclude",
+      "label": "盲盒里包含的法术",
+      "type": "list",
+      "group": "live",
+      "default": [
+        "descend",
+        "berserk",
+        "scramble",
+        "bookrain",
+        "purify",
+        "shield",
+        "nuke"
+      ],
+      "desc": "勾上=点赞/关注/灯牌盲盒能抽到；取消=排除。自定义盲盒用各自奖池。",
+      "prankPicker": true
+    },
+    {
+      "key": "SlowSelfMul",
+      "label": "蜗牛诅咒倍率",
+      "type": "number",
+      "group": "state",
+      "default": 0.45,
+      "min": 0.1,
+      "max": 1,
+      "desc": "主播移动/动作速度乘数。越小越慢。"
+    },
+    {
+      "key": "SlowSelfDur",
+      "label": "蜗牛诅咒时长（秒）",
+      "type": "number",
+      "group": "state",
+      "default": 12,
+      "min": 1,
+      "desc": "蜗牛诅咒持续秒数。净化可提前解除。"
+    },
+    {
+      "key": "HastenMul",
+      "label": "疾风祝福倍率",
+      "type": "number",
+      "group": "state",
+      "default": 1.35,
+      "min": 1,
+      "max": 3,
+      "desc": "主播加速乘数。"
+    },
+    {
+      "key": "HastenDur",
+      "label": "疾风祝福时长（秒）",
+      "type": "number",
+      "group": "state",
+      "default": 12,
+      "min": 1,
+      "desc": "疾风祝福持续秒数。"
+    },
+    {
+      "key": "FreezeDur",
+      "label": "定身术时长（秒）",
+      "type": "number",
+      "group": "state",
+      "default": 3,
+      "min": 0.5,
+      "desc": "主播完全停住的秒数。"
+    },
+    {
+      "key": "BossDur",
+      "label": "书灵暴动时长（秒）",
+      "type": "number",
+      "group": "boss",
+      "default": 60,
+      "min": 10,
+      "max": 300,
+      "desc": "一场暴动持续多久。期间每隔一段时间就有一波书掠射镜头，结束自动净化收场。"
+    },
+    {
+      "key": "BossWaveGap",
+      "label": "暴动波间隔（秒）",
+      "type": "number",
+      "group": "boss",
+      "default": 3,
+      "min": 1,
+      "max": 15,
+      "desc": "两波书之间隔多久。调小＝更密集更紧张。"
+    },
+    {
+      "key": "BossWaveBooks",
+      "label": "每波书数",
+      "type": "number",
+      "group": "boss",
+      "default": 8,
+      "min": 2,
+      "max": 30,
+      "desc": "一波从书架上卷起多少本书掠过镜头。"
+    },
+    {
+      "key": "BossExtendSec",
+      "label": "暴动加时（秒）",
+      "type": "number",
+      "group": "boss",
+      "default": 20,
+      "min": 5,
+      "max": 120,
+      "desc": "暴动进行中又收到同款礼物时，延长多少秒并补排波次。"
+    },
+    {
+      "key": "ChandelierDur",
+      "label": "吊灯魅影时长（秒）",
+      "type": "number",
+      "group": "boss",
+      "default": 8,
+      "min": 2,
+      "max": 60,
+      "desc": "全馆灯光烧成紫色持续多久，到点自动还原。"
+    },
+    {
+      "key": "ChandelierLights",
+      "label": "吊灯魅影影响灯数",
+      "type": "number",
+      "group": "boss",
+      "default": 40,
+      "min": 4,
+      "max": 200,
+      "desc": "最多改多少盏灯。调大更震撼，过大可能掉帧。"
+    },
+    {
+      "key": "WhisperLines",
+      "label": "禁书低语条数",
+      "type": "number",
+      "group": "boss",
+      "default": 5,
+      "min": 2,
+      "max": 10,
+      "desc": "滚多少条伪书名。每条约 1.5 秒。"
+    },
+    {
+      "key": "SealGateDur",
+      "label": "封印之门时长（秒）",
+      "type": "number",
+      "group": "boss",
+      "default": 6,
+      "min": 2,
+      "max": 30,
+      "desc": "封门期间主播的技能栏一并被封住。"
+    },
+    {
+      "key": "EscortBooks",
+      "label": "灵书护送本数",
+      "type": "number",
+      "group": "boss",
+      "default": 3,
+      "min": 1,
+      "max": 20,
+      "desc": "红粉技：多少本散书自己飞回书架（走游戏原生归架动画）。"
+    },
+    {
+      "key": "ResonanceMax",
+      "label": "同类共鸣最多发光本数",
+      "type": "number",
+      "group": "boss",
+      "default": 40,
+      "min": 4,
+      "max": 200,
+      "desc": "同系列的书一起呼吸发光，最多点亮多少本。"
+    },
+    {
+      "key": "HarvestGapSec",
+      "label": "收获最小间隔（秒）",
+      "type": "number",
+      "group": "shelf",
+      "default": 5,
+      "min": 1,
+      "max": 30,
+      "desc": "两架「整理完成」之间至少隔这么久，字幕读得完，也避免连环收获。"
+    },
+    {
+      "key": "ShelfGlow",
+      "label": "整架金光",
+      "type": "boolean",
+      "group": "shelf",
+      "default": true,
+      "desc": "整理满一架时给那个书架打一盏暖金逆光并放金光粒子。"
+    },
+    {
+      "key": "ShelfGlowIntensity",
+      "label": "金光亮度",
+      "type": "number",
+      "group": "shelf",
+      "default": 9000,
+      "min": 500,
+      "max": 50000,
+      "desc": "逆光的强度。嫌刺眼就调小。"
+    },
+    {
+      "key": "ShelfGlowRadius",
+      "label": "金光半径",
+      "type": "number",
+      "group": "shelf",
+      "default": 460,
+      "min": 120,
+      "max": 2000,
+      "desc": "光照范围。调大会照亮旁边的书架。"
+    },
+    {
+      "key": "ShelfGlowVfxScale",
+      "label": "金光粒子大小",
+      "type": "number",
+      "group": "shelf",
+      "default": 1.6,
+      "min": 0.2,
+      "max": 6,
+      "desc": "金光脉冲粒子的尺寸倍率。"
+    },
+    {
+      "key": "AchieveEnabled",
+      "label": "开启成就",
+      "type": "boolean",
+      "group": "shelf",
+      "default": true,
+      "desc": "达成里程碑时用金色大字幕播报，跨重启不重复。"
+    },
+    {
+      "key": "AchievePrankTotal",
+      "label": "成就·百人斩阈值",
+      "type": "number",
+      "group": "shelf",
+      "default": 100,
+      "min": 1,
+      "desc": "累计被整蛊多少次解锁「百人斩」。"
+    },
+    {
+      "key": "AchieveScrambleBooks",
+      "label": "成就·图书馆没了阈值",
+      "type": "number",
+      "group": "shelf",
+      "default": 100,
+      "min": 1,
+      "desc": "单次大乱序卷走多少本解锁「图书馆没了」。"
+    },
+    {
+      "key": "AchieveRestoredTotal",
+      "label": "成就·秩序重建阈值",
+      "type": "number",
+      "group": "shelf",
+      "default": 10000,
+      "min": 1,
+      "desc": "净化累计归架多少本解锁「秩序重建」。"
+    },
+    {
+      "key": "AchieveLikesTotal",
+      "label": "成就·人气之星阈值",
+      "type": "number",
+      "group": "shelf",
+      "default": 10000,
+      "min": 1,
+      "desc": "累计点赞多少解锁「人气之星」。"
+    },
+    {
+      "key": "RecordSaneMax",
+      "label": "整理纪录单分钟上限",
+      "type": "number",
+      "group": "shelf",
+      "default": 240,
+      "min": 10,
+      "max": 3000,
+      "desc": "一分钟归架超过这个数就判定为净化的批量还账，不计入主播的整理纪录。"
+    },
+    {
+      "key": "ShinraHoldSec",
+      "label": "神罗天征力场时长",
+      "type": "number",
+      "default": 6,
+      "desc": "爆发后一波波继续掀书、把主播托在半空的秒数。"
+    }
+  ]
+}

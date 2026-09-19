@@ -1,0 +1,198 @@
+{
+  "version": "1.0.0",
+  "groups": [
+    {
+      "id": "scare",
+      "name": "惊吓设置"
+    },
+    {
+      "id": "screen",
+      "name": "画面提示"
+    },
+    {
+      "id": "box",
+      "name": "盲盒"
+    }
+  ],
+  "fields": [
+    {
+      "key": "ScareDuration",
+      "label": "惊吓停留秒数",
+      "type": "number",
+      "group": "scare",
+      "default": 8,
+      "desc": "视觉惊吓（窥视者/假人/鬼手/猎人）在场停留时长（秒），时间到自动消失。音频惊吓播完自动消失，不受此影响。"
+    },
+    {
+      "key": "Cooldown",
+      "label": "触发冷却（秒）",
+      "type": "number",
+      "group": "scare",
+      "default": 2,
+      "desc": "两次惊吓之间的最小间隔，防止被刷屏。"
+    },
+    {
+      "key": "QueueMax",
+      "label": "惊吓排队上限",
+      "type": "number",
+      "group": "scare",
+      "default": 20,
+      "min": 1,
+      "max": 30,
+      "desc": "观众礼物成串来的时候，冷却中的惊吓先排队，按冷却节奏一个个放；超过这个数才丢弃。"
+    },
+    {
+      "key": "MaxRepeatPerGift",
+      "label": "单个礼物最多连发",
+      "type": "number",
+      "group": "scare",
+      "default": 3,
+      "min": 1,
+      "max": 10,
+      "desc": "同一个礼物一次刷 N 个时，最多连着吓几次，防止一个人刷屏把节奏占满。"
+    },
+    {
+      "key": "HunterDistance",
+      "label": "猎人显形距离",
+      "type": "number",
+      "group": "scare",
+      "default": 400,
+      "min": 150,
+      "max": 1500,
+      "desc": "跑车级礼物：猎人在主播正前方多远处面朝主播凭空显形。越近越吓人，太近会卡在障碍里。"
+    },
+    {
+      "key": "HunterLungeCombo",
+      "label": "猎人接突脸二连",
+      "type": "boolean",
+      "group": "scare",
+      "default": true,
+      "desc": "猎人显形 1.5 秒后自动接一记木乃伊突脸+镜头冲击（二连击）。"
+    },
+    {
+      "key": "HunterDuration",
+      "label": "猎人追杀时长（秒）",
+      "type": "number",
+      "group": "scare",
+      "default": 10,
+      "min": 3,
+      "max": 60,
+      "desc": "召唤猎人和 6 种追杀猎人（小丑/黑熊/刽子手/邪教徒/巨蝎/飞虫）出现后多久自动消失。"
+    },
+    {
+      "key": "HunterStopDistance",
+      "label": "猎人追到多近收走",
+      "type": "number",
+      "group": "scare",
+      "default": 220,
+      "min": 60,
+      "max": 800,
+      "desc": "追杀猎人逼近到离主播这么近（游戏单位，100≈1 米）就自动消失，有惊无险。"
+    },
+    {
+      "key": "HunterLethal",
+      "label": "猎人真的能抓到主播",
+      "type": "boolean",
+      "group": "scare",
+      "default": false,
+      "desc": "开：追杀猎人不再自动收走，追上就按游戏规则抓人（会直接进「你被追杀」结算，一局结束）。关：追到「收走距离」就消失。"
+    },
+    {
+      "key": "RenderDiag",
+      "label": "记录惊吓是否出现在画面里",
+      "type": "boolean",
+      "group": "scare",
+      "default": true,
+      "desc": "开：每次召唤后在日志里记下这个惊吓有没有真的画到主播屏幕上、离镜头多远，方便排查「送了礼没反应」。"
+    },
+    {
+      "key": "RealtimeFallback",
+      "label": "手动惊吓不等总监",
+      "type": "boolean",
+      "group": "scare",
+      "default": true,
+      "desc": "开：主播已在场景里时，尖叫 / 窥视者 / 鬼手 / 假人 / 猎人这类手动惊吓不等游戏的惊吓总监、立刻放；木乃伊冲脸、溺亡女、狂奔等总监类惊吓仍等找到总监再放，绝不换成别的惊吓。关：全部惊吓都等总监。主菜单 / 加载中（没有人物）时一律挂起，进关卡后补放。"
+    },
+    {
+      "key": "PendingMax",
+      "label": "未进关卡时最多挂起几条",
+      "type": "number",
+      "group": "scare",
+      "default": 20,
+      "desc": "主播还在主菜单或加载中时收到的礼物先挂起，进关卡后按冷却节奏补放。0 = 不挂起，直接放弃。"
+    },
+    {
+      "key": "PendingHoldSec",
+      "label": "挂起最多等多少秒",
+      "type": "number",
+      "group": "scare",
+      "default": 600,
+      "desc": "挂起的礼物超过这个时间还没进关卡就丢掉（不再补放），避免开播很久之后突然冒出一堆旧惊吓。"
+    },
+    {
+      "key": "ScreenHints",
+      "label": "游戏画面里显示提示",
+      "type": "boolean",
+      "group": "screen",
+      "default": true,
+      "desc": "开：进关卡时游戏画面左上角显示「知了猴整蛊器已加载」和快捷键；还没进森林就按快捷键或收到礼物，会提示「进森林后自动放」。画面上有字就说明整蛊器在正常工作。关：画面上不显示任何提示。"
+    },
+    {
+      "key": "ScreenHintFontSize",
+      "label": "提示字号",
+      "type": "number",
+      "group": "screen",
+      "default": 28,
+      "min": 10,
+      "max": 96,
+      "desc": "画面提示文字的大小。"
+    },
+    {
+      "key": "ScreenHintSec",
+      "label": "「已加载」提示停留秒数",
+      "type": "number",
+      "group": "screen",
+      "default": 8,
+      "min": 1,
+      "max": 60,
+      "desc": "进关卡时那条「已加载」提示显示多少秒后自动消失。"
+    },
+    {
+      "key": "ScreenHintX",
+      "label": "提示横向位置（像素）",
+      "type": "number",
+      "group": "screen",
+      "default": 24,
+      "min": 0,
+      "max": 4000,
+      "desc": "提示文字左上角离画面左边的距离。"
+    },
+    {
+      "key": "ScreenHintY",
+      "label": "提示纵向位置（像素）",
+      "type": "number",
+      "group": "screen",
+      "default": 24,
+      "min": 0,
+      "max": 4000,
+      "desc": "提示文字左上角离画面上边的距离。"
+    },
+    {
+      "key": "BoxExclude",
+      "label": "大盲盒里包含的惊吓",
+      "type": "list",
+      "group": "box",
+      "default": [],
+      "desc": "勾上=内置大盲盒（整蛊台「内置大盲盒」按钮、礼物映射到「惊吓盲盒」）能抽到；取消=排除。猎人 / 致命类本来就不进大盲盒。自定义盲盒用各自奖池。",
+      "prankPicker": true
+    },
+    {
+      "key": "BoxAnnounce",
+      "label": "开盒时画面提示开出了什么",
+      "type": "boolean",
+      "group": "box",
+      "default": true,
+      "desc": "开盒时在游戏画面上显示「开启 xx 盲盒：突脸暴击、女妖尖啸」"
+    }
+  ]
+}

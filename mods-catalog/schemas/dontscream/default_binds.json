@@ -1,0 +1,23 @@
+{
+  "menu": "F1",
+  "leaderboard": "BackQuote",
+  "binds": {
+    "lunge": "F4",
+    "scream": "Keypad1",
+    "random": "Keypad2",
+    "mummyrun": "F5",
+    "drownedrun": "F6",
+    "sprint": "F7",
+    "vampire": "F8",
+    "witch": "Alpha1",
+    "mummyarmy": "Alpha2",
+    "mummycrawl": "Alpha3",
+    "drowned": "Alpha4",
+    "npc": "Alpha5",
+    "owl": "Alpha6",
+    "fox": "Alpha7",
+    "pig": "Alpha8",
+    "ufo": "Alpha9",
+    "monster": "Alpha0"
+  }
+}

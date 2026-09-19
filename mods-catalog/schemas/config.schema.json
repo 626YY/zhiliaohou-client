@@ -1,0 +1,3330 @@
+{
+  "version": "1.0.0",
+  "generatedFrom": "C:/wheellive/mod/Config.cs",
+  "generatedAt": "2026-09-06",
+  "groups": [
+    {
+      "id": "system",
+      "name": "系统与音效"
+    },
+    {
+      "id": "protect",
+      "name": "护体与防死"
+    },
+    {
+      "id": "prank-rocket",
+      "name": "整蛊·火箭与爆炸"
+    },
+    {
+      "id": "prank-duck",
+      "name": "整蛊·鸭子"
+    },
+    {
+      "id": "prank-thunder",
+      "name": "整蛊·雷电与禁锢"
+    },
+    {
+      "id": "prank-thrust",
+      "name": "整蛊·速度与推力"
+    },
+    {
+      "id": "prank-scale",
+      "name": "整蛊·体型缩放"
+    },
+    {
+      "id": "prank-fx",
+      "name": "整蛊·黑科技"
+    },
+    {
+      "id": "record",
+      "name": "纪录与计数"
+    },
+    {
+      "id": "hud",
+      "name": "显示与界面"
+    },
+    {
+      "id": "board",
+      "name": "观众榜与界面"
+    },
+    {
+      "id": "live",
+      "name": "直播互动"
+    },
+    {
+      "id": "work",
+      "name": "上班打卡"
+    },
+    {
+      "id": "multi",
+      "name": "联机"
+    }
+  ],
+  "fields": [
+    {
+      "key": "MenuKey",
+      "label": "菜单键",
+      "type": "string",
+      "group": "system",
+      "default": "F1",
+      "hidden": true,
+      "desc": "打开整蛊器菜单的按键"
+    },
+    {
+      "key": "Enabled",
+      "label": "整蛊器总开关",
+      "type": "boolean",
+      "group": "system",
+      "default": true,
+      "hidden": true,
+      "desc": "关掉后整蛊器不响应任何指令"
+    },
+    {
+      "key": "ShowHudMaster",
+      "label": "屏幕显示·总开关",
+      "type": "boolean",
+      "group": "hud",
+      "default": true,
+      "desc": "屏幕显示·总开关：一键藏起 mod 画的所有画面内容(公告/倒计时/榜单/送礼窗/点赞条/水印/"
+    },
+    {
+      "key": "CountDeaths",
+      "label": "死亡计数",
+      "type": "boolean",
+      "group": "record",
+      "default": true,
+      "desc": "死亡计数：可自由开关；本局计数是否在画面上常驻"
+    },
+    {
+      "key": "ShowDeathHud",
+      "label": "显示死亡计数",
+      "type": "boolean",
+      "group": "hud",
+      "default": true,
+      "hidden": true,
+      "desc": "游戏画面上显示死亡计数窗口"
+    },
+    {
+      "key": "ShowTimersHud",
+      "label": "生效中的限时整蛊",
+      "type": "boolean",
+      "group": "hud",
+      "default": true,
+      "desc": "生效中的限时整蛊（低重力/慢动作…）倒计时是否常驻画面"
+    },
+    {
+      "key": "ShowProtectHud",
+      "label": "护体状态",
+      "type": "boolean",
+      "group": "hud",
+      "default": true
+    },
+    {
+      "key": "ShowFlightHud",
+      "label": "炸飞飞行纪录",
+      "type": "boolean",
+      "group": "hud",
+      "default": true,
+      "desc": "炸飞飞行纪录（最近/最高米数）"
+    },
+    {
+      "key": "ShowStatusHud",
+      "label": "模式/在场玩家等诊断",
+      "type": "boolean",
+      "group": "hud",
+      "default": false
+    },
+    {
+      "key": "ShowSpeedHud",
+      "label": "行进速度数值面板",
+      "type": "boolean",
+      "group": "hud",
+      "default": true,
+      "desc": "行进速度数值面板(m/s)"
+    },
+    {
+      "key": "ShowHeightHud",
+      "label": "实时高度",
+      "type": "boolean",
+      "group": "hud",
+      "default": true,
+      "desc": "实时高度（相对最近安全点，站着≈0）"
+    },
+    {
+      "key": "DeathHudW",
+      "label": "死亡计数窗口大小",
+      "type": "number",
+      "group": "hud",
+      "default": 300,
+      "desc": "死亡计数窗口大小（可在布局模式右下角拖动自由放大）",
+      "hidden": true
+    },
+    {
+      "key": "DeathHudH",
+      "label": "死亡计数窗口高度",
+      "type": "number",
+      "group": "hud",
+      "default": 54,
+      "hidden": true,
+      "desc": "死亡计数窗口高度（像素）"
+    },
+    {
+      "key": "HudScale",
+      "label": "中上竖排数值",
+      "type": "number",
+      "group": "hud",
+      "default": 1,
+      "desc": "中上竖排数值(护体/倒计时/飞行/诊断)与中央公告的字号总缩放",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "ProtectStreamer",
+      "label": "护体",
+      "type": "boolean",
+      "group": "protect",
+      "default": false,
+      "desc": "护体：关闭坠落检测器，主播/全场不易死（炸飞不摔死）"
+    },
+    {
+      "key": "SoundOn",
+      "label": "整蛊特效音总开关 + 音量",
+      "type": "boolean",
+      "group": "system",
+      "default": true,
+      "desc": "整蛊特效音总开关 + 音量(0~1)。抖音整蛊那种音效/视频自带音轨都受它控制。"
+    },
+    {
+      "key": "SoundVolume",
+      "label": "特效音量",
+      "type": "number",
+      "group": "system",
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "ShowVideoFx",
+      "label": "抠绿整蛊视频叠加",
+      "type": "boolean",
+      "group": "system",
+      "default": true,
+      "desc": "抠绿整蛊视频叠加(抓鸭子/定身/传送)总开关，默认开。"
+    },
+    {
+      "key": "SmashTaunt",
+      "label": "砸打整蛊",
+      "type": "boolean",
+      "group": "prank-rocket",
+      "default": true,
+      "desc": "砸打整蛊(白菜/西瓜/锤子/拳头)命中时是否弹「不配当主播」表情包。默认开，设置里可关。"
+    },
+    {
+      "key": "SmashTauntScale",
+      "label": "「不配当主播」表情包占屏宽的比例",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 0.34,
+      "desc": "「不配当主播」表情包占屏宽的比例（可调；原来固定 0.42 偏大，主播反映挡视线，默认收小到 0.34）。",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "ShowWatermark",
+      "label": "水印",
+      "type": "boolean",
+      "group": "hud",
+      "default": true,
+      "desc": "水印(知了猴工作室)：开关 + 透明度(0~1，默认较淡)。",
+      "hidden": true
+    },
+    {
+      "key": "StuckGuardsEnabled",
+      "label": "失灵自动守护",
+      "type": "boolean",
+      "group": "protect",
+      "default": true,
+      "desc": "失灵自动守护：自动盯住并当场修好「WASD 失灵」的三种形态"
+    },
+    {
+      "key": "StuckDriveFixSec",
+      "label": "卡地·重挂驱动等待",
+      "type": "number",
+      "group": "other",
+      "default": 0.5,
+      "desc": "卡地·重挂驱动等待(秒)：有输入、四轮接地、控制器却判离地不给扭矩，持续这么多秒就重挂驱动"
+    },
+    {
+      "key": "StuckHopAfterFixes",
+      "label": "卡地·自动小跳触发次数",
+      "type": "number",
+      "group": "other",
+      "default": 2,
+      "desc": "卡地·自动小跳触发次数：重挂驱动这么多次仍反复卡(着地态一直坏，一松油门再踩又卡)就替主播小跳一下让游戏重新判着地；0=不自动跳"
+    },
+    {
+      "key": "StuckHopWindowSec",
+      "label": "卡地·自动小跳统计窗",
+      "type": "number",
+      "group": "other",
+      "default": 15,
+      "desc": "卡地·自动小跳统计窗(秒)：上面「反复卡」按多少秒内统计"
+    },
+    {
+      "key": "StuckHopVy",
+      "label": "卡地·自动小跳上抬速度",
+      "type": "number",
+      "group": "other",
+      "default": 2.6,
+      "desc": "卡地·自动小跳上抬速度(m/s)：刚够轮子离地再落回，不影响走位"
+    },
+    {
+      "key": "CrashReportEnabled",
+      "label": "崩溃留痕",
+      "type": "boolean",
+      "group": "other",
+      "default": true,
+      "desc": "崩溃留痕：游戏没正常退出时，下次启动把上一局的日志收进 Mods/WheelLive/crash/ 供客户端上传（关掉就不收）"
+    },
+    {
+      "key": "CrashReportsKeep",
+      "label": "崩溃留痕·保留份数",
+      "type": "number",
+      "group": "other",
+      "default": 5,
+      "desc": "崩溃留痕·保留份数：最多保留几份报告，多的自动删"
+    },
+    {
+      "key": "RescueHopAfterSec",
+      "label": "卡地救援阶梯·原地小跳",
+      "type": "number",
+      "group": "other",
+      "default": 5,
+      "desc": "卡地救援阶梯·原地小跳：按着方向车却一动不动持续这么多秒后，原地轻跳一下脱离碰撞卡点（不挪位置）。0=关掉这一级。"
+    },
+    {
+      "key": "RescueRebuildAfterSec",
+      "label": "卡地救援阶梯·轮组重建",
+      "type": "number",
+      "group": "other",
+      "default": 9,
+      "desc": "卡地救援阶梯·轮组重建：持续这么多秒仍不动，就重建原生轮组接地（不挪位置）。0=关掉这一级。"
+    },
+    {
+      "key": "RescueRepositionAfterSec",
+      "label": "卡地救援阶梯·回检查点",
+      "type": "number",
+      "group": "other",
+      "default": 15,
+      "desc": "卡地救援阶梯·回检查点：持续这么多秒仍不动，就走游戏自带的「复位」回最近检查点。真机实锤：连续轰炸后的卡地只有这一招能救回，小跳/重建/上提都不行，所以默认开（"
+    },
+    {
+      "key": "ShinraRadius",
+      "label": "神罗天征·冲击半径",
+      "type": "number",
+      "group": "other",
+      "default": 60,
+      "desc": "神罗天征·冲击半径（米）：以主播为中心，圈内的轮椅、鸭子、炸弹、杂物全被推开"
+    },
+    {
+      "key": "ShinraVisualRadius",
+      "label": "神罗天征·冲击波可见范围",
+      "type": "number",
+      "group": "other",
+      "default": 160,
+      "desc": "神罗天征·冲击波可见范围（米）：光环/光球壳/尘柱铺到多远，比推力半径大得多，观众看到的是铺满全场的巨浪"
+    },
+    {
+      "key": "ShinraBoomRadius",
+      "label": "神罗天征·光球爆开半径",
+      "type": "number",
+      "group": "other",
+      "default": 0,
+      "desc": "神罗天征爆发瞬间「光球爆开」的半径(米)：白炽球胀到这么大再散掉。0=自动按视觉半径的 0.9 倍。"
+    },
+    {
+      "key": "ShinraLowBoom",
+      "label": "神罗天征·爆发音用低音爆炸",
+      "type": "boolean",
+      "group": "other",
+      "default": true,
+      "desc": "神罗天征爆发音用「轰隆隆」低音爆炸(true)，还是老的导弹大爆炸+炸雷(false)。低音版=素材库里 bigboom.wav+quak"
+    },
+    {
+      "key": "ShinraPower",
+      "label": "神罗天征·推力",
+      "type": "number",
+      "group": "other",
+      "default": 40,
+      "desc": "神罗天征·推力（速度增量 m/s，越近越猛）"
+    },
+    {
+      "key": "ShinraChargeSec",
+      "label": "神罗天征·蓄力秒数",
+      "type": "number",
+      "group": "other",
+      "default": 4,
+      "desc": "神罗天征·蓄力秒数：头顶黑核从聚起到炸开的时间"
+    },
+    {
+      "key": "ShinraLines",
+      "label": "神罗天征·蓄力台词",
+      "type": "boolean",
+      "group": "other",
+      "default": false,
+      "desc": "神罗天征·蓄力台词：开=蓄力时一句句打出「一袋米要抗几楼…」，念到神罗天征爆发"
+    },
+    {
+      "key": "ShinraVoiceBurstBeforeEnd",
+      "label": "神罗天征·配音里「神罗天征」喊出口的时刻 = 音",
+      "type": "number",
+      "group": "other",
+      "default": 2.4,
+      "desc": "神罗天征·配音里「神罗天征」喊出口的时刻 = 音频结束前多少秒（换了自己的配音就按它改；爆发从这一刻开始）"
+    },
+    {
+      "key": "ShinraDeaths",
+      "label": "神罗天征·连死次数",
+      "type": "number",
+      "group": "other",
+      "default": 5,
+      "desc": "神罗天征·连死次数：爆发后被波及的人连着挂几次（屏幕大数字倒数），0=不杀只掀飞"
+    },
+    {
+      "key": "ShinraDeathGapSec",
+      "label": "真死五连",
+      "type": "number",
+      "group": "other",
+      "default": 0.15,
+      "desc": "真死五连：复活回来后停几秒再挨下一刀"
+    },
+    {
+      "key": "ShinraFastRespawnSec",
+      "label": "连死·死后几秒重开",
+      "type": "number",
+      "group": "other",
+      "default": 0.3,
+      "desc": "连死期间死后几秒就重开（无缝复活平时等 1.3 秒；越小连死越快，太小可能出空轮椅/失灵）。"
+    },
+    {
+      "key": "ShinraRealDeaths",
+      "label": "连死是否真死",
+      "type": "boolean",
+      "group": "other",
+      "default": false,
+      "desc": "连死是不是真死：false=「打击感 + 计数」（每下狠撞一记、命炸碎、计数 +1，人不真死）；true=每下都真调游戏死亡并快速复活。"
+    },
+    {
+      "key": "ShinraHitGapSec",
+      "label": "打击感模式·两下间隔秒数",
+      "type": "number",
+      "group": "other",
+      "default": 0.55,
+      "desc": "打击感模式：两下之间隔几秒。"
+    },
+    {
+      "key": "ShinraHitKick",
+      "label": "打击感模式·撞飞速度",
+      "type": "number",
+      "group": "other",
+      "default": 9,
+      "desc": "打击感模式：每下把轮椅撞飞多快(米/秒)。"
+    },
+    {
+      "key": "ShinraHitSpin",
+      "label": "打击感模式·打转速度",
+      "type": "number",
+      "group": "other",
+      "default": 8,
+      "desc": "打击感模式：每下让轮椅打转多快(弧度/秒)。"
+    },
+    {
+      "key": "ShinraChunks",
+      "label": "神罗天征·吸起的楼块数量",
+      "type": "number",
+      "group": "other",
+      "default": 0,
+      "desc": "神罗天征·吸起的楼块数量：蓄力时从地面升起悬空、爆发时被轰飞的大块"
+    },
+    {
+      "key": "ShinraWreckMap",
+      "label": "神罗天征·破坏地图",
+      "type": "boolean",
+      "group": "other",
+      "default": true,
+      "desc": "神罗天征·破坏地图：开=冲击波扫到的建筑一片片消失，终章倒计时结束时恢复"
+    },
+    {
+      "key": "ShinraWreckRadius",
+      "label": "神罗天征·摧毁范围",
+      "type": "number",
+      "group": "other",
+      "default": 100000,
+      "desc": "神罗天征·摧毁范围（米）：离爆心多远以内的建筑都会消失（地面留着）"
+    },
+    {
+      "key": "ShinraRuins",
+      "label": "神罗天征·残骸数量",
+      "type": "number",
+      "group": "other",
+      "default": 160,
+      "desc": "神罗天征·残骸数量：建筑消失处最多留多少堆废墟（终章恢复时一起收）"
+    },
+    {
+      "key": "ShinraLiftCount",
+      "label": "神罗天征·吸起多少件原生建筑",
+      "type": "number",
+      "group": "other",
+      "default": 220,
+      "desc": "神罗天征·吸起多少件原生建筑（蓄势时抬离地面悬空，爆发时轰飞）/ 在多少米内挑"
+    },
+    {
+      "key": "ShinraLiftRadius",
+      "label": "神罗天征·吸起建筑的范围",
+      "type": "number",
+      "group": "other",
+      "default": 160,
+      "desc": "神罗天征·吸起建筑的范围（米）：蓄势时在主播多少米内挑原生建筑抬起来"
+    },
+    {
+      "key": "ShinraResetSec",
+      "label": "神罗天征·终章倒计时",
+      "type": "number",
+      "group": "other",
+      "default": 30,
+      "desc": "神罗天征·终章倒计时（秒）：特效发完后大数字倒数，然后重回第一关、地图恢复；0=不重回，只恢复地图"
+    },
+    {
+      "key": "ShinraHoldSec",
+      "label": "神罗天征·力场持续秒数",
+      "type": "number",
+      "group": "other",
+      "default": 6,
+      "desc": "神罗天征·力场持续秒数：爆发后主播被托在高空、地面一波波光环往外推、联机对手被持续推开的时间"
+    },
+    {
+      "key": "ShinraHoverHeight",
+      "label": "神罗天征·悬停高度",
+      "type": "number",
+      "group": "other",
+      "default": 24,
+      "desc": "神罗天征·悬停高度（米）：力场期把主播托在离地多高"
+    },
+    {
+      "key": "ShinraLethal",
+      "label": "神罗天征·是否致命",
+      "type": "boolean",
+      "group": "other",
+      "default": false,
+      "desc": "神罗天征·是否致命：开=圈心正中会击杀主播（默认关，只掀飞）"
+    },
+    {
+      "key": "MegaHoleScale",
+      "label": "巨型黑洞·倍率",
+      "type": "number",
+      "group": "other",
+      "default": 10,
+      "desc": "巨型黑洞·倍率：相对普通黑洞的体积/吸力/范围/炸开威力倍数，吸取时间也拉长"
+    },
+    {
+      "key": "MegaHolePullMul",
+      "label": "巨型黑洞·吸取时长倍数",
+      "type": "number",
+      "group": "other",
+      "default": 3,
+      "desc": "巨型黑洞·吸取时长倍数：普通黑洞吸取秒数 × 这个数（吸力从很弱慢慢加到满）"
+    },
+    {
+      "key": "MegaHoleVisualMul",
+      "label": "巨型黑洞·视觉放大",
+      "type": "number",
+      "group": "other",
+      "default": 2.5,
+      "desc": "巨型黑洞·视觉放大：黑球和吸积环在倍率之上再放大这么多倍（不改吸力）"
+    },
+    {
+      "key": "MegaHoleFormSec",
+      "label": "巨型黑洞「形成」过程的视觉时长",
+      "type": "number",
+      "group": "other",
+      "default": 3.5,
+      "desc": "巨型黑洞「形成」过程的视觉时长(秒)：黑核从一点长满、吸积盘逐颗亮起用这么久。纯视觉，不改吸力时序。"
+    },
+    {
+      "key": "MegaHoleInflowCount",
+      "label": "巨型黑洞",
+      "type": "number",
+      "group": "other",
+      "default": 60,
+      "desc": "巨型黑洞：沿螺旋线汇入洞心的光点数量。"
+    },
+    {
+      "key": "MegaHoleDiskCount",
+      "label": "巨型黑洞",
+      "type": "number",
+      "group": "other",
+      "default": 96,
+      "desc": "巨型黑洞：吸积盘的亮球数量。"
+    },
+    {
+      "key": "DramaFx",
+      "label": "大场面总开关",
+      "type": "boolean",
+      "group": "other",
+      "default": true,
+      "desc": "大场面总开关：神罗天征/巨型黑洞这类招式的镜头震动、慢动作、闪白、天光压暗（关掉只剩招式本体）"
+    },
+    {
+      "key": "DramaShakeMul",
+      "label": "大场面·镜头震动强度倍率",
+      "type": "number",
+      "group": "other",
+      "default": 1,
+      "desc": "大场面·镜头震动强度倍率（0=不震）",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "DramaSlowMo",
+      "label": "大场面·释放瞬间慢动作",
+      "type": "boolean",
+      "group": "other",
+      "default": true
+    },
+    {
+      "key": "DramaDarken",
+      "label": "大场面·蓄力时天光压暗、释放时爆亮",
+      "type": "boolean",
+      "group": "other",
+      "default": true
+    },
+    {
+      "key": "DramaFlash",
+      "label": "大场面·释放瞬间全屏闪白与着色",
+      "type": "boolean",
+      "group": "other",
+      "default": true
+    },
+    {
+      "key": "ScrambleSec",
+      "label": "南辕北辙·时长",
+      "type": "number",
+      "group": "other",
+      "default": 12
+    },
+    {
+      "key": "ScrambleReshuffleSec",
+      "label": "南辕北辙·每隔几秒换一种乱法",
+      "type": "number",
+      "group": "other",
+      "default": 3,
+      "desc": "南辕北辙·每隔几秒换一种乱法（0=整段只用一种）"
+    },
+    {
+      "key": "DrunkSec",
+      "label": "醉驾·时长",
+      "type": "number",
+      "group": "other",
+      "default": 12
+    },
+    {
+      "key": "DrunkSway",
+      "label": "醉驾·幅度",
+      "type": "number",
+      "group": "other",
+      "default": 1,
+      "desc": "醉驾·幅度（1=默认，方向盘飘动/油门起伏/画面摇晃一起放大缩小）"
+    },
+    {
+      "key": "FlipSec",
+      "label": "天地倒转·时长",
+      "type": "number",
+      "group": "other",
+      "default": 10
+    },
+    {
+      "key": "FisheyeSec",
+      "label": "鱼眼镜头·时长",
+      "type": "number",
+      "group": "other",
+      "default": 10,
+      "desc": "鱼眼镜头·时长（秒）/ 视野度数"
+    },
+    {
+      "key": "FisheyeFov",
+      "label": "鱼眼镜头·视野度数",
+      "type": "number",
+      "group": "other",
+      "default": 130,
+      "desc": "鱼眼镜头·视野度数：越大画面越夸张"
+    },
+    {
+      "key": "TunnelSec",
+      "label": "管中窥豹·时长",
+      "type": "number",
+      "group": "other",
+      "default": 10,
+      "desc": "管中窥豹·时长（秒）/ 视野度数"
+    },
+    {
+      "key": "TunnelFov",
+      "label": "管中窥豹·视野度数",
+      "type": "number",
+      "group": "other",
+      "default": 22,
+      "desc": "管中窥豹·视野度数：越小视野越窄"
+    },
+    {
+      "key": "GhostSec",
+      "label": "透明人·时长",
+      "type": "number",
+      "group": "other",
+      "default": 10,
+      "desc": "透明人·时长（秒）：主播自己的车和人整个隐形"
+    },
+    {
+      "key": "LevitateSec",
+      "label": "离地三尺·时长",
+      "type": "number",
+      "group": "other",
+      "default": 8,
+      "desc": "离地三尺·时长（秒）/ 离地高度（米）"
+    },
+    {
+      "key": "LevitateHeight",
+      "label": "离地三尺·离地高度",
+      "type": "number",
+      "group": "other",
+      "default": 2.5,
+      "desc": "离地三尺·离地高度（米）"
+    },
+    {
+      "key": "TetherSec",
+      "label": "命运红线·时长",
+      "type": "number",
+      "group": "other",
+      "default": 12,
+      "desc": "命运红线·时长（秒）/ 拉力（越大拽得越狠）"
+    },
+    {
+      "key": "TetherStrength",
+      "label": "命运红线·拉力",
+      "type": "number",
+      "group": "other",
+      "default": 2.5,
+      "desc": "命运红线·拉力：越大拽得越狠"
+    },
+    {
+      "key": "SpinCamSec",
+      "label": "洗衣机模式·时长",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 8,
+      "desc": "洗衣机模式·时长（秒）/ 每秒转几圈"
+    },
+    {
+      "key": "SpinCamRps",
+      "label": "洗衣机模式·转速",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 0.4,
+      "desc": "洗衣机模式·转速（圈/秒）"
+    },
+    {
+      "key": "WatermarkAlpha",
+      "label": "水印透明度",
+      "type": "number",
+      "group": "hud",
+      "default": 0.28,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "hidden": true,
+      "desc": "水印透明度（0~1）"
+    },
+    {
+      "key": "DeathHudX",
+      "label": "死亡计数在画面上的位置",
+      "type": "number",
+      "group": "hud",
+      "default": -1,
+      "desc": "死亡计数在画面上的位置（-1=默认左上）。可拖动调整。",
+      "hidden": true
+    },
+    {
+      "key": "DeathHudY",
+      "label": "死亡计数窗口纵向位置",
+      "type": "number",
+      "group": "hud",
+      "default": -1,
+      "hidden": true,
+      "desc": "死亡计数窗口纵向位置（像素）"
+    },
+    {
+      "key": "OutlineR",
+      "label": "护体光环颜色",
+      "type": "number",
+      "group": "protect",
+      "default": 0.2,
+      "desc": "护体光环颜色（0~1）。默认青色。",
+      "hidden": true
+    },
+    {
+      "key": "OutlineG",
+      "label": "护体光环颜色·绿",
+      "type": "number",
+      "group": "protect",
+      "default": 0.9,
+      "hidden": true,
+      "desc": "护体光环颜色·绿（0~1）"
+    },
+    {
+      "key": "OutlineB",
+      "label": "护体光环颜色·蓝",
+      "type": "number",
+      "group": "protect",
+      "default": 1,
+      "hidden": true,
+      "desc": "护体光环颜色·蓝（0~1）"
+    },
+    {
+      "key": "MenuX",
+      "label": "菜单左上角坐标",
+      "type": "number",
+      "group": "hud",
+      "default": -1,
+      "desc": "菜单左上角坐标（-1 表示居中）。拖动后记住位置。",
+      "hidden": true
+    },
+    {
+      "key": "MenuY",
+      "label": "菜单纵向位置",
+      "type": "number",
+      "group": "hud",
+      "default": -1,
+      "hidden": true,
+      "desc": "菜单左上角纵向坐标"
+    },
+    {
+      "key": "MenuW",
+      "label": "菜单窗口尺寸",
+      "type": "number",
+      "group": "hud",
+      "default": 640,
+      "desc": "菜单窗口尺寸（拖右下角↘缩放后记住）。默认 640x640。",
+      "hidden": true
+    },
+    {
+      "key": "MenuH",
+      "label": "菜单窗口高度",
+      "type": "number",
+      "group": "hud",
+      "default": 640,
+      "hidden": true,
+      "desc": "菜单窗口高度（像素）"
+    },
+    {
+      "key": "RocketPower",
+      "label": "火箭",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 13
+    },
+    {
+      "key": "BombPower",
+      "label": "炸弹",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 16
+    },
+    {
+      "key": "RainPower",
+      "label": "火箭雨每发",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 9
+    },
+    {
+      "key": "MachineGunKnock",
+      "label": "机枪每发击退",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 3.5
+    },
+    {
+      "key": "SmashKnockMul",
+      "label": "砸打力度总倍率",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "ExploRadiusMul",
+      "label": "爆炸半径倍率",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "KnockMul",
+      "label": "爆炸击退总倍率",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "ExploSpeedCap",
+      "label": "爆炸击退·速度封顶 m/s",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 28,
+      "desc": "爆炸击退·速度封顶 m/s(0=不封顶)。治「枪林弹雨被莫名炸上天飞很远」：弹幕最密 0.15s/发、"
+    },
+    {
+      "key": "DuckLifetime",
+      "label": "鸭子存在秒数",
+      "type": "number",
+      "group": "prank-duck",
+      "default": 5,
+      "desc": "鸭子存在秒数：爆炸模式=落地几秒后爆炸；挡道模式=当路障几秒后安静消失（可自己调）"
+    },
+    {
+      "key": "DuckMode",
+      "label": "抓鸭·落鸭模式",
+      "type": "select",
+      "group": "prank-duck",
+      "default": 0,
+      "options": [
+        {
+          "value": 0,
+          "label": "爆炸（落地炸开消失）"
+        },
+        {
+          "value": 1,
+          "label": "挡道（落地当路障）"
+        }
+      ]
+    },
+    {
+      "key": "DuckPermanent",
+      "label": "仅「挡道」模式生效",
+      "type": "boolean",
+      "group": "prank-duck",
+      "default": false,
+      "desc": "仅「挡道」模式生效：鸭子路障永久存在(不自动消失)，直到主播换关/净化才清场(挂了会挂起等复活，不消失)。"
+    },
+    {
+      "key": "DuckKingEnabled",
+      "label": "鸭王",
+      "type": "boolean",
+      "group": "prank-duck",
+      "default": true,
+      "desc": "鸭王：戴皇冠的小金鸭，稀有，登场有音效+公告"
+    },
+    {
+      "key": "DuckKingChance",
+      "label": "鸭王出现概率",
+      "type": "number",
+      "group": "prank-duck",
+      "default": 0.04,
+      "desc": "鸭王出现概率(每只鸭子独立 roll，很小)",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "DuckExplosiveEnabled",
+      "label": "爆炸鸭",
+      "type": "boolean",
+      "group": "prank-duck",
+      "default": true,
+      "desc": "爆炸鸭：偏红，触地立刻爆炸(不等寿命)"
+    },
+    {
+      "key": "DuckExplosiveChance",
+      "label": "爆炸鸭出现概率",
+      "type": "number",
+      "group": "prank-duck",
+      "default": 0.18,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "DuckEternalEnabled",
+      "label": "永恒鸭",
+      "type": "boolean",
+      "group": "prank-duck",
+      "default": false,
+      "desc": "永恒鸭：落地永不消失(直到死亡/换关/净化/超量回收)；默认关(堆道具吃性能)"
+    },
+    {
+      "key": "DuckEternalChance",
+      "label": "永恒鸭出现概率",
+      "type": "number",
+      "group": "prank-duck",
+      "default": 0.15,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "SuperJumpPower",
+      "label": "超级跳",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 45,
+      "desc": "超级跳：垂直起跳速度（默认比冲天火箭还高）"
+    },
+    {
+      "key": "SuperJumpGrav",
+      "label": "超级跳·重力削弱",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 0.35
+    },
+    {
+      "key": "SuperJumpBoost",
+      "label": "超级跳·弹射增益",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 4
+    },
+    {
+      "key": "LaunchPower",
+      "label": "冲天火箭",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 34,
+      "desc": "冲天火箭：垂直窜天速度"
+    },
+    {
+      "key": "BlastPower",
+      "label": "炸飞主播",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 22,
+      "desc": "炸飞主播：向上速度"
+    },
+    {
+      "key": "BoostPower",
+      "label": "弹射起步",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 30,
+      "desc": "弹射起步：前冲速度"
+    },
+    {
+      "key": "FastSpeedMul",
+      "label": "疾风时间",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 2,
+      "desc": "疾风时间：全场倍速（>1 加速）"
+    },
+    {
+      "key": "SlowSpeedMul",
+      "label": "子弹时间",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 0.3,
+      "desc": "子弹时间：全场倍速（<1 慢动作）",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "NitroPower",
+      "label": "氮气轮椅「模式」",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 7,
+      "desc": "氮气轮椅「模式」：屁股喷火 + 沿车头方向额外加速。Power=额外加速度(m/s²，越大越窜)，MaxSpeed=封顶速度(防失控)。"
+    },
+    {
+      "key": "NitroMaxSpeed",
+      "label": "氮气·速度上限",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 12
+    },
+    {
+      "key": "JetpackSpeed",
+      "label": "喷气背包「模式」",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 9,
+      "desc": "喷气背包「模式」：像《我的世界》创造模式飞行——空格↑/Shift↓/WASD贴镜头平移/松开悬停/零重力不摔死。"
+    },
+    {
+      "key": "JetpackRise",
+      "label": "喷气背包·上升速度",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 7
+    },
+    {
+      "key": "JetpackAccel",
+      "label": "喷气背包·加速度",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 32
+    },
+    {
+      "key": "LightningPower",
+      "label": "天降神雷",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 9,
+      "desc": "天降神雷：Power=劈中的击退强度(≈m/s，非致命)，Radius=波及/焦痕半径(m)，ScorchSec=地面焦黑残留秒数。"
+    },
+    {
+      "key": "LightningRadius",
+      "label": "雷击范围",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 4.5
+    },
+    {
+      "key": "LightningScorchSec",
+      "label": "雷击灼烧秒数",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 6
+    },
+    {
+      "key": "LightningShockSec",
+      "label": "被雷电「电击」时长",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 1.6,
+      "desc": "被雷电「电击」时长(秒)：身上缠淡蓝电弧+移动被压到爬行这么久(速度封顶实现，游戏侧零残留·绝不失灵)。0=不电击"
+    },
+    {
+      "key": "LightningShockSlow",
+      "label": "每帧乘法阻尼系数",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 0.15,
+      "desc": "每帧乘法阻尼系数——实测一帧就把速度掐到零、体感=禁锢，已被下面的「爬行封顶」取代，保留仅为兼容老 config，不再读取",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "LightningCrawlSpeed",
+      "label": "电击时水平移动速度封顶",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 0.9,
+      "desc": "电击时水平移动速度封顶(m/s)：特别强烈的减速——正常挪动~3m/s，0.9=只能极慢蠕动；0=彻底钉住"
+    },
+    {
+      "key": "ThunderNumbFreeze",
+      "label": "雷电麻木方式",
+      "type": "boolean",
+      "group": "prank-thunder",
+      "default": false,
+      "desc": "雷电麻木方式：false=强减速(电弧缠身+只能蠕动)；true=禁锢定身(Freeze，自动钳到落雷间隔以下防整场冻死)。SpaceLockEnabled 开"
+    },
+    {
+      "key": "SpaceLockEnabled",
+      "label": "雷电禁锢·空格挣脱",
+      "type": "boolean",
+      "group": "prank-thunder",
+      "default": true,
+      "desc": "雷电禁锢·空格挣脱：被雷劈中=禁锢+浑身缠电，必须一下一下敲空格才能挣脱(死亡重生禁锢依然在)；关掉退回上面两种老麻木"
+    },
+    {
+      "key": "SpaceLockBase",
+      "label": "首次被劈需敲的空格数",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 10
+    },
+    {
+      "key": "SpaceLockAdd",
+      "label": "禁锢中再被劈一记加罚的空格数",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 20
+    },
+    {
+      "key": "SpaceLockCap",
+      "label": "雷电禁锢·需敲空格上限",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 0,
+      "desc": "雷电禁锢·需敲空格上限(下,0=不封顶)——老硬编码999菜单没得调，用户铁律「不要锁数值」"
+    },
+    {
+      "key": "SpaceLockPushable",
+      "label": "雷电禁锢·可被推动",
+      "type": "boolean",
+      "group": "prank-thunder",
+      "default": true,
+      "desc": "雷电禁锢·可被推动：开=只锁方向和跳、不锁物理(自己开不动，但被炸、被黑洞吸、被推照样动，停下来又钉住)；关=老做法整体冻死"
+    },
+    {
+      "key": "SpaceLockHoldSpeed",
+      "label": "雷电禁锢·停稳速度",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 2.5,
+      "desc": "雷电禁锢·停稳速度(m/s)：可被推动时，被推动后速度掉到这个值以下就当停稳、重新钉住；越大越容易停住"
+    },
+    {
+      "key": "QuakeShake",
+      "label": "地动山摇",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 1,
+      "desc": "地动山摇(地震摇床)：抖动强度倍率。默认 1.0=位移0.07m(纯体感)。★历史：2.0=位移13.05m/峰值23.9m/s(弹射器)、4.0=抬升6.82"
+    },
+    {
+      "key": "PushPower",
+      "label": "猛推一把",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 16,
+      "desc": "猛推一把：前冲速度"
+    },
+    {
+      "key": "SpinTorque",
+      "label": "疯狂旋转 / 全场旋转 / 旋转对手",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 16,
+      "desc": "疯狂旋转 / 全场旋转 / 旋转对手：自转角速度"
+    },
+    {
+      "key": "TipTorque",
+      "label": "掀翻在地 / 全场掀翻 / 掀翻对手",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 14,
+      "desc": "掀翻在地 / 全场掀翻 / 掀翻对手：翻车扭矩"
+    },
+    {
+      "key": "TipKillChance",
+      "label": "掀翻主播「摔死」的概率",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 20,
+      "desc": "掀翻主播「摔死」的概率(%)：每次掀翻主播都按此概率掷骰决定这一下是否致命(致命=真死+无缝复活+记一次死)。",
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    {
+      "key": "GunBullets",
+      "label": "机枪扫射",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 14,
+      "desc": "机枪扫射：子弹发数"
+    },
+    {
+      "key": "WeaponAmmo",
+      "label": "送真枪/真炸弹",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 8,
+      "desc": "送真枪/真炸弹：给主播上多少发弹药（联机房主，可调）"
+    },
+    {
+      "key": "RainCount",
+      "label": "火箭雨",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 6,
+      "desc": "火箭雨：落几发"
+    },
+    {
+      "key": "RainAccuracy",
+      "label": "火箭雨命中率",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 0.35,
+      "desc": "火箭雨命中率(0~1)：这个比例的火箭「瞄准直击」主播头顶(落点≤0.7m)，其余照旧四散。越大越准、越容易被炸中。★不加发数，不吃性能"
+    },
+    {
+      "key": "SuperMissileSize",
+      "label": "超级导弹",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 6,
+      "desc": "超级导弹：一枚巨型火箭从 36m 高空砸下，超大爆炸范围。Size=弹体放大倍数，Radius=爆炸半径(m)，Power=击退(≈m/s)。"
+    },
+    {
+      "key": "SuperMissileRadius",
+      "label": "超级导弹·爆炸半径",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 14
+    },
+    {
+      "key": "SuperMissilePower",
+      "label": "超级导弹·威力",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 16
+    },
+    {
+      "key": "HomingCount",
+      "label": "飞弹轰炸",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 5,
+      "desc": "飞弹轰炸：几发追踪飞弹(只炸飞不炸死)"
+    },
+    {
+      "key": "HomingPower",
+      "label": "飞弹轰炸",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 9,
+      "desc": "飞弹轰炸：每发爆炸击退(≈m/s，非致命)"
+    },
+    {
+      "key": "HomingRadius",
+      "label": "飞弹轰炸",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 3.5,
+      "desc": "飞弹轰炸：每发爆炸半径(m)"
+    },
+    {
+      "key": "RocketRidePower",
+      "label": "绑火箭发射",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 45,
+      "desc": "绑火箭发射：推进段垂直目标速度(m/s，越大飞越高)"
+    },
+    {
+      "key": "RocketRideBurnSec",
+      "label": "绑火箭发射",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 2.2,
+      "desc": "绑火箭发射：推进时长(秒)——和推力共同决定飞多高"
+    },
+    {
+      "key": "BlackholePower",
+      "label": "黑洞",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 12,
+      "desc": "黑洞：最后炸开的弹飞击退(≈m/s，非致命)"
+    },
+    {
+      "key": "BlackholeRadius",
+      "label": "黑洞",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 6,
+      "desc": "黑洞：炸开的波及半径(m)"
+    },
+    {
+      "key": "BlackholePull",
+      "label": "黑洞",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 9,
+      "desc": "黑洞：吸力(引力加速度 m/s²)——用加速度而非直接设速度,主播油门能对抗;越小越好挣扎。"
+    },
+    {
+      "key": "BlackholePullMax",
+      "label": "黑洞",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 6,
+      "desc": "黑洞：吸入速度封顶(m/s)——留出挣扎空间,别一口吞"
+    },
+    {
+      "key": "BlackholeMaxStack",
+      "label": "黑洞",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 0,
+      "desc": "黑洞：0=不封顶；正数=主播自定义上限"
+    },
+    {
+      "key": "BlackholeGrow",
+      "label": "黑洞",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 0.35,
+      "desc": "黑洞：每叠一层变大/变猛比例(半径/吸力/视觉同步放大)"
+    },
+    {
+      "key": "BlackholeOrbitRadius",
+      "label": "黑洞",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 2,
+      "desc": "黑洞：吸到位后绕着打转的目标半径(m)"
+    },
+    {
+      "key": "BlackholeOrbitSpeed",
+      "label": "黑洞",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 5,
+      "desc": "黑洞：贴心打转的线速度(m/s)"
+    },
+    {
+      "key": "BlackholeApproachK",
+      "label": "黑洞",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 2,
+      "desc": "黑洞：距离→吸入速度的增益(越大扑得越急,快到中心自动减速不过冲)"
+    },
+    {
+      "key": "BlackholeRange",
+      "label": "黑洞",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 40,
+      "desc": "黑洞：最大作用距离(m)——超过就够不着,防跨图拉人"
+    },
+    {
+      "key": "RocketRadius",
+      "label": "火箭轰炸",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 4,
+      "desc": "火箭轰炸：爆炸半径(m，基数，再乘全局爆炸半径倍率)"
+    },
+    {
+      "key": "BombRadius",
+      "label": "炸弹快递",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 4,
+      "desc": "炸弹快递：爆炸半径(m)"
+    },
+    {
+      "key": "SmashDropRadius",
+      "label": "天降砸物",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 4.5,
+      "desc": "天降砸物：落地波及半径(m)"
+    },
+    {
+      "key": "RainRadius",
+      "label": "火箭雨",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 3.8,
+      "desc": "火箭雨：单发爆炸半径(m)"
+    },
+    {
+      "key": "RainInterval",
+      "label": "火箭雨",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 0.35,
+      "desc": "火箭雨：每发间隔(秒)——越小越密集"
+    },
+    {
+      "key": "GunFireInterval",
+      "label": "机枪扫射",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 0.12,
+      "desc": "机枪扫射：射速(秒/发)——越小扫得越快"
+    },
+    {
+      "key": "SmashBarrageCount",
+      "label": "观众群殴",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 5,
+      "desc": "观众群殴：连砸几下"
+    },
+    {
+      "key": "SkyDropHeight",
+      "label": "高空抛落",
+      "type": "number",
+      "group": "prank-rocket",
+      "default": 40,
+      "desc": "高空抛落：抛到多少米高空"
+    },
+    {
+      "key": "DuckBoomRadius",
+      "label": "鸭子爆炸",
+      "type": "number",
+      "group": "prank-duck",
+      "default": 1.8,
+      "desc": "鸭子爆炸：单只波及半径(m)"
+    },
+    {
+      "key": "DuckBoomPower",
+      "label": "鸭子爆炸",
+      "type": "number",
+      "group": "prank-duck",
+      "default": 2.2,
+      "desc": "鸭子爆炸：单只击退(≈m/s)"
+    },
+    {
+      "key": "BulletHellSpreadMul",
+      "label": "枪林弹雨",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 1,
+      "desc": "枪林弹雨：落点散布倍率——越小越贴脸越难躲，越大越松",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "LowGravY",
+      "label": "低重力",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": -2,
+      "desc": "低重力：越接近 0 越飘"
+    },
+    {
+      "key": "MoonGravY",
+      "label": "月球重力",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": -1.6
+    },
+    {
+      "key": "AntiGravY",
+      "label": "反重力",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": 7,
+      "desc": "反重力(向上)：越大升得越猛"
+    },
+    {
+      "key": "HeavyGravY",
+      "label": "超重力",
+      "type": "number",
+      "group": "prank-thrust",
+      "default": -30,
+      "desc": "超重力：越负压得越死"
+    },
+    {
+      "key": "DuckBlockCount",
+      "label": "鸭子挡道",
+      "type": "number",
+      "group": "prank-duck",
+      "default": 7,
+      "desc": "鸭子挡道：落几只当路障"
+    },
+    {
+      "key": "DuckMissChance",
+      "label": "鸭子抽奖",
+      "type": "number",
+      "group": "prank-duck",
+      "default": 0.22,
+      "desc": "鸭子抽奖：抓空概率（0~1）",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "DuckRarityK",
+      "label": "稀有度斜率",
+      "type": "number",
+      "group": "prank-duck",
+      "default": 0.586,
+      "desc": "稀有度斜率：越大大额越难抽(0.586=拟合老手写权重表)",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "DuckJackpotBoost",
+      "label": "大奖加成",
+      "type": "number",
+      "group": "prank-duck",
+      "default": 1,
+      "desc": "大奖加成：500/1000/10000…这些档的权重整体×几倍(1=不加成)",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "DuckQuackVol",
+      "label": "嘎的音量",
+      "type": "number",
+      "group": "prank-duck",
+      "default": 0.9,
+      "desc": "嘎的音量(0~1)",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "DuckQuackChance",
+      "label": "每只嘎的概率",
+      "type": "number",
+      "group": "prank-duck",
+      "default": 1,
+      "desc": "每只嘎的概率(0~1；大批量嫌吵就调低)",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "GiantStep",
+      "label": "巨大化乘法倍数",
+      "type": "number",
+      "group": "prank-scale",
+      "default": 1.6,
+      "desc": "巨大化乘法倍数——留着只为老 config.json 反序列化不炸，逻辑不再用"
+    },
+    {
+      "key": "GiantAddStep",
+      "label": "巨大化",
+      "type": "number",
+      "group": "prank-scale",
+      "default": 1,
+      "desc": "巨大化：每触发一次「加」几倍(线性)"
+    },
+    {
+      "key": "GiantMaxScale",
+      "label": "巨大化封顶倍数",
+      "type": "number",
+      "group": "prank-scale",
+      "default": 100,
+      "desc": "巨大化封顶倍数(最多能长到原始的几倍)。默认100≈基本无上限；越大越夸张"
+    },
+    {
+      "key": "MiniStep",
+      "label": "迷你化",
+      "type": "number",
+      "group": "prank-scale",
+      "default": 0.82,
+      "desc": "迷你化：每触发一次的缩小倍数(乘法，缩小天然适合乘)。0.82^10≈0.20，缩得温和不至几档就触底"
+    },
+    {
+      "key": "MiniMinScale",
+      "label": "迷你化最小倍数",
+      "type": "number",
+      "group": "prank-scale",
+      "default": 0.12,
+      "desc": "迷你化最小倍数(最小缩到原始的几分之几)",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "ScaleHedgeTime",
+      "label": "对冲方式",
+      "type": "boolean",
+      "group": "prank-scale",
+      "default": true,
+      "desc": "对冲方式：true=反向礼物吃时间(尺寸不动，剩余时间吃光才恢复正常；"
+    },
+    {
+      "key": "MiniMoveSpeedMul",
+      "label": "迷你时把轮椅最高速上限抬这么多倍，补偿缩小带来的",
+      "type": "number",
+      "group": "prank-scale",
+      "default": 3,
+      "desc": "迷你时把轮椅最高速上限抬这么多倍，补偿缩小带来的移速下降(轮径变小=线速掉)。1=不补偿"
+    },
+    {
+      "key": "GiantSpeedGain",
+      "label": "巨大时移速随体型的增益",
+      "type": "number",
+      "group": "prank-scale",
+      "default": 0.25,
+      "desc": "巨大时移速随体型的增益：速度上限×(1+(体型-1)×它)。默认0.25=2倍体型快25%(\"稍微\"档)；0=巨大不加速",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "GiantJumpGain",
+      "label": "巨大时跳跃随体型的增益",
+      "type": "number",
+      "group": "prank-scale",
+      "default": 0.25,
+      "desc": "巨大时跳跃随体型的增益：起跳竖直速度×(1+(体型-1)×它)。默认0.25=2倍体型跳高25%；0=巨大跳跃不变",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "ScaleCamAdapt",
+      "label": "开关",
+      "type": "boolean",
+      "group": "prank-scale",
+      "default": true,
+      "desc": "开关：巨大化时相机自动拉远+防乱飞"
+    },
+    {
+      "key": "GiantCamDistMul",
+      "label": "巨大化相机距离倍率",
+      "type": "number",
+      "group": "prank-scale",
+      "default": 1.6,
+      "desc": "巨大化相机距离倍率：想看更全调大、想贴脸调小(默认超等比拉远，巨人不再占满屏)"
+    },
+    {
+      "key": "ScaleTimeStack",
+      "label": "巨大/迷你",
+      "type": "boolean",
+      "group": "prank-scale",
+      "default": true,
+      "desc": "巨大/迷你：再次触发时，时长是「叠加」(true，默认·粉丝连送无限往上加)还是「刷新为一档时长」(false)。缩放倍率始终逐档叠。"
+    },
+    {
+      "key": "ScaleBankSmooth",
+      "label": "true=体型随剩余时间连续渐变",
+      "type": "boolean",
+      "group": "prank-scale",
+      "default": true,
+      "desc": "true=体型随剩余时间连续渐变；false=只在整档处台阶变化(时间账照样连续)"
+    },
+    {
+      "key": "ScaleLerpSpeed",
+      "label": "体型缓动趋近速度",
+      "type": "number",
+      "group": "prank-scale",
+      "default": 7,
+      "desc": "体型缓动趋近速度：越大变形到位越快(指数趋近系数/秒)"
+    },
+    {
+      "key": "MiniCamFollow",
+      "label": "开关",
+      "type": "boolean",
+      "group": "prank-scale",
+      "default": true,
+      "desc": "开关：迷你时镜头跟着人物缩(贴近拍小人)"
+    },
+    {
+      "key": "MiniCamDistMul",
+      "label": "迷你相机距离倍率",
+      "type": "number",
+      "group": "prank-scale",
+      "default": 1,
+      "desc": "迷你相机距离倍率：实际距离≈原距离×体型×这个(越小贴得越近)",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "ScaleCamSuspendSec",
+      "label": "冲线一刻变身相机停手秒数",
+      "type": "number",
+      "group": "prank-scale",
+      "default": 9,
+      "desc": "冲线一刻变身相机停手秒数：让位给游戏结算/庆祝运镜，0=不让位"
+    },
+    {
+      "key": "ArrowScale",
+      "label": "箭整体缩放",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 1.1,
+      "desc": "箭整体缩放（原 0.5 太小，默认放大到看得清）"
+    },
+    {
+      "key": "ArrowKeepSec",
+      "label": "扎在身上保留秒数",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 600,
+      "desc": "扎在身上保留秒数（默认很久，除非净化/主播离线重生）"
+    },
+    {
+      "key": "ArrowMaxStuck",
+      "label": "0=不封顶",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 0,
+      "desc": "0=不封顶；正数才保留最近几根"
+    },
+    {
+      "key": "ArrowRecoil",
+      "label": "箭命中「后坐力」倍率",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 1.8,
+      "desc": "箭命中「后坐力」倍率：主播被箭钉中时朝箭飞行方向被推一下（1=旧默认约0.9的力，调大更明显）"
+    },
+    {
+      "key": "EasyMode",
+      "label": "防死",
+      "type": "boolean",
+      "group": "protect",
+      "default": true,
+      "desc": "防死：别太容易死（默认开）"
+    },
+    {
+      "key": "EasyLevel",
+      "label": "不易死「程度」0~100",
+      "type": "number",
+      "group": "protect",
+      "default": 100,
+      "desc": "不易死「程度」0~100（越高越难死）：>0 免摔死；≥40 连翻倒也不死；≥70 掉出地图自动捞回。",
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    {
+      "key": "BulletHellEasyDrop",
+      "label": "枪林弹雨期间把「不易死程度」临时降这么多",
+      "type": "number",
+      "group": "protect",
+      "default": 70,
+      "desc": "枪林弹雨期间把「不易死程度」临时降这么多（更致命，被砸死会自动复活）。默认降 70：boss 时生效程度≈30，",
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    {
+      "key": "ProtectDamp",
+      "label": "护体/红粉保护罩生效时，主播吃到的\"负面击退\"整",
+      "type": "number",
+      "group": "protect",
+      "default": 0,
+      "desc": "护体/红粉保护罩生效时，主播吃到的\"负面击退\"整体打这个折（0=完美护体·冲量全免；0.4=还剩四成；1=不护）",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "ProtectPerfectSet",
+      "label": "一次性迁移旗",
+      "type": "boolean",
+      "group": "protect",
+      "default": false,
+      "desc": "一次性迁移旗：老配置里这项存着旧默认 0.4，光改上面的默认值对老用户【无效】(json 里已有值)。",
+      "hidden": true
+    },
+    {
+      "key": "AnnounceScale",
+      "label": "公告字号",
+      "type": "number",
+      "group": "hud",
+      "default": 1.6,
+      "desc": "公告字号（手机直播要大、要在上方）"
+    },
+    {
+      "key": "WatermarkText",
+      "label": "可编辑文字",
+      "type": "string",
+      "group": "hud",
+      "default": "知了猴工作室",
+      "desc": "可编辑文字（界面编辑模式里改）"
+    },
+    {
+      "key": "DeathLabel",
+      "label": "死亡提示文案",
+      "type": "string",
+      "group": "hud",
+      "default": "本局挂掉："
+    },
+    {
+      "key": "LikeBoxEnabled",
+      "label": "点赞盲盒总开关",
+      "type": "boolean",
+      "group": "live",
+      "default": true
+    },
+    {
+      "key": "LikeThreshold",
+      "label": "点赞攒到多少自动开「大盲盒」",
+      "type": "number",
+      "group": "live",
+      "default": 200,
+      "desc": "点赞攒到多少自动开「大盲盒」(默认 200)"
+    },
+    {
+      "key": "ShowLikeBar",
+      "label": "顶部点赞进度条",
+      "type": "boolean",
+      "group": "live",
+      "default": true
+    },
+    {
+      "key": "BoxRoll",
+      "label": "开箱走「滚动抽奖」动画+抽奖音效",
+      "type": "boolean",
+      "group": "live",
+      "default": true,
+      "desc": "开箱走「滚动抽奖」动画+抽奖音效(默认开)"
+    },
+    {
+      "key": "GiftFireMax",
+      "label": "兼容旧配置字段",
+      "type": "number",
+      "group": "live",
+      "default": 0,
+      "desc": "兼容旧配置字段：礼物连发现已永久不截断，此值不再参与派发。"
+    },
+    {
+      "key": "KillFeedEnabled",
+      "label": "联机击杀播报",
+      "type": "boolean",
+      "group": "multi",
+      "default": true,
+      "desc": "联机击杀播报：对手倒下时公告「主播(头像) 打掉了 对手」"
+    },
+    {
+      "key": "AutoRespawnAll",
+      "label": "死亡自动复活总开关",
+      "type": "boolean",
+      "group": "protect",
+      "default": true,
+      "desc": "死亡自动复活总开关：开=任何死亡都无缝自动复活(压住游戏自带「重新开始」菜单)；关=只有枪林弹雨/落雷这类致命模式才自动复活，平时死亡走游戏默认菜单"
+    },
+    {
+      "key": "RespawnInvuln",
+      "label": "复活后短暂无敌护体",
+      "type": "boolean",
+      "group": "protect",
+      "default": true,
+      "desc": "复活后短暂无敌护体(各致命模式共用，约3秒)：开=复活后有一小段整不动的保护窗；关=复活即可被整/被砸死(整蛊直播想更刺激时关掉，主播反馈\"无敌帧太多\")。关掉"
+    },
+    {
+      "key": "KillDeathShowSec",
+      "label": "秒杀死亡画面停留几秒",
+      "type": "number",
+      "group": "protect",
+      "default": 2,
+      "desc": "秒杀死亡画面停留几秒：>0=「秒杀主播」死后先亮真死亡画面停这么久(看得见地死透)，再照常自动复活；0=和其他死亡一样无缝复活。只影响秒杀；枪林弹雨/落雷/出界"
+    },
+    {
+      "key": "VoidDeath",
+      "label": "出界判死",
+      "type": "boolean",
+      "group": "protect",
+      "default": true,
+      "desc": "出界判死：掉出地图直接挂掉——游戏自己不判、人会永远坠落。有捞人护命(护体/不易死≥70)时捞回优先、不判死"
+    },
+    {
+      "key": "VoidDepth",
+      "label": "出界判死深度",
+      "type": "number",
+      "group": "protect",
+      "default": 1000,
+      "desc": "出界判死深度：当前高度(相对本局地面基准)低于此值=真出界判死——地图地形不可能比地面基准低 1000m，到了必是掉出地图/掉进虚空"
+    },
+    {
+      "key": "VoidFallMeters",
+      "label": "出界判死·再掉多少米",
+      "type": "number",
+      "group": "other",
+      "default": 200,
+      "desc": "出界判死·再掉多少米：确认正掉出地图(急坠且下方 300m 无地)后，从离开地图那一刻的高度再往下掉这么多米就判死；0=只用上面的绝对深度线"
+    },
+    {
+      "key": "CoopCastTarget",
+      "label": "礼物整谁",
+      "type": "select",
+      "group": "multi",
+      "default": 0,
+      "options": [
+        {
+          "value": 0,
+          "label": "整自己"
+        },
+        {
+          "value": 1,
+          "label": "整对面主播"
+        },
+        {
+          "value": 2,
+          "label": "双方随机"
+        }
+      ]
+    },
+    {
+      "key": "CoopAcceptCast",
+      "label": "接受对面发来的整蛊",
+      "type": "boolean",
+      "group": "multi",
+      "default": true,
+      "desc": "接受对面发来的整蛊(关=对面发什么都装死)"
+    },
+    {
+      "key": "CoopAllowKill",
+      "label": "允许对面的「致命」整蛊",
+      "type": "boolean",
+      "group": "multi",
+      "default": false,
+      "desc": "允许对面的「致命」整蛊(默认拦下，防连麦被搞死炸锅)"
+    },
+    {
+      "key": "CoopFx",
+      "label": "围观特效",
+      "type": "boolean",
+      "group": "multi",
+      "default": true,
+      "desc": "围观特效：对面被整时在他身上播同款世界特效(爆炸雷击真波及)"
+    },
+    {
+      "key": "CoopVersusShare",
+      "label": "v_系",
+      "type": "boolean",
+      "group": "multi",
+      "default": true,
+      "desc": "v_系(定向整对面)guest 代发：guest 的 v_blast/v_spin/v_tip/v_kill… 路由到 world 通道由对端执行(关=退回\"仅"
+    },
+    {
+      "key": "CoopChaosShare",
+      "label": "全场类",
+      "type": "boolean",
+      "group": "multi",
+      "default": true,
+      "desc": "全场类(炸飞/电击/地震…)guest 广播：guest 的全场整蛊广播给 modded 对端各自对自己椅执行(host 默认不广播=Mirror 权威已作用)"
+    },
+    {
+      "key": "CoopSyncLog",
+      "label": "fx 收发观测日志",
+      "type": "boolean",
+      "group": "multi",
+      "default": false,
+      "desc": "fx 收发观测日志(联机排障时设置页打开，平时关=零开销)"
+    },
+    {
+      "key": "PeerAvatarRenegotiate",
+      "label": "头像重协商",
+      "type": "boolean",
+      "group": "multi",
+      "default": true,
+      "desc": "头像重协商：自己名牌还没某 peer 头像→隔 10s 点对点要一次(修\"发过一次就锁存,我这边丢了他永不再发\")"
+    },
+    {
+      "key": "CoopFxBeat",
+      "label": "状态心跳",
+      "type": "boolean",
+      "group": "multi",
+      "default": true,
+      "desc": "状态心跳(护体/枪林弹雨)：随 hello 节拍重发剩余时长(修\"收端一帧就没了/跨帧互见\")"
+    },
+    {
+      "key": "CoopAcceptWeaponGive",
+      "label": "武器代发",
+      "type": "boolean",
+      "group": "multi",
+      "default": true,
+      "desc": "武器代发(host 收端自闸)：对面请 host 代装武器，收端开关关=拒收(防陌生人乱塞武器)"
+    },
+    {
+      "key": "SyncTenLevelsSafe",
+      "label": "十关联机安全闸",
+      "type": "boolean",
+      "group": "multi",
+      "default": true,
+      "desc": "十关联机安全闸(修「十关联机 2+ 装 mod 黑屏掉线」)：十关联机会话里连麦通道休眠(OnlyUp 不受影响)"
+    },
+    {
+      "key": "PeerTagEnabled",
+      "label": "对面主播头顶名牌",
+      "type": "boolean",
+      "group": "multi",
+      "default": true,
+      "desc": "对面主播头顶名牌：抖音头像+名字，飘在对面轮椅头顶(默认开)"
+    },
+    {
+      "key": "PeerTagNameMax",
+      "label": "名牌显示名字前几个字",
+      "type": "number",
+      "group": "multi",
+      "default": 2,
+      "desc": "名牌显示名字前几个字(默认2字，1~4)"
+    },
+    {
+      "key": "ErrorReport",
+      "label": "出错时把错误记录排进本地队列，连接器定期回传服务",
+      "type": "boolean",
+      "group": "system",
+      "default": true,
+      "desc": "出错时把错误记录排进本地队列，连接器定期回传服务器帮开发者远程修 bug(只含报错文本，不含任何个人数据)",
+      "hidden": true
+    },
+    {
+      "key": "DebugLog",
+      "label": "详细调试日志",
+      "type": "boolean",
+      "group": "system",
+      "default": false,
+      "desc": "详细调试日志(礼物/触发逐条记 debug_log.txt)。平时关着=零开销，排查问题时再开",
+      "hidden": true
+    },
+    {
+      "key": "FollowBoxEnabled",
+      "label": "新关注攒够阈值 → 开大盲盒",
+      "type": "boolean",
+      "group": "live",
+      "default": true
+    },
+    {
+      "key": "FollowBoxEvery",
+      "label": "每 N 个新关注开一次",
+      "type": "number",
+      "group": "live",
+      "default": 3,
+      "desc": "每 N 个新关注开一次(默认3；关注比点赞稀，别设太大)"
+    },
+    {
+      "key": "BadgeBoxEnabled",
+      "label": "灯牌",
+      "type": "boolean",
+      "group": "live",
+      "default": true,
+      "desc": "灯牌(粉丝团/亮灯牌进场)攒够阈值 → 开大盲盒"
+    },
+    {
+      "key": "BadgeBoxEvery",
+      "label": "每 N 个灯牌观众开一次",
+      "type": "number",
+      "group": "live",
+      "default": 5,
+      "desc": "每 N 个灯牌观众开一次(默认5)"
+    },
+    {
+      "key": "FollowBoxId",
+      "label": "关注盲盒 Id",
+      "type": "select",
+      "group": "live",
+      "default": "",
+      "desc": "三个触发源各自「开哪个盒」：关注 / 灯牌 / 点赞满",
+      "boxPicker": true
+    },
+    {
+      "key": "BadgeBoxId",
+      "label": "灯牌盲盒 Id",
+      "type": "select",
+      "group": "live",
+      "default": "",
+      "boxPicker": true
+    },
+    {
+      "key": "LikeBoxId",
+      "label": "点赞盲盒 Id",
+      "type": "select",
+      "group": "live",
+      "default": "",
+      "boxPicker": true
+    },
+    {
+      "key": "BoxAnnounce",
+      "label": "文案",
+      "type": "string",
+      "group": "live",
+      "default": "★ 大盲盒开启！",
+      "desc": "文案(可编辑)"
+    },
+    {
+      "key": "LikeBarLabel",
+      "label": "点赞条文案",
+      "type": "string",
+      "group": "live",
+      "default": "♥ 点赞"
+    },
+    {
+      "key": "DuckWinText",
+      "label": "更多屏幕文案",
+      "type": "string",
+      "group": "prank-duck",
+      "default": "★ 恭喜抽中 {n} 只鸭子！马上到货~",
+      "desc": "更多屏幕文案（可编辑；{n} 会替换成对应数字）"
+    },
+    {
+      "key": "DuckMissText",
+      "label": "鸭子落空文案",
+      "type": "string",
+      "group": "prank-duck",
+      "default": "★ 抽中 {n} 只…主播没接住，鸭子全跑啦！"
+    },
+    {
+      "key": "DuckCountText",
+      "label": "鸭群数量文案",
+      "type": "string",
+      "group": "prank-duck",
+      "default": "★ 还剩 {n} 只"
+    },
+    {
+      "key": "ProtectOnText",
+      "label": "护体开启文案",
+      "type": "string",
+      "group": "protect",
+      "default": "护体（常开）"
+    },
+    {
+      "key": "ProtectTimeText",
+      "label": "护体剩余文案",
+      "type": "string",
+      "group": "protect",
+      "default": "护体 {n}s"
+    },
+    {
+      "key": "SuperJumpText",
+      "label": "超级跳文案",
+      "type": "string",
+      "group": "prank-thrust",
+      "default": "★ 超级跳模式！起跳更高，空中连按跳跃键(空格)连跳、越跳越高~"
+    },
+    {
+      "key": "ArrowHitText",
+      "label": "箭命中文案",
+      "type": "string",
+      "group": "prank-fx",
+      "default": "★ 一箭命中！扎主播身上了"
+    },
+    {
+      "key": "NitroText",
+      "label": "氮气文案",
+      "type": "string",
+      "group": "prank-thrust",
+      "default": "★ 氮气轮椅！屁股喷火，一踩就窜~"
+    },
+    {
+      "key": "JetpackText",
+      "label": "喷气背包文案",
+      "type": "string",
+      "group": "prank-thrust",
+      "default": "★ 喷气背包！空格↑ / Shift↓ / WASD平移，松开悬停~"
+    },
+    {
+      "key": "LiveRoomId",
+      "label": "直播间号",
+      "type": "string",
+      "group": "live",
+      "default": "",
+      "desc": "直播间号(存起来给连接器/品游用；mod 本身不直接连)"
+    },
+    {
+      "key": "ShowLiveStatusHud",
+      "label": "画面上显示「直播已连接/未连接」小灯",
+      "type": "boolean",
+      "group": "hud",
+      "default": true
+    },
+    {
+      "key": "IgnoredUpdateVersion",
+      "label": "用户点过「忽略此版本」的更新版本号",
+      "type": "string",
+      "group": "system",
+      "default": "",
+      "desc": "用户点过「忽略此版本」的更新版本号：同版本不再提醒(换新版本才再提示)——更新不更新用户自己定",
+      "hidden": true
+    },
+    {
+      "key": "ShareAuthor",
+      "label": "「分享」页的作者署名",
+      "type": "string",
+      "group": "system",
+      "default": "",
+      "desc": "「分享」页的作者署名(导出/上传配置时带上，记住少打字)",
+      "hidden": true
+    },
+    {
+      "key": "ShowViewerBoard",
+      "label": "屏幕上显示观众榜",
+      "type": "boolean",
+      "group": "board",
+      "default": false,
+      "desc": "屏幕上显示观众榜(默认关，主播自行开+布局模式摆位/缩放)"
+    },
+    {
+      "key": "BoardTopN",
+      "label": "每个榜显示前几名",
+      "type": "number",
+      "group": "board",
+      "default": 3
+    },
+    {
+      "key": "LeaderboardKey",
+      "label": "弹出/收起「大榜单」快捷键",
+      "type": "string",
+      "group": "board",
+      "default": "BackQuote",
+      "desc": "弹出/收起「大榜单」快捷键(可在榜单页重绑)。默认用 ` 键(数字1左边)——F3 已被「抛白菜」占，避免一按既弹榜又扔白菜"
+    },
+    {
+      "key": "LeaderboardTopN",
+      "label": "大榜单每榜显示前几名",
+      "type": "number",
+      "group": "board",
+      "default": 8
+    },
+    {
+      "key": "UnstuckPanicKeySet",
+      "label": "迁移旗",
+      "type": "boolean",
+      "group": "system",
+      "default": false,
+      "desc": "v0.9.15 迁移旗：把「解除失灵」救命键默认从自动分的组合键(Shift+F5)一次性改到裸「-」键(伸手就够到)。存在=已迁移，不再动",
+      "hidden": true
+    },
+    {
+      "key": "BoardTitle",
+      "label": "观众榜可编辑标题 + 各分榜名",
+      "type": "string",
+      "group": "board",
+      "default": "观众榜",
+      "desc": "观众榜可编辑标题 + 各分榜名(主播自己改)；横排显示。"
+    },
+    {
+      "key": "BoardGiftLabel",
+      "label": "送礼最多",
+      "type": "string",
+      "group": "board",
+      "default": "送礼王"
+    },
+    {
+      "key": "BoardFlyLabel",
+      "label": "让主播飞最高",
+      "type": "string",
+      "group": "board",
+      "default": "飞天王"
+    },
+    {
+      "key": "BoardKillLabel",
+      "label": "干掉主播最多",
+      "type": "string",
+      "group": "board",
+      "default": "干掉王"
+    },
+    {
+      "key": "BoardDuckLabel",
+      "label": "让主播抓鸭最多",
+      "type": "string",
+      "group": "board",
+      "default": "抓鸭王"
+    },
+    {
+      "key": "BoardBoomLabel",
+      "label": "把主播游戏炸关掉最多次",
+      "type": "string",
+      "group": "board",
+      "default": "炸毁王"
+    },
+    {
+      "key": "BoardWindow",
+      "label": "观众榜时间窗",
+      "type": "select",
+      "group": "board",
+      "default": 0,
+      "options": [
+        {
+          "value": 0,
+          "label": "今日"
+        },
+        {
+          "value": 1,
+          "label": "本周"
+        },
+        {
+          "value": 2,
+          "label": "本月"
+        },
+        {
+          "value": 3,
+          "label": "总"
+        },
+        {
+          "value": 4,
+          "label": "本年"
+        }
+      ]
+    },
+    {
+      "key": "BoardCycle",
+      "label": "观众榜循环轮播",
+      "type": "boolean",
+      "group": "board",
+      "default": true,
+      "desc": "今日→本月→世界总榜 自动轮着放，带切页动画"
+    },
+    {
+      "key": "BoardCycleSec",
+      "label": "每页停留秒数",
+      "type": "number",
+      "group": "board",
+      "default": 6,
+      "desc": "每页停留秒数(2~60)"
+    },
+    {
+      "key": "BoardCycDay",
+      "label": "今日",
+      "type": "boolean",
+      "group": "board",
+      "default": true
+    },
+    {
+      "key": "BoardCycWeek",
+      "label": "本周",
+      "type": "boolean",
+      "group": "board",
+      "default": false
+    },
+    {
+      "key": "BoardCycMonth",
+      "label": "本月",
+      "type": "boolean",
+      "group": "board",
+      "default": true
+    },
+    {
+      "key": "BoardCycYear",
+      "label": "本年",
+      "type": "boolean",
+      "group": "board",
+      "default": false
+    },
+    {
+      "key": "BoardCycTotal",
+      "label": "总",
+      "type": "boolean",
+      "group": "board",
+      "default": false,
+      "desc": "总(本地累计)"
+    },
+    {
+      "key": "BoardCycWorld",
+      "label": "世界总榜",
+      "type": "boolean",
+      "group": "board",
+      "default": true,
+      "desc": "世界总榜(云端)"
+    },
+    {
+      "key": "BoardShowGift",
+      "label": "各分榜是否上屏",
+      "type": "boolean",
+      "group": "board",
+      "default": true,
+      "desc": "各分榜是否上屏(可控开关，主播想露哪个露哪个)。"
+    },
+    {
+      "key": "BoardShowFly",
+      "label": "榜单·飞行榜",
+      "type": "boolean",
+      "group": "board",
+      "default": true
+    },
+    {
+      "key": "BoardShowKill",
+      "label": "榜单·击杀榜",
+      "type": "boolean",
+      "group": "board",
+      "default": true
+    },
+    {
+      "key": "BoardShowDuck",
+      "label": "榜单·鸭榜",
+      "type": "boolean",
+      "group": "board",
+      "default": true
+    },
+    {
+      "key": "BoardShowBoom",
+      "label": "炸毁王",
+      "type": "boolean",
+      "group": "board",
+      "default": true
+    },
+    {
+      "key": "BoardDistinctColors",
+      "label": "各分榜用不同颜色区分",
+      "type": "boolean",
+      "group": "board",
+      "default": true,
+      "desc": "各分榜用不同颜色区分(默认开)：送礼=金/飞天=天蓝/干掉=红/抓鸭=黄绿，一眼分得清谁是谁榜；"
+    },
+    {
+      "key": "BoardShowTitle",
+      "label": "是否显示总标题行",
+      "type": "boolean",
+      "group": "board",
+      "default": true,
+      "desc": "是否显示总标题行(★观众榜·今日)"
+    },
+    {
+      "key": "BoardBgAlpha",
+      "label": "半透明底板不透明度",
+      "type": "number",
+      "group": "board",
+      "default": 0.5,
+      "desc": "半透明底板不透明度(0=全透明无底板)",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "BoardColGap",
+      "label": "各分榜之间的横向间距",
+      "type": "number",
+      "group": "board",
+      "default": 16
+    },
+    {
+      "key": "BoardNameMax",
+      "label": "榜上昵称最多显示几个字",
+      "type": "number",
+      "group": "board",
+      "default": 6,
+      "desc": "榜上昵称最多显示几个字，超出省略号"
+    },
+    {
+      "key": "BoardCompactSet",
+      "label": "一次性迁移旗",
+      "type": "boolean",
+      "group": "board",
+      "default": false,
+      "desc": "一次性迁移旗(随 v1.x)：观众榜排版收紧(列距→16、昵称→6)。json 里存在此键=已迁移，绝不再动。见 Load() 里的迁移块。",
+      "hidden": true
+    },
+    {
+      "key": "BoardAlign",
+      "label": "观众榜对齐方式",
+      "type": "select",
+      "group": "board",
+      "default": 0,
+      "options": [
+        {
+          "value": 0,
+          "label": "靠左"
+        },
+        {
+          "value": 1,
+          "label": "居中"
+        },
+        {
+          "value": 2,
+          "label": "靠右"
+        }
+      ]
+    },
+    {
+      "key": "AnchorNameMax",
+      "label": "玩家名",
+      "type": "number",
+      "group": "board",
+      "default": 4,
+      "desc": "主播+联机对手名牌上屏最多几个字"
+    },
+    {
+      "key": "BannerNickMax",
+      "label": "中央横幅/播报里的观众名",
+      "type": "number",
+      "group": "board",
+      "default": 10,
+      "desc": "中央横幅/播报里的观众名(首杀/盲盒/加班器/成就/联机播报)"
+    },
+    {
+      "key": "LedgerNickMax",
+      "label": "菜单「记录」页台账里的观众名",
+      "type": "number",
+      "group": "board",
+      "default": 0,
+      "desc": "菜单「记录」页台账里的观众名(默认0=不缩，查账要看全名)"
+    },
+    {
+      "key": "BoardColorR",
+      "label": "观众榜文字颜色",
+      "type": "number",
+      "group": "board",
+      "default": 1,
+      "desc": "观众榜文字颜色(0~1)，设置里可调；默认鎏金。",
+      "hidden": true
+    },
+    {
+      "key": "BoardColorG",
+      "label": "观众榜文字颜色·绿",
+      "type": "number",
+      "group": "board",
+      "default": 0.92,
+      "hidden": true,
+      "desc": "观众榜文字颜色·绿（0~1）"
+    },
+    {
+      "key": "BoardColorB",
+      "label": "观众榜文字颜色·蓝",
+      "type": "number",
+      "group": "board",
+      "default": 0.55,
+      "hidden": true,
+      "desc": "观众榜文字颜色·蓝（0~1）"
+    },
+    {
+      "key": "ShowGiftFeed",
+      "label": "左下角滚动显示「谁送了什么礼物」",
+      "type": "boolean",
+      "group": "hud",
+      "default": true,
+      "desc": "左下角滚动显示「谁送了什么礼物」(可拖可缩放)"
+    },
+    {
+      "key": "GiftFeedRows",
+      "label": "最多同时显示几行",
+      "type": "number",
+      "group": "hud",
+      "default": 6,
+      "desc": "最多同时显示几行(旧的往上滚、超时掉出)"
+    },
+    {
+      "key": "ShowAvatars",
+      "label": "送礼窗+观众榜显示用户头像",
+      "type": "boolean",
+      "group": "board",
+      "default": true,
+      "desc": "送礼窗+观众榜显示用户头像：连接器把抖音头像下载缓存到本地 avatars/，mod 读盘显示；拿不到就画首字彩色占位块。"
+    },
+    {
+      "key": "AnchorName",
+      "label": "主播本人昵称",
+      "type": "string",
+      "group": "live",
+      "default": "",
+      "desc": "主播本人昵称(连接器从直播间页认出后经 anchor 行送来；持久化=重启也先用上次的名字)。空=没连过→界面回落\"主播\"。"
+    },
+    {
+      "key": "CountClears",
+      "label": "自动记通关",
+      "type": "boolean",
+      "group": "record",
+      "default": true,
+      "desc": "自动记通关(仿 CountDeaths)"
+    },
+    {
+      "key": "DeathShowRound",
+      "label": "本局死亡",
+      "type": "boolean",
+      "group": "record",
+      "default": true,
+      "desc": "本局死亡(换关归零)"
+    },
+    {
+      "key": "DeathShowDay",
+      "label": "今日挂掉",
+      "type": "boolean",
+      "group": "record",
+      "default": false
+    },
+    {
+      "key": "DeathShowWeek",
+      "label": "本周死亡",
+      "type": "boolean",
+      "group": "record",
+      "default": false
+    },
+    {
+      "key": "DeathShowMonth",
+      "label": "本月死亡",
+      "type": "boolean",
+      "group": "record",
+      "default": false
+    },
+    {
+      "key": "DeathShowTotal",
+      "label": "累计死亡",
+      "type": "boolean",
+      "group": "record",
+      "default": true,
+      "desc": "累计死亡(持久·重开不丢)"
+    },
+    {
+      "key": "ClearShowRound",
+      "label": "本局通关",
+      "type": "boolean",
+      "group": "record",
+      "default": true,
+      "desc": "本局通关(0 次不占地方)"
+    },
+    {
+      "key": "ClearShowDay",
+      "label": "今日通关",
+      "type": "boolean",
+      "group": "record",
+      "default": false
+    },
+    {
+      "key": "ClearShowWeek",
+      "label": "本周通关",
+      "type": "boolean",
+      "group": "record",
+      "default": false
+    },
+    {
+      "key": "ClearShowMonth",
+      "label": "本月通关",
+      "type": "boolean",
+      "group": "record",
+      "default": false
+    },
+    {
+      "key": "ClearShowTotal",
+      "label": "累计通关",
+      "type": "boolean",
+      "group": "record",
+      "default": true,
+      "desc": "累计通关(持久·重开不丢)"
+    },
+    {
+      "key": "TotalHudDefaultOn",
+      "label": "迁移旗",
+      "type": "boolean",
+      "group": "record",
+      "default": false,
+      "desc": "v0.9.16 迁移旗：老配置没这些键，补一次默认(累计档打开)",
+      "hidden": true
+    },
+    {
+      "key": "FinishGateEnabled",
+      "label": "自然冲线后先走「结算倒计时」再判通关",
+      "type": "boolean",
+      "group": "record",
+      "default": true,
+      "desc": "自然冲线后先走「结算倒计时」再判通关：倒计时里粉丝仍能把主播整下去→通关取消(整蛊直播看点)；0/关=回到「过线即通关」旧行为"
+    },
+    {
+      "key": "FinishGateSec",
+      "label": "结算倒计时秒数",
+      "type": "number",
+      "group": "record",
+      "default": 5,
+      "desc": "结算倒计时秒数(默认5，调参可改；0=关掉门、冲线立即判通关=旧行为)"
+    },
+    {
+      "key": "FinishGateZone",
+      "label": "终点判定距离",
+      "type": "number",
+      "group": "record",
+      "default": 6,
+      "desc": "v2 终点判定距离(米)：主播离终点坐标多近算「到终点」起倒计时。无上限；内部安全阀 Max(0.5)(太小则玩家必须贴死在终点坐标上才起倒计时，容易起不来)"
+    },
+    {
+      "key": "FinishCheckpointBlock",
+      "label": "终点检查点不记录",
+      "type": "boolean",
+      "group": "other",
+      "default": true,
+      "desc": "终点检查点不记录：开=被推/传送到终点又摔下去，复活不会直接出现在终点(回上一个真检查点)"
+    },
+    {
+      "key": "FinishCheckpointDist",
+      "label": "终点检查点·判定距离",
+      "type": "number",
+      "group": "other",
+      "default": 8,
+      "desc": "终点检查点·判定距离(米)：离终点坐标多近的检查点算终点检查点；序号最大的那个检查点无论远近都算"
+    },
+    {
+      "key": "CheckpointAnyTouch",
+      "label": "检查点·碰到就记",
+      "type": "boolean",
+      "group": "other",
+      "default": false,
+      "desc": "检查点·碰到就记(不分前后)：开=被炸/被推/被吸到任意检查点，重生点就记在那里，往回打到低处的也算；关=游戏原样，只认比当前更靠前的"
+    },
+    {
+      "key": "CheckpointAnyTouchTeleport",
+      "label": "检查点·传送落点也算",
+      "type": "boolean",
+      "group": "other",
+      "default": false,
+      "desc": "检查点·传送落点也算：开=传送类整蛊(传送到终点/随机乱传/高空抛落/瞬移前方)落到检查点上也记；关=传送落点不记，只认被炸/被推/被吸到的"
+    },
+    {
+      "key": "CountWindow",
+      "label": "记分板时间窗",
+      "type": "select",
+      "group": "record",
+      "default": 3,
+      "options": [
+        {
+          "value": 0,
+          "label": "今日"
+        },
+        {
+          "value": 1,
+          "label": "本周"
+        },
+        {
+          "value": 2,
+          "label": "本月"
+        },
+        {
+          "value": 3,
+          "label": "总"
+        }
+      ]
+    },
+    {
+      "key": "PranksTakenTotal",
+      "label": "终身承受整蛊总次数",
+      "type": "number",
+      "group": "record",
+      "default": 0,
+      "desc": "终身承受整蛊总次数(所有整蛊之和；里程碑成就用)",
+      "hidden": true
+    },
+    {
+      "key": "FollowsEver",
+      "label": "终身涨粉累计",
+      "type": "number",
+      "group": "record",
+      "default": 0,
+      "desc": "终身涨粉累计(OnFollow 到阈值会清零 _follows，这个只增不减，涨粉里程碑成就用)",
+      "hidden": true
+    },
+    {
+      "key": "FirstKillEnabled",
+      "label": "今日首杀记录",
+      "type": "boolean",
+      "group": "record",
+      "default": true,
+      "desc": "开关"
+    },
+    {
+      "key": "FirstKillDate",
+      "label": "记名那天",
+      "type": "string",
+      "group": "record",
+      "default": "",
+      "desc": "记名那天(yyyy-MM-dd)，和今天不一致就重置",
+      "hidden": true
+    },
+    {
+      "key": "FirstKillName",
+      "label": "今日首杀观众昵称",
+      "type": "string",
+      "group": "record",
+      "default": "",
+      "hidden": true
+    },
+    {
+      "key": "ShowFirstKillHud",
+      "label": "在直播画面上常驻显示今日首杀名号",
+      "type": "boolean",
+      "group": "record",
+      "default": true,
+      "desc": "在直播画面上常驻显示今日首杀名号(可拖可缩放)"
+    },
+    {
+      "key": "FirstKillHudText",
+      "label": "有首杀时的文案，空=默认「★ 今日首杀  {na",
+      "type": "string",
+      "group": "record",
+      "default": "",
+      "desc": "有首杀时的文案，空=默认「★ 今日首杀  {name}」",
+      "hidden": true
+    },
+    {
+      "key": "FirstKillHudEmptyText",
+      "label": "还没人时的悬赏文案，空=默认「★ 今日首杀  虚",
+      "type": "string",
+      "group": "record",
+      "default": "",
+      "desc": "还没人时的悬赏文案，空=默认「★ 今日首杀  虚位以待」",
+      "hidden": true
+    },
+    {
+      "key": "BulletHellEnabled",
+      "label": "枪林弹雨模式开关",
+      "type": "boolean",
+      "group": "prank-fx",
+      "default": true,
+      "desc": "菜单里的 Boss 菜单项开关"
+    },
+    {
+      "key": "BulletHellInterval",
+      "label": "每隔多少秒投一波弹药",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 0.42,
+      "desc": "每隔多少秒投一波弹药(越小越密)"
+    },
+    {
+      "key": "BulletHellPower",
+      "label": "每次爆炸的击退力度",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 11,
+      "desc": "每次爆炸的击退力度(m/s)——主播反馈要更猛，默认从6拉到11"
+    },
+    {
+      "key": "BulletHellRadiusMul",
+      "label": "爆炸半径倍率",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 1.35,
+      "desc": "爆炸半径倍率(在弹种基础半径上再放大，威力更强、更难躲)"
+    },
+    {
+      "key": "BulletHellVolume",
+      "label": "自备紧张BGM的音量",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 0.85,
+      "desc": "自备紧张BGM的音量(0~1)",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "BulletHellFastWalk",
+      "label": "枪林弹雨期间叠加「疾走」",
+      "type": "boolean",
+      "group": "prank-fx",
+      "default": true,
+      "desc": "枪林弹雨期间叠加「疾走」：临时抬高轮椅最高速上限，主播能跑更快好躲弹幕。主播可关"
+    },
+    {
+      "key": "BulletHellSpeedMul",
+      "label": "疾走倍率",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 1.7,
+      "desc": "疾走倍率：把轮椅最高速上限抬成原来的这个倍数(1=不变，越大越快)"
+    },
+    {
+      "key": "BulletHellDirectKill",
+      "label": "枪林弹雨",
+      "type": "boolean",
+      "group": "prank-fx",
+      "default": true,
+      "desc": "枪林弹雨：被导弹/炸弹「正好命中」(落点几乎砸身上)就挂掉，擦边命中只弹开。主播可关"
+    },
+    {
+      "key": "BulletHellDirectKillRadius",
+      "label": "「正好命中」判定半径",
+      "type": "number",
+      "group": "prank-fx",
+      "default": 1.4,
+      "desc": "「正好命中」判定半径(米)：落点离主播<这个距离才算直击致命，越小越\"必须正中\""
+    },
+    {
+      "key": "RocketDirectKill",
+      "label": "火箭轰炸",
+      "type": "boolean",
+      "group": "prank-rocket",
+      "default": true,
+      "desc": "火箭轰炸(w_rocket)：火箭「正好命中」主播(落点几乎砸身上)就当场干掉主播，擦边只掀歪；复用上面的「正好命中」判定半径。主播可关"
+    },
+    {
+      "key": "ThunderStormEnabled",
+      "label": "菜单/礼物里的雷暴开关",
+      "type": "boolean",
+      "group": "prank-thunder",
+      "default": true
+    },
+    {
+      "key": "ThunderStormInterval",
+      "label": "每隔多少秒劈一道雷",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 2.2,
+      "desc": "每隔多少秒劈一道雷(越小越密)"
+    },
+    {
+      "key": "ThunderStormLethalChance",
+      "label": "「偶尔致命」概率",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 0.25,
+      "desc": "「偶尔致命」概率(0~1)：每记雷有这么大概率直接劈死主播(被劈死自动无缝复活)。0=从不致命，纯骚扰",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "ThunderStormNumbSec",
+      "label": "「麻木·定身」时长",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 0.6,
+      "desc": "「麻木·定身」时长——已被下面的「电击·极慢」取代，保留仅为兼容老 config，不再读取"
+    },
+    {
+      "key": "ThunderStormVolume",
+      "label": "紧张BGM音量",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 0.85,
+      "desc": "紧张BGM音量(0~1)——和枪林弹雨共用那份 bullethell_bgm.wav",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "ThunderStormExtraBolts",
+      "label": "每记雷额外劈几道「陪衬雷」到主播附近地面",
+      "type": "number",
+      "group": "prank-thunder",
+      "default": 2,
+      "desc": "每记雷额外劈几道「陪衬雷」到主播附近地面(纯视觉·壮大场面·无击退)，0=只劈主播那一道"
+    },
+    {
+      "key": "AchieveEnabled",
+      "label": "成就系统+最高速度纪录",
+      "type": "boolean",
+      "group": "record",
+      "default": true,
+      "desc": "成就系统+最高速度纪录：破纪录高光播报(功劳归当时肇事观众)+成就墙。"
+    },
+    {
+      "key": "SpeedRecordMin",
+      "label": "破纪录播报的起步阈值",
+      "type": "number",
+      "group": "record",
+      "default": 15,
+      "desc": "破纪录播报的起步阈值(m/s)：低于它不吹(阈值可设=用户点名)"
+    },
+    {
+      "key": "TopSpeedEver",
+      "label": "历史最高速度",
+      "type": "number",
+      "group": "record",
+      "default": 0,
+      "desc": "历史最高速度(m/s)",
+      "hidden": true
+    },
+    {
+      "key": "TopSpeedBy",
+      "label": "纪录当时的肇事观众",
+      "type": "string",
+      "group": "record",
+      "default": "",
+      "desc": "纪录当时的肇事观众(\"\")=主播自己",
+      "hidden": true
+    },
+    {
+      "key": "FlyBestEver",
+      "label": "历史最高飞行",
+      "type": "number",
+      "group": "record",
+      "default": 0,
+      "desc": "历史最高飞行(米)——【一次飞行的上升幅度】，配功臣/破纪录横幅",
+      "hidden": true
+    },
+    {
+      "key": "FlyBestBy",
+      "label": "纪录当时的肇事观众",
+      "type": "string",
+      "group": "record",
+      "default": "",
+      "desc": "纪录当时的肇事观众(\"\")=主播自己",
+      "hidden": true
+    },
+    {
+      "key": "HeightBestEver",
+      "label": "2026-08-09 到达过的最高点",
+      "type": "number",
+      "group": "other",
+      "default": 0,
+      "desc": "2026-08-09 到达过的最高点(米，相对本局出生地地平线)。与上面 FlyBestEver 是【两个不同的量】，必须分开存："
+    },
+    {
+      "key": "FollowBoxLastDay",
+      "label": "2026-08-09 关注盲盒「每日一次」的已用",
+      "type": "string",
+      "group": "live",
+      "default": "",
+      "desc": "2026-08-09 关注盲盒「每日一次」的已用日期(\"yyyy-MM-dd\")。空=今天还没开过。存盘防重启归零(见 Live.OnFollow)。"
+    },
+    {
+      "key": "FlyCreditMode",
+      "label": "飞天榜功臣归因",
+      "type": "select",
+      "group": "record",
+      "default": 0,
+      "options": [
+        {
+          "value": 0,
+          "label": "一场飞行内送礼最多者"
+        },
+        {
+          "value": 1,
+          "label": "最先触发者"
+        },
+        {
+          "value": 2,
+          "label": "最后触发者"
+        }
+      ]
+    },
+    {
+      "key": "FlyRecordMargin",
+      "label": "破纪录门槛",
+      "type": "number",
+      "group": "record",
+      "default": 1,
+      "desc": "破纪录门槛：只高出 0.01 米也吼\"新纪录\"就是噪音(连飞时几乎次次微涨=次次破)。默认要真高出 1 米才算。"
+    },
+    {
+      "key": "WorkClockOn",
+      "label": "加班器总开关",
+      "type": "boolean",
+      "group": "work",
+      "default": true,
+      "desc": "加班器总开关：关=整个功能不存在(小窗/礼物/事件库条目全隐藏)"
+    },
+    {
+      "key": "WorkClockMinutes",
+      "label": "打卡时的班表时长",
+      "type": "number",
+      "group": "work",
+      "default": 60,
+      "desc": "打卡时的班表时长(分钟)"
+    },
+    {
+      "key": "WorkGiftFromZero",
+      "label": "没上班时礼物砸过来",
+      "type": "boolean",
+      "group": "work",
+      "default": true,
+      "desc": "没上班时礼物砸过来：开=从零开始累时间；关=按班表时长自动打卡再抽"
+    },
+    {
+      "key": "WorkAddMin",
+      "label": "加时抽取下限",
+      "type": "number",
+      "group": "work",
+      "default": 1,
+      "desc": "加时抽取下限(分钟)"
+    },
+    {
+      "key": "WorkAddMax",
+      "label": "加时抽取上限",
+      "type": "number",
+      "group": "work",
+      "default": 5,
+      "desc": "加时抽取上限(分钟)"
+    },
+    {
+      "key": "WorkSubMin",
+      "label": "减时抽取下限",
+      "type": "number",
+      "group": "work",
+      "default": 1,
+      "desc": "减时抽取下限(分钟)"
+    },
+    {
+      "key": "WorkSubMax",
+      "label": "减时抽取上限",
+      "type": "number",
+      "group": "work",
+      "default": 5,
+      "desc": "减时抽取上限(分钟)"
+    },
+    {
+      "key": "WorkMulMin",
+      "label": "拖班倍率下限",
+      "type": "number",
+      "group": "work",
+      "default": 1.2
+    },
+    {
+      "key": "WorkMulMax",
+      "label": "拖班倍率上限",
+      "type": "number",
+      "group": "work",
+      "default": 2
+    },
+    {
+      "key": "WorkDivMin",
+      "label": "放人除数下限",
+      "type": "number",
+      "group": "work",
+      "default": 1.2,
+      "desc": "放人除数下限(÷)——运行时再夹 ≥1.05 防除零"
+    },
+    {
+      "key": "WorkDivMax",
+      "label": "放人除数上限",
+      "type": "number",
+      "group": "work",
+      "default": 2
+    },
+    {
+      "key": "WorkMulDivChance",
+      "label": "抽中乘/除的概率",
+      "type": "number",
+      "group": "work",
+      "default": 0.15,
+      "desc": "抽中乘/除的概率(其余走加/减)",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "WorkLongerChance",
+      "label": "变长",
+      "type": "number",
+      "group": "work",
+      "default": 0.5,
+      "desc": "变长(拖班)的概率(其余=变短放人)",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "WorkBigChance",
+      "label": "加/减暴击概率",
+      "type": "number",
+      "group": "work",
+      "default": 0.1,
+      "desc": "加/减暴击概率(数值放大 WorkBigMul 倍)",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "WorkBigMul",
+      "label": "暴击倍数",
+      "type": "number",
+      "group": "work",
+      "default": 5
+    },
+    {
+      "key": "WorkMaxMinutes",
+      "label": "剩余时间硬上限",
+      "type": "number",
+      "group": "work",
+      "default": 600,
+      "desc": "剩余时间硬上限(分钟)——乘法连爆的保险丝"
+    },
+    {
+      "key": "WorkZeroAction",
+      "label": "归零行为",
+      "type": "select",
+      "group": "work",
+      "default": 0,
+      "options": [
+        {
+          "value": 0,
+          "label": "大字庆祝 + 号角"
+        },
+        {
+          "value": 1,
+          "label": "小字提示"
+        },
+        {
+          "value": 2,
+          "label": "安静"
+        }
+      ]
+    },
+    {
+      "key": "WorkClockText",
+      "label": "小窗文案",
+      "type": "string",
+      "group": "work",
+      "default": "上班时间还剩:"
+    },
+    {
+      "key": "WorkBoxLowMul",
+      "label": "低倍率盲盒",
+      "type": "number",
+      "group": "work",
+      "default": 0.5,
+      "desc": "低倍率盲盒(work_box_low)的幅度倍率",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "WorkBoxHighMul",
+      "label": "高倍率盲盒",
+      "type": "number",
+      "group": "work",
+      "default": 2,
+      "desc": "高倍率盲盒(work_box_high)的幅度倍率"
+    },
+    {
+      "key": "WorkTextR",
+      "label": "小窗字色",
+      "type": "number",
+      "group": "work",
+      "default": 0.55,
+      "desc": "小窗字色(默认淡蓝=老版原色)",
+      "hidden": true
+    },
+    {
+      "key": "WorkTextG",
+      "label": "小窗字色·绿",
+      "type": "number",
+      "group": "work",
+      "default": 0.88,
+      "hidden": true,
+      "desc": "上班打卡小窗文字颜色·绿（0~1）"
+    },
+    {
+      "key": "WorkTextB",
+      "label": "小窗字色·蓝",
+      "type": "number",
+      "group": "work",
+      "default": 1,
+      "hidden": true,
+      "desc": "上班打卡小窗文字颜色·蓝（0~1）"
+    },
+    {
+      "key": "WorkWarnSec",
+      "label": "剩余低于这么多秒小窗转红",
+      "type": "number",
+      "group": "work",
+      "default": 60,
+      "desc": "剩余低于这么多秒小窗转红(0=从不转红)"
+    },
+    {
+      "key": "WorkBgAlpha",
+      "label": "小窗底板透明度",
+      "type": "number",
+      "group": "work",
+      "default": 0.55,
+      "desc": "小窗底板透明度(观众榜同款圆角底板)；0=不画底板",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    {
+      "key": "WorkPersist",
+      "label": "续班",
+      "type": "boolean",
+      "group": "work",
+      "default": true,
+      "desc": "续班：重开游戏接着上次剩余时间(关掉=老行为，重开清零)"
+    },
+    {
+      "key": "WorkSavedRunning",
+      "label": "上班状态·是否进行中",
+      "type": "boolean",
+      "group": "work",
+      "default": false,
+      "desc": "自动记录：崩溃/关游戏前是否正在上班",
+      "hidden": true
+    },
+    {
+      "key": "WorkSavedRemainSec",
+      "label": "上班状态·剩余秒数",
+      "type": "number",
+      "group": "work",
+      "default": 0,
+      "desc": "自动记录：崩溃/关游戏前的剩余秒数",
+      "hidden": true
+    }
+  ]
+}
