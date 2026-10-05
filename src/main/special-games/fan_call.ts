@@ -202,9 +202,9 @@ window.registerGame((function(){
       if(type!=='down'||!current) return;
       var g=cardGeom();
       var dx=x-g.hangupX, dy=y-g.y-g.h/2;
-      if(dx*dx+dy*dy<=g.btnR*g.btnR*1.3){ dismissCurrent(true); return; }
+      if(dx*dx+dy*dy<=g.btnR*g.btnR*1.3){ dismissCurrent(true); return true; }
       dx=x-g.answerX;
-      if(dx*dx+dy*dy<=g.btnR*g.btnR*1.3 && !current.answered){ answerCurrent(); return; }
+      if(dx*dx+dy*dy<=g.btnR*g.btnR*1.3 && !current.answered){ answerCurrent(); return true; }
     },
     tick:function(dt){
       var step=dt*api.speed();

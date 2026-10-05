@@ -75,20 +75,24 @@ window.registerGame((function(){
     return n1*(p-=2.625/d1)*p+0.984375;
   }
 
+  // 计数面板：一直显示 / 场上有东西时显示（默认）/ 不显示——好几个玩法同在一个窗口，用过的面板别一直堆在左上角
+  function statsShown(){ var m=String(api.cfg.statsPanel||'active'); if(m==='off') return false; if(m==='always') return true; return ducks.length>0||pending.total>0; }
   function drawStats(ctx){
+    if(!statsShown()){ if(api.hud) api.hud(0); return; }
     var fs=Math.max(13,Math.min(20,api.W*0.016));
     var lines=['已经抓 '+caught+' 只','等待落下：'+pending.total+' 只'];
     ctx.save();
     ctx.font='600 '+fs+'px "Microsoft YaHei",sans-serif';
     var w=0,i;
     for(i=0;i<lines.length;i++) w=Math.max(w,ctx.measureText(lines[i]).width);
-    var padX=fs*0.9,padY=fs*0.55,lh=fs*1.5;
-    ZL.roundRect(ctx,10,10,w+padX*2,lines.length*lh+padY*2-lh*0.5,12);
+    var padX=fs*0.9,padY=fs*0.55,lh=fs*1.5,ph=lines.length*lh+padY*2-lh*0.5;
+    var top=api.hud?api.hud(ph):10;
+    ZL.roundRect(ctx,10,top,w+padX*2,ph,12);
     ctx.fillStyle='rgba(20,22,28,0.66)'; ctx.fill();
     ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,255,255,0.16)'; ctx.stroke();
     ctx.textAlign='left'; ctx.textBaseline='middle';
     for(i=0;i<lines.length;i++){
-      var ly=10+padY+i*lh+lh*0.32;
+      var ly=top+padY+i*lh+lh*0.32;
       ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,fs*0.14); ctx.strokeStyle='rgba(0,0,0,0.6)';
       ctx.strokeText(lines[i],10+padX,ly);
       ctx.fillStyle='#fff'; ctx.fillText(lines[i],10+padX,ly);
@@ -180,7 +184,7 @@ window.registerGame((function(){
           ducks.splice(i,1);
           caught++; ZL.saveTotal('catch_duck',caught);
           ZL.snd('duck/duck_appear.mp3');
-          return;
+          return true;
         }
       }
     },
@@ -223,8 +227,8 @@ window.registerGame((function(){
           ctx.restore();
         }
       }
-      drawStats(ctx);
-      drawPrompts(ctx);
+      drawStats(api.hudCtx||ctx);
+      drawPrompts(api.hudCtx||ctx);
     },
     stats:function(){ return { value:caught }; },
     // 只读调试钩子（离线验收用，生产不调用）：可点的鸭子中心点

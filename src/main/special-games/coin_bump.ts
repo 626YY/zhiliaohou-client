@@ -108,12 +108,12 @@ window.registerGame((function(){
         if(dx*dx+dy*dy <= c.r*c.r*1.44){
           coins.splice(i,1);
           ZL.snd('coin_bump/coin_bump.mp3', 0.8);
-          return;
+          return true;
         }
       }
       // 再判砖块（顶）
       var b=brickRect();
-      if(Math.abs(x-b.x)<=b.side*0.62 && Math.abs(y-b.y)<=b.side*0.62) bump();
+      if(Math.abs(x-b.x)<=b.side*0.62 && Math.abs(y-b.y)<=b.side*0.62){ bump(); return true; }
     },
     tick:function(dt){
       var step=dt*api.speed();

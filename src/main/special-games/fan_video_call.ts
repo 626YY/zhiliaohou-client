@@ -236,9 +236,9 @@ window.registerGame((function(){
       if(type!=='down'||!current) return;
       var g=btnGeom();
       var dx=x-g.hangupX, dy=y-g.y;
-      if(dx*dx+dy*dy<=g.r*g.r*1.44){ dismissCurrent(true); return; }
+      if(dx*dx+dy*dy<=g.r*g.r*1.44){ dismissCurrent(true); return true; }
       dx=x-g.answerX;
-      if(!current.answered && dx*dx+dy*dy<=g.r*g.r*1.44){ answerCurrent(); return; }
+      if(!current.answered && dx*dx+dy*dy<=g.r*g.r*1.44){ answerCurrent(); return true; }
     },
     tick:function(dt){
       var step=dt*api.speed();

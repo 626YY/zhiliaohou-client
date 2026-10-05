@@ -181,18 +181,19 @@ import {
   effectsState
 } from './effects-widget'
 import {
-  openSpecialGame,
-  closeSpecialGame,
+  openSpecialWindow,
+  closeSpecialWindow,
+  configureSpecialWindow,
   configureSpecialGame,
   specialState,
   specialStats,
   testSpecialGame,
   clearAllSpecial,
   closeAllSpecial,
-  specialBoxes,
-  saveSpecialBox,
-  removeSpecialBox,
-  testSpecialBox
+  specialBoxEvents,
+  saveSpecialBoxEvents,
+  testSpecialBoxEvent,
+  drawSpecialBox
 } from './special-gameplay'
 import {
   openEntranceWindow,
@@ -1001,17 +1002,18 @@ export function registerIpc(): void {
   handle(Ipc.EffectsState, () => effectsState())
 
   // ---- 特色整蛊（绿幕叠加层小游戏，独立顶级菜单）----
-  handle(Ipc.SpecialOpen, (_e, id, cfg) => openSpecialGame(id, cfg ?? undefined))
-  handle(Ipc.SpecialClose, (_e, id) => closeSpecialGame(id))
+  handle(Ipc.SpecialWindowOpen, () => openSpecialWindow())
+  handle(Ipc.SpecialWindowClose, () => closeSpecialWindow())
+  handle(Ipc.SpecialWindowConfigure, (_e, cfg) => configureSpecialWindow(cfg ?? {}))
   handle(Ipc.SpecialConfigure, (_e, id, cfg) => configureSpecialGame(id, cfg ?? {}))
   handle(Ipc.SpecialState, () => specialState())
   handle(Ipc.SpecialTest, (_e, id, action) => testSpecialGame(id, action ?? undefined))
   handle(Ipc.SpecialStats, (_e, id) => specialStats(id))
   handle(Ipc.SpecialClearAll, () => clearAllSpecial())
-  handle(Ipc.SpecialBoxes, () => specialBoxes())
-  handle(Ipc.SpecialBoxSave, (_e, box) => saveSpecialBox(box ?? {}))
-  handle(Ipc.SpecialBoxRemove, (_e, id) => removeSpecialBox(String(id ?? '')))
-  handle(Ipc.SpecialBoxTest, (_e, id) => testSpecialBox(String(id ?? '')))
+  handle(Ipc.SpecialBoxEvents, () => specialBoxEvents())
+  handle(Ipc.SpecialBoxEventsSave, (_e, list) => saveSpecialBoxEvents(Array.isArray(list) ? list : []))
+  handle(Ipc.SpecialBoxEventTest, (_e, id) => testSpecialBoxEvent(String(id ?? '')))
+  handle(Ipc.SpecialBoxDraw, (_e, param) => drawSpecialBox(String(param ?? '')))
   handle(Ipc.SpecialCloseAll, () => closeAllSpecial())
 
   // ---- 大哥进场 ----

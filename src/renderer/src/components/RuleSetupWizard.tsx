@@ -11,7 +11,7 @@ import {fileName,mediaFileUrl,SETUP_KINDS,setupKind,setupRule,setupSource,type S
 import {splitTargetSuffix} from '../utils/videoTarget'
 import SpecialPicker from './special/SpecialPicker'
 import GamePrankSelect from './GamePrankSelect'
-import {parseSpecialParam,specialActionText,specialBoxText,SPECIAL_GAME_MAP} from '@shared/specialGames'
+import {parseSpecialParam,specialActionText,specialBoxText} from '@shared/specialGames'
 
 type Stage='kind'|'material'|'extra-choice'|'extra-type'|'extra-value'|'gift'|'review'|'done'
 type ExtraKind='key'|'countdown-adjust'|'count-adjust'|'overtime-adjust'
@@ -112,11 +112,10 @@ export default function RuleSetupWizard({initialKind,initialRule,onClose,onSaved
   const prepareOutput=async()=>{
     setBusy(true);setError('')
     try{
-      // 特色整蛊：开它自己的玩法窗口（窗口名就是玩法名）
-      if(kind==='special'&&specialId){
-        const name=SPECIAL_GAME_MAP[specialId]?.name||'玩法'
-        const r=await window.api.specialOpen(specialId)
-        if(live.current){if(r.ok)setOutputReady(`「${name}」窗口已开启。到直播软件添加窗口采集，选「${name}」，绿幕底色记得开抠像。`);else setError(r.error||'窗口没能打开，请重试。')}
+      // 特色整蛊：全部玩法共用一个窗口「特色整蛊」
+      if(kind==='special'){
+        const r=await window.api.specialWindowOpen()
+        if(live.current){if(r.ok)setOutputReady('「特色整蛊」窗口已开启。到直播软件添加窗口采集，选「特色整蛊」，绿幕底色记得开抠像；所有特色整蛊都在这一个窗口里，只加一次就行。');else setError(r.error||'窗口没能打开，请重试。')}
         return
       }
       const target=splitTargetSuffix(draft.commandParam||'').target
@@ -146,7 +145,7 @@ export default function RuleSetupWizard({initialKind,initialRule,onClose,onSaved
         {['material','extra-value','gift'].includes(stage)&&!unsupported&&<Btn onClick={next} disabled={busy||!canNext}>下一步<ArrowRight size={14}/></Btn>}
         {stage==='review'&&!unsupported&&<><Btn variant="secondary" disabled={busy||uncertain} onClick={()=>void save(false)}>先保存，不启用</Btn><Btn disabled={busy||uncertain} onClick={()=>void save(initialRule?.id?initialRule.enabled!==false:true)}>{busy?'保存中…':initialRule?.id?'保存修改':'完成并启用'}</Btn></>}
         {stage==='done'&&(kind==='video'||kind==='box')&&<Btn disabled={busy} onClick={()=>void prepareOutput()}>准备播放窗口</Btn>}
-        {stage==='done'&&kind==='special'&&!specialBox&&<Btn disabled={busy} onClick={()=>void prepareOutput()}>开启玩法窗口</Btn>}
+        {stage==='done'&&kind==='special'&&<Btn disabled={busy} onClick={()=>void prepareOutput()}>开启特色整蛊窗口</Btn>}
       </div></div>
     </div>}>
     {unsupported?<div className="space-y-4"><p className="text-sm leading-6 text-[var(--text-2)]">这条已有规则使用了特殊触发方式或动作，完整配置会保留。可到高级设置继续调整。</p><Btn onClick={()=>onAdvanced(initialRule!)}>调整这条规则（高级）</Btn></div>:<>
@@ -154,7 +153,7 @@ export default function RuleSetupWizard({initialKind,initialRule,onClose,onSaved
       <h3 ref={heading} tabIndex={-1} className="mb-3 text-lg font-semibold text-[var(--text)] outline-none" data-testid="setup-question">{questions[stage]}</h3>
       <div className="space-y-4" data-setup-step={stage}>
         {stage==='kind'&&<><p className="text-sm text-[var(--text-3)]">选一个就行，接下来会一步一步带你设置。</p><div className="grid grid-cols-2 gap-3">{SETUP_KINDS.map(k=><Btn key={k.id} aria-label={k.label} variant="secondary" className="!block !whitespace-normal !p-4 !text-left" onClick={()=>{setKind(k.id);setPreviewReady(false);go('material')}}><span className="flex items-center gap-1.5 text-sm font-semibold">{k.label}{(k.id==='special'||k.id==='game')&&<span className="rounded bg-[var(--accent-soft)] px-1.5 py-px text-[10px] font-medium text-[var(--accent-2)]">整蛊</span>}</span><span className="mt-2 block text-xs font-normal leading-5 text-[var(--text-3)]">{k.hint}</span></Btn>)}</div></>}
-        {stage==='material'&&kind==='special'&&<><p className="text-sm leading-6 text-[var(--text-3)]">点一个玩法再填数量，或者选一个盲盒（随机开出一种）。想先看看效果，可以去「特色整蛊」里预览。</p><SpecialPicker value={source} onChange={v=>setSources(s=>({...s,special:v}))}/></>}
+        {stage==='material'&&kind==='special'&&<><p className="text-sm leading-6 text-[var(--text-3)]">点一个玩法再填数量；或者选「盲盒随机」，勾选这个礼物抽哪些事件（每份随机抽一个）。想先看看效果，可以去「特色整蛊」里预览。</p><SpecialPicker value={source} onChange={v=>setSources(s=>({...s,special:v}))}/></>}
         {stage==='material'&&kind==='game'&&<><p className="text-sm leading-6 text-[var(--text-3)]">选一个游戏里的整蛊。收到礼物时游戏要开着，并且当前选中的就是这款游戏，才会触发。</p><Field label="游戏整蛊"><GamePrankSelect value={source} onChange={v=>setSources(s=>({...s,game:v}))}/></Field></>}
         {stage==='material'&&kind!=='special'&&kind!=='game'&&(kind==='key'?keyPicker(source,v=>setSources(s=>({...s,key:v}))):<>
           <p className="text-sm leading-6 text-[var(--text-3)]">{kind==='box'?'选一个放着视频的文件夹，收到礼物时从里面随机抽一个。':kind==='sound'?'点下面的按钮，选择电脑上的音效。选好后可以先听一听。':'点下面的按钮，选择电脑上的视频。默认完整播放一遍，播完就结束。'}</p>
@@ -172,7 +171,7 @@ export default function RuleSetupWizard({initialKind,initialRule,onClose,onSaved
         {stage==='extra-value'&&(extraKind==='key'?keyPicker(extraKey,setExtraKey):<><p className="text-sm text-[var(--text-3)]">{extraKind==='countdown-adjust'?'调整「时间插件」里的倒计时。':extraKind==='overtime-adjust'?'调整「加班器」里的剩余时间。':'调整「计数挑战」里的数字。'}对应功能需要先开启。</p><Segmented value={direction} onChange={setDirection} options={[{value:'add',label:'增加'},{value:'subtract',label:'减少'}]}/><Field label={extraKind==='count-adjust'?'加减多少':'加减多少秒'} hint={extraKind==='count-adjust'?'例如填 5，就是增加或减少 5。':'例如填 30，就是 30 秒；1 分钟是 60 秒。'}><Input aria-label="动作数值" inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)}/></Field></>)}
         {stage==='gift'&&<><p className="text-sm text-[var(--text-3)]">选一个常用礼物，或者输入你想用的礼物名。</p><div className="flex flex-wrap gap-2">{['小心心','鲜花','棒棒糖','大啤酒','玫瑰','火箭'].map(n=><Btn key={n} variant={gift===n?'primary':'secondary'} aria-pressed={gift===n} onClick={()=>setGift(n)}>{n}</Btn>)}</div><Field label="也可以自己填写礼物"><Input aria-label="触发礼物" list="setup-gift-options" value={gift} onChange={e=>setGift(e.target.value)} placeholder="例如：小心心"/><datalist id="setup-gift-options">{DOUYIN_GIFT_NAMES.map(n=><option key={n} value={n}/>)}</datalist></Field><p className="text-xs text-[var(--text-3)]">每收到 {draft.times||1} 个这个礼物，就触发一次。{draft.multiply!==false?'连续送礼会按数量触发。':'一组连送只触发一次。'}</p>{!!matching.length&&<p className="text-xs leading-5 text-[var(--warn)]">已有 {matching.length} 条启用的规则使用「{gift}」，它们也会一起触发。如需替换，请先在规则列表停用旧规则。</p>}</>}
         {stage==='review'&&<><div className="border-l-2 border-[var(--accent)] pl-4 text-sm leading-7 text-[var(--text-2)]"><p>观众每送 {draft.times||1} 个「{gift}」</p><p className="font-semibold text-[var(--text)]">→ {chosen.label}：{kind==='key'?SHORTCUT_OPTIONS.find(k=>k.value===source)?.label||source:kind==='special'?(specialBox?'盲盒'+specialBoxText(source.slice(4)):specialActionText(source)):kind==='game'?gamePrankName:fileName(source)}</p><p>{addition?`同时：${actionLabel(addition)}`:'这次不添加额外动作。'}</p></div>{kind==='video'&&<p className="text-xs text-[var(--text-3)]">{Number(splitVideoParam(draft.commandParam).seconds)>0?`沿用设置：最多播放 ${splitVideoParam(draft.commandParam).seconds} 秒。`:splitVideoParam(draft.commandParam).target==='视频'&&splitVideoParam(draft.commandParam).seconds===undefined?'沿用原有循环播放设置。':'视频播放一遍后结束。'}</p>}{!!originalExtras.length&&<p className="text-xs text-[var(--warn)]">原规则的 {originalExtras.length} 个附加动作继续保留：{originalExtras.map(actionLabel).join('、')}</p>}{kind==='box'&&!!(paired+custom)&&<p className="text-xs text-[var(--warn)]">抽中视频自带的整蛊效果也会执行。</p>}{initialRule&&<p className="text-xs text-[var(--text-3)]">原有延迟、执行次数和播放位置保持原设置，可在高级里调整。</p>}<p className="text-xs text-[var(--text-3)]">{initialRule?.name?'规则名称':'已自动命名'}：{draft.name}</p><p className="text-sm leading-6 text-[var(--text-3)]">确认无误后完成。还不想让它触发，可以选“先保存，不启用”。</p></>}
-        {stage==='done'&&<><Check size={32} className="text-[var(--ok)]"/><p className="text-sm leading-7 text-[var(--text-2)]">「{draft.name}」{savedEnabled?'已启用':'已保存，当前停用'}。{kind==='video'||kind==='box'?'接下来点“准备播放窗口”，再到直播软件添加窗口采集。':kind==='special'?'收到礼物时玩法窗口会自动打开；也可以现在点“开启玩法窗口”，先到直播软件添加窗口采集。':kind==='game'?'游戏开着、当前选中的是这款游戏时，收到礼物就会触发。':kind==='sound'?'声音会从电脑播放，请确认直播软件已采集电脑声音。':'触发时会向当前操作的软件发送快捷键。'}</p><p className="text-xs text-[var(--text-3)]">{savedEnabled?'连接直播间后，收到选定礼物就会触发。':'需要使用时，在规则列表打开这条规则的开关。'}</p>{outputReady&&<p role="status" className="text-sm leading-6 text-[var(--ok)]">{outputReady}</p>}</>}
+        {stage==='done'&&<><Check size={32} className="text-[var(--ok)]"/><p className="text-sm leading-7 text-[var(--text-2)]">「{draft.name}」{savedEnabled?'已启用':'已保存，当前停用'}。{kind==='video'||kind==='box'?'接下来点“准备播放窗口”，再到直播软件添加窗口采集。':kind==='special'?'收到礼物时「特色整蛊」窗口会自动打开；也可以现在点“开启特色整蛊窗口”，先到直播软件添加窗口采集。':kind==='game'?'游戏开着、当前选中的是这款游戏时，收到礼物就会触发。':kind==='sound'?'声音会从电脑播放，请确认直播软件已采集电脑声音。':'触发时会向当前操作的软件发送快捷键。'}</p><p className="text-xs text-[var(--text-3)]">{savedEnabled?'连接直播间后，收到选定礼物就会触发。':'需要使用时，在规则列表打开这条规则的开关。'}</p>{outputReady&&<p role="status" className="text-sm leading-6 text-[var(--ok)]">{outputReady}</p>}</>}
       </div>
       {error&&<p role="alert" className="mt-3 text-sm text-[var(--danger)]">{error}</p>}
     </>}

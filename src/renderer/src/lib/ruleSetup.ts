@@ -1,6 +1,6 @@
 import type {EntertainmentAction,EntertainmentRule} from '@shared/types'
 import {joinVideoParam,splitVideoParam} from '@shared/entertainmentLabels'
-import {parseSpecialParam,SPECIAL_GAME_MAP} from '@shared/specialGames'
+import {parseSpecialBoxParam,parseSpecialParam,SPECIAL_BOX_DEFAULT_NAME,SPECIAL_GAME_MAP} from '@shared/specialGames'
 import {joinTargetSuffix,splitTargetSuffix} from '../utils/videoTarget'
 
 export type SetupKind='special'|'game'|'video'|'box'|'sound'|'key'
@@ -27,7 +27,7 @@ export function setupSource(rule?:EntertainmentRule){
     case 'box':return splitTargetSuffix(rule?.commandParam||'').rest
     case 'sound':return rule?.soundPath||''
     case 'key':return rule?.keySeq||''
-    // 特色整蛊盲盒在向导里记成「box:盲盒id|名字」，和指定玩法共用一步
+    // 特色整蛊盲盒在向导里记成「box:奖池参数」（事件id,…|名字），和指定玩法共用一步
     case 'special':return rule?.commandCmd==='special-box'?'box:'+(rule.commandParam||''):rule?.commandParam||''
     case 'game':return rule?.commandParam||''
     default:return ''
@@ -51,7 +51,7 @@ export function setupRule(base:EntertainmentRule|undefined,kind:SetupKind,source
   else if(kind==='special')action={actionType:'command',commandCmd:'special-play',commandParam:source}
   else if(kind==='game')action={actionType:'command',commandCmd:'game-prank',commandParam:source}
   else action={actionType:'key',keySeq:source}
-  const specialName=kind==='special'?(source.startsWith('box:')?'盲盒·'+(source.slice(4).split('|')[1]||''):SPECIAL_GAME_MAP[parseSpecialParam(source).id]?.name||''):''
+  const specialName=kind==='special'?(source.startsWith('box:')?'盲盒·'+(parseSpecialBoxParam(source.slice(4)).name||SPECIAL_BOX_DEFAULT_NAME):SPECIAL_GAME_MAP[parseSpecialParam(source).id]?.name||''):''
   const automaticName=!source?'':kind==='box'?fileName(source):kind==='key'?'快捷键互动':kind==='special'?(specialName?`特色整蛊·${specialName}`:''):kind==='game'?`游戏整蛊·${source.split('|')[2]||source.split('|')[1]||''}`:`${kind==='video'?'视频':'音效'}：${fileName(source)}`
   // 特色整蛊 / 游戏整蛊是即时效果，新建时默认「即时执行」，不跟视频排队（编辑旧规则沿用原设置）
   const instant=(kind==='special'||kind==='game')&&!base

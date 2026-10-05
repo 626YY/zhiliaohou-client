@@ -3,7 +3,7 @@
 // 预览默认静音、不开麦克风；页面空闲时回「special-idle」，开着自动演示就再来一波。
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { specialPreviewUrl } from '../../lib/specialArt'
-import type { SpecialGameConfig, SpecialGameId } from '@shared/specialGames'
+import type { SpecialGameConfig, SpecialGameId, SpecialWindowConfig } from '@shared/specialGames'
 
 export type StageBackdrop = 'scene' | 'green' | 'checker'
 
@@ -28,26 +28,28 @@ const BACKDROPS: Record<StageBackdrop, React.CSSProperties> = {
   }
 }
 
-// 页面里读的扁平配置（和主进程 specialPageConfig 一致）
-function pageConfig(cfg: SpecialGameConfig): Record<string, unknown> {
-  return { background: cfg.background, speed: cfg.speed, countCap: cfg.countCap, ...cfg.params }
+// 页面里读的扁平配置（和主进程 specialPageConfig 一致；底色是直播窗口的）
+function pageConfig(cfg: SpecialGameConfig, background: SpecialWindowConfig['background']): Record<string, unknown> {
+  return { background, speed: cfg.speed, countCap: cfg.countCap, ...cfg.params }
 }
 
 const SpecialStage = forwardRef<SpecialStageHandle, {
   id: SpecialGameId
   config: SpecialGameConfig
+  /** 直播窗口（全部玩法共用）：舞台按它的比例和底色 */
+  screen: SpecialWindowConfig
   backdrop: StageBackdrop
   muted: boolean
   /** 页面加载好 / 动画停下时调用（自动演示）；empty = 画面上已经什么都没有了 */
   onReady?: () => void
   onIdle?: (empty: boolean) => void
-}>(function SpecialStage({ id, config, backdrop, muted, onReady, onIdle }, ref) {
+}>(function SpecialStage({ id, config, screen, backdrop, muted, onReady, onIdle }, ref) {
   const box = useRef<HTMLDivElement>(null)
   const frame = useRef<HTMLIFrameElement>(null)
   const [width, setWidth] = useState(0)
   const [version, setVersion] = useState(() => Date.now())
-  const latest = useRef({ config, muted, onReady, onIdle })
-  latest.current = { config, muted, onReady, onIdle }
+  const latest = useRef({ config, background: screen.background, muted, onReady, onIdle })
+  latest.current = { config, background: screen.background, muted, onReady, onIdle }
 
   const post = useCallback((msg: Record<string, unknown>) => {
     try { frame.current?.contentWindow?.postMessage({ source: 'zl-special-host', ...msg }, '*') } catch { /* 页面正在重载 */ }
@@ -75,7 +77,7 @@ const SpecialStage = forwardRef<SpecialStageHandle, {
       const m = e.data as { source?: string; type?: string; empty?: boolean }
       if (!m || m.source !== 'zl-special') return
       if (m.type === 'special-ready') {
-        post({ type: 'config', cfg: pageConfig(latest.current.config) })
+        post({ type: 'config', cfg: pageConfig(latest.current.config, latest.current.background) })
         post({ type: 'mute', value: latest.current.muted })
         latest.current.onReady?.()
       } else if (m.type === 'special-idle') latest.current.onIdle?.(m.empty === true)
@@ -85,11 +87,11 @@ const SpecialStage = forwardRef<SpecialStageHandle, {
   }, [post])
 
   // 改设置即时推给预览
-  useEffect(() => { post({ type: 'config', cfg: pageConfig(config) }) }, [config, post])
+  useEffect(() => { post({ type: 'config', cfg: pageConfig(config, screen.background) }) }, [config, screen.background, post])
   useEffect(() => { post({ type: 'mute', value: muted }) }, [muted, post])
 
-  const w = Math.max(160, config.width)
-  const h = Math.max(160, config.height)
+  const w = Math.max(160, screen.width)
+  const h = Math.max(160, screen.height)
   // 舞台按直播窗口的比例：横屏铺满卡片宽度；竖屏限高，居中摆，两边留暗边（和直播里竖屏画面一个样子）
   const maxH = 560
   const stageH = width ? Math.min(Math.round((width * h) / w), maxH) : 0

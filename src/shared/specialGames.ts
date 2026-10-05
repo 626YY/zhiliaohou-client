@@ -107,9 +107,14 @@ export interface SpecialGameMeta {
   /** 详情页：主播在直播里怎么玩 */
   how: string
   category: SpecialCategory
-  /** 需要主播用鼠标点/拖才能完成互动（会走绿底非穿透窗口 + 禁用整窗拖动，画布接收点击） */
+  /** 需要主播用鼠标点/拖才能完成互动（画布接收点击） */
   interactive: boolean
-  /** 默认窗口尺寸 */
+  /**
+   * 点画面任意处都算（锁链挣脱）：同一个窗口里别的玩法也在，这种玩法只拿「没点中别的东西、也没拖动」的那一下，
+   * 免得点鸭子顺手把锁链也挣开一环。点中目标才算的玩法（鸭子、虫子、来电按钮…）不用标。
+   */
+  pointerAnywhere?: boolean
+  /** 单独预览时的画面尺寸（直播窗口的尺寸是全部玩法共用的，见 SpecialWindowConfig） */
   width: number
   height: number
   /** 卡片预览主色（卡片底色） */
@@ -130,14 +135,8 @@ export interface SpecialGameMeta {
   statLabel?: string
 }
 
-// 公共可调项（每个玩法都有）：触发时自动开窗、底色、尺寸、速度、在场上限。
+// 每个玩法自己的可调项：速度、在场上限、玩法专属参数。窗口的尺寸/底色/自动开窗是全部玩法共用的（SpecialWindowConfig）。
 export interface SpecialGameConfig {
-  /** 联动触发时窗口没开就自动打开（关掉 = 窗口没开时忽略触发） */
-  autoOpen: boolean
-  /** 底色：绿幕（直播伴侣抠绿）或透明（OBS 直接叠） */
-  background: 'green' | 'transparent'
-  width: number
-  height: number
   /** 全局速度倍率 0.25~8 */
   speed: number
   /** 一次触发最多生成多少；0 = 不限（数量很多会更吃性能，弱机可自己设一个值） */
@@ -146,13 +145,38 @@ export interface SpecialGameConfig {
   params: Record<string, number | string | boolean>
 }
 
+// ================= 直播窗口：全部玩法共用一个 =================
+// 2026-10-05 用户：「那么多窗口好麻烦，都是全屏特效一个窗口就行；功能还是各是各的，只不过都在一个绿幕窗口」。
+// 17 个玩法同在窗口「特色整蛊」里，各自一层画布、各自的设置和互动；直播伴侣只加一次窗口采集。
+export const SPECIAL_WINDOW_TITLE = '特色整蛊'
+export interface SpecialWindowConfig {
+  /** 联动触发时窗口没开就自动打开（关掉 = 窗口没开时忽略触发） */
+  autoOpen: boolean
+  /** 底色：绿幕（直播伴侣抠绿）或透明（OBS 直接叠） */
+  background: 'green' | 'transparent'
+  width: number
+  height: number
+}
+export const DEFAULT_SPECIAL_WINDOW: SpecialWindowConfig = { autoOpen: true, background: 'green', width: 1280, height: 720 }
+
+/**
+ * 图层顺序（下 → 上）。一会儿就自己挂断的来电 / 来视频放最上面（用户：「打视频那种要在最前，因为一会儿就没了」）；
+ * 锁链、符咒是「封住屏幕」的，压在小东西上面；音乐球的轨道、地上的叶子铺在最底下。
+ * 点击也按这个顺序从上往下找：最上面点中东西的那个玩法接住这一下。
+ */
+export const SPECIAL_LAYER_ORDER: SpecialGameId[] = [
+  'music_ball', 'leaf_pickup', 'coin_bump', 'caterpillar', 'xiaoxin_hey', 'catch_duck', 'catch_bullet', 'fruit_slice',
+  'throw_trash', 'throw_poop', 'mosquito', 'big_mosquito', 'gesture_fly', 'talisman_seal', 'chain_challenge', 'fan_call', 'fan_video_call'
+]
+
 export interface SpecialGameStateItem {
   id: SpecialGameId
-  open: boolean
   config: SpecialGameConfig
 }
 export interface SpecialGameplayState {
   games: SpecialGameStateItem[]
+  /** 直播窗口（全部玩法共用） */
+  window: SpecialWindowConfig & { open: boolean }
   /** 素材目录（卡片缩略图 / 预览用）；找不到素材时为空 */
   assetDir: string
 }
@@ -224,6 +248,12 @@ const volumeParam = (def: number, hint: string): SpecialParamSpec => ({
 const maxVisibleParam = (def: number, max: number, unit: string, what: string): SpecialParamSpec => ({
   key: 'maxVisible', label: '同屏上限', type: 'number', min: 1, max, step: 10, unit, def, hint: `同时在场的${what}数上限，多出来的排队等空位`, advanced: true
 })
+// 左上角计数面板（已经抓几只、还剩几只）：全部玩法同在一个窗口，默认只在场上有东西时显示，几个同时在场会上下排开
+const STATS_PANEL_PARAM: SpecialParamSpec = {
+  key: 'statsPanel', label: '计数面板', type: 'select', def: 'active', group: 'look',
+  options: [{ value: 'active', label: '场上有东西时显示' }, { value: 'always', label: '一直显示' }, { value: 'off', label: '不显示' }],
+  hint: '左上角的计数（已经抓几只、还剩几只）；几个玩法同时在场会上下排开'
+}
 const micParam: SpecialParamSpec = {
   key: 'micDevice', label: '麦克风', type: 'device', def: '', hint: '用哪个麦克风听声音，留空 = 系统默认', group: 'sound'
 }
@@ -239,6 +269,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     how: '观众送礼给画面套上锁链并累加环数，主播点击绿幕（或按空格）一下下挣脱，归零时锁链断裂坠落。',
     category: 'click',
     interactive: true,
+    pointerAnywhere: true,
     width: 1280,
     height: 720,
     tint: '#14bcae',
@@ -287,6 +318,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     fields: [{ ...SIZE_FIELD, options: [ { value: 'random', label: '随机大小' }, { value: 'big', label: '大鸭子' }, { value: 'small', label: '小鸭子' } ] }],
     statLabel: '累计抓到',
     params: [
+      STATS_PANEL_PARAM,
       { key: 'bigDuckSize', label: '大鸭子大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 14, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
       { key: 'smallDuckSize', label: '小鸭子大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 8, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
       { key: 'randomSizeMin', label: '随机最小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 8, hint: '随机大小的下限', advanced: true, group: 'look' },
@@ -313,6 +345,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     fields: [{ ...SIZE_FIELD, options: [ { value: 'random', label: '随机大小' }, { value: 'big', label: '大粑粑' }, { value: 'small', label: '小粑粑' } ] }],
     statLabel: '累计清理',
     params: [
+      STATS_PANEL_PARAM,
       { key: 'bigPoopSize', label: '大粑粑大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 14, hint: '占窗口短边的百分比', group: 'look' },
       { key: 'smallPoopSize', label: '小粑粑大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 8, hint: '占窗口短边的百分比', group: 'look' },
       { key: 'randomSizeMin', label: '随机最小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 8, hint: '随机大小的下限', advanced: true, group: 'look' },
@@ -345,6 +378,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     ],
     statLabel: '累计扔进桶',
     params: [
+      STATS_PANEL_PARAM,
       { key: 'bigTrashSize', label: '大垃圾大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 14, hint: '占窗口短边的百分比', group: 'look' },
       { key: 'smallTrashSize', label: '小垃圾大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 8, hint: '占窗口短边的百分比', group: 'look' },
       { key: 'randomSizeMin', label: '随机最小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 8, hint: '随机大小的下限', advanced: true, group: 'look' },
@@ -372,6 +406,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     ops: [OP_ADD, OP_REDUCE, OP_CLEAR, OP_RESET],
     statLabel: '累计抓到',
     params: [
+      STATS_PANEL_PARAM,
       { key: 'sizePercent', label: '子弹大小', type: 'number', min: 50, max: 200, step: 5, unit: '%', def: 100, hint: '子弹贴图的缩放比例', group: 'look' },
       maxVisibleParam(300, 2000, '颗', '子弹'),
       volumeParam(100, '子弹落地音效的音量'),
@@ -397,6 +432,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     fields: [{ key: 'color', label: '颜色', def: 'config', options: [{ value: 'config', label: '按玩法设置' }, { value: 'random', label: '随机颜色' }, ...CATERPILLAR_COLORS] }],
     statLabel: '累计拍死',
     params: [
+      STATS_PANEL_PARAM,
       { key: 'caterpillarColor', label: '毛毛虫颜色', type: 'select', def: 'green', options: CATERPILLAR_COLORS, hint: '毛毛虫身体的颜色', group: 'look' },
       { key: 'sizePercent', label: '虫子大小', type: 'number', min: 50, max: 180, step: 5, unit: '%', def: 100, hint: '毛毛虫体型缩放', group: 'look' },
       { key: 'speedPercent', label: '爬行速度', type: 'number', min: 30, max: 200, step: 10, unit: '%', def: 100, hint: '毛毛虫爬动的快慢' },
@@ -675,6 +711,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     fields: [{ ...SIZE_FIELD, options: [ { value: 'random', label: '随机大小' }, { value: 'big', label: '大叶子' }, { value: 'small', label: '小叶子' } ] }],
     statLabel: '这一轮已清扫',
     params: [
+      STATS_PANEL_PARAM,
       { key: 'leavesPerClick', label: '每次点击收几片', type: 'number', min: 1, max: 100, step: 1, unit: '片', def: 1, hint: '点一片叶子实际收进桶的数量' },
       { key: 'bigLeafSize', label: '大叶子大小', type: 'number', min: 3, max: 100, step: 1, unit: '%', def: 50, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
       { key: 'smallLeafSize', label: '小叶子大小', type: 'number', min: 3, max: 100, step: 1, unit: '%', def: 10, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
@@ -723,73 +760,79 @@ export function defaultSpecialConfig(meta: SpecialGameMeta): SpecialGameConfig {
   const params: Record<string, number | string | boolean> = {}
   for (const p of meta.params) params[p.key] = p.def
   return {
-    autoOpen: true,
-    background: 'green',
-    width: meta.width,
-    height: meta.height,
     speed: 1,
     countCap: 0, // 默认不限（用户铁律：所有东西不设上限）；弱机可在设置里填一个值
     params
   }
 }
 
-// ================= 特色整蛊盲盒 =================
-// 一个盲盒 = 好几种结果（每种是一条特色整蛊动作 + 权重）。送礼开盒，按权重随机开出一种，数量也可以是随机范围。
-// 动作命令 special-box，参数 `盲盒id|显示名`（显示名只给标签看，执行认 id）。
-export interface SpecialBoxEntry {
-  /** 特色整蛊动作参数：玩法|操作|数量|选项 */
-  param: string
-  /** 权重：越大越容易开出（概率 = 权重 / 总权重） */
-  weight: number
-}
-export interface SpecialBox {
+// ================= 特色整蛊盲盒（照时间插件的盲盒）=================
+// 先在「盲盒事件库」里攒好事件（每个事件 = 一条特色整蛊动作，数量可以写随机范围），
+// 再给每个礼物自己勾选奖池：观众每送一份，从勾选的事件里随机抽一个执行。
+// 动作命令 special-box，参数 `事件id,事件id,…|显示名`；事件id 写 * = 事件库里全部启用的事件。
+export interface SpecialBoxEvent {
   id: string
+  /** 事件名：奖池里、开出提示里显示 */
   name: string
-  entries: SpecialBoxEntry[]
-  /** 每次开几个（一次开盒连抽几次），默认 1 */
-  opens: number
-  /** 开出时在画面上提示「盲盒开出了什么」 */
-  announce: boolean
+  /** 开出什么：特色整蛊动作参数 玩法|操作|数量|选项（数量可以写随机范围，如 3~8） */
+  param: string
+  /** 停用 = 真触发时抽不到（奖池里的勾选保留，打开就回来） */
+  enabled: boolean
+  /** 抽中权重：默认 1，大家一样；调大更容易抽到，0 = 暂时不抽 */
+  weight: number
+  /** 抽中时同时触发的游戏整蛊（参数 游戏id|整蛊id|显示名），空 = 不附加 */
+  prank: string
+}
+export const SPECIAL_BOX_ALL = '*'
+export const SPECIAL_BOX_DEFAULT_NAME = '特色盲盒'
+
+/** 新事件的 id（和 0.3.63 那版盲盒 id 区分开） */
+export function newSpecialBoxEventId(): string {
+  return `sbe-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`
 }
 
-/** 自带的三个盲盒（第一次打开时放进去，主播可以随便改、删） */
-export const SPECIAL_BOX_PRESETS: SpecialBox[] = [
-  {
-    id: 'box-gift-pack', name: '整蛊大礼包', opens: 1, announce: true,
-    entries: [
-      { param: 'chain_challenge|add|2~6', weight: 3 }, { param: 'catch_duck|add|10~25', weight: 3 },
-      { param: 'throw_poop|add|8~20', weight: 3 }, { param: 'throw_trash|add|8~20', weight: 2 },
-      { param: 'caterpillar|add|3~8', weight: 2 }, { param: 'xiaoxin_hey|add|2~5', weight: 2 },
-      { param: 'mosquito|add|10~30', weight: 2 }, { param: 'leaf_pickup|add|10~30', weight: 2 },
-      { param: 'fan_call|show|1', weight: 1 }
-    ]
-  },
-  {
-    id: 'box-busy-hands', name: '手忙脚乱盒', opens: 2, announce: true,
-    entries: [
-      { param: 'catch_duck|add|3~8', weight: 1 }, { param: 'throw_poop|add|3~8', weight: 1 },
-      { param: 'fruit_slice|add|3~8', weight: 1 }, { param: 'coin_bump|add|5~10', weight: 1 },
-      { param: 'catch_bullet|add|5~10', weight: 1 }, { param: 'gesture_fly|add|2~4', weight: 1 }
-    ]
-  },
-  {
-    id: 'box-chain-fate', name: '锁链命运盒', opens: 1, announce: true,
-    entries: [
-      { param: 'chain_challenge|add|1', weight: 4 }, { param: 'chain_challenge|add|3', weight: 3 },
-      { param: 'chain_challenge|add|5~10', weight: 2 }, { param: 'chain_challenge|multiply|2', weight: 1 },
-      { param: 'chain_challenge|clear', weight: 1 }
-    ]
-  }
-]
+/** 事件的默认名字 = 动作的中文描述（改过名字就用自己起的） */
+export function specialBoxEventDefaultName(param: string): string {
+  return specialActionText(param)
+}
 
-/** 盲盒动作参数拆合：盲盒id|显示名 */
-export function parseSpecialBoxParam(raw: string | undefined): { id: string; name: string } {
-  const [id = '', name = ''] = String(raw || '').split('|').map((x) => x.trim())
-  return { id, name }
+/** 第一次用时放进事件库：每个玩法一个默认事件（默认操作 + 随机数量），主播再增删改 */
+export function defaultSpecialBoxEvents(): SpecialBoxEvent[] {
+  return SPECIAL_GAMES.map((g) => {
+    const param = specialDefaultParam(g.id)
+    return { id: `sbe-default-${g.id}`, name: specialBoxEventDefaultName(param), param, enabled: true, weight: 1, prank: '' }
+  })
+}
+
+export interface SpecialBoxParam {
+  /** 勾选的事件 id（顺序 = 勾选顺序） */
+  ids: string[]
+  /** 事件库里全部启用的事件 */
+  all: boolean
+  /** 显示名（开出提示、标签用），空 = 「特色盲盒」 */
+  name: string
+}
+
+/** 盲盒动作参数拆合：事件id,事件id,…|显示名 */
+export function parseSpecialBoxParam(raw: string | undefined): SpecialBoxParam {
+  const text = String(raw || '')
+  const at = text.indexOf('|')
+  const head = (at >= 0 ? text.slice(0, at) : text).trim()
+  const name = at >= 0 ? text.slice(at + 1).trim() : ''
+  if (head === SPECIAL_BOX_ALL) return { ids: [], all: true, name }
+  const ids = [...new Set(head.split(',').map((x) => x.trim()).filter(Boolean))]
+  return { ids, all: false, name }
+}
+export function joinSpecialBoxParam(p: SpecialBoxParam): string {
+  const head = p.all ? SPECIAL_BOX_ALL : [...new Set(p.ids.map((x) => x.trim()).filter(Boolean))].join(',')
+  const name = String(p.name || '').replace(/\|/g, ' ').trim()
+  return name ? `${head}|${name}` : head
 }
 export function specialBoxText(raw: string | undefined): string {
   const p = parseSpecialBoxParam(raw)
-  return p.name ? `「${p.name}」` : p.id ? `（${p.id}）` : '（未选盲盒）'
+  const name = p.name || SPECIAL_BOX_DEFAULT_NAME
+  if (p.all) return `「${name}」（事件库全部随机）`
+  return p.ids.length ? `「${name}」（${p.ids.length} 选 1）` : `「${name}」（奖池没选）`
 }
 
 // ================= 直播画面方向 =================

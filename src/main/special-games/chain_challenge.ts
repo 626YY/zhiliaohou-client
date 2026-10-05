@@ -1288,7 +1288,7 @@ window.registerGame((function(){
     pointer:function(type){
       if(type!=='down') return;
       var m=unlockMode();
-      if(m==='mouse'||m==='both') unlockStep();
+      if(m==='mouse'||m==='both'){ unlockStep(); return true; }
     },
     tick:function(dt){
       var step=dt*api.speed();

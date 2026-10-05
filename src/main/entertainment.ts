@@ -449,7 +449,10 @@ function mergeableSpecialRule(rule: EntertainmentRule): boolean {
   const actions = ruleActions(rule)
   if (actions.length !== 1) return false
   const a = actions[0]
-  if (a.actionType !== 'command' || a.commandCmd !== 'special-play' || actionDelayMs(a) > 0) return false
+  if (a.actionType !== 'command' || actionDelayMs(a) > 0) return false
+  // 盲盒：N 份 = 抽 N 次，一次算好一次下发（同一事件抽中几次自己会合并）
+  if (a.commandCmd === 'special-box') return true
+  if (a.commandCmd !== 'special-play') return false
   return MERGEABLE_SPECIAL_OPS.has(parseSpecialParam(a.commandParam).op)
 }
 
@@ -1167,9 +1170,10 @@ export async function entertainmentCommand(
       return runSpecialAction(String(param || ''), options?.viewer, options?.specialTimes)
     }
     case 'special-box': {
-      // 特色整蛊盲盒：按权重随机开出一种（每次开几个由盲盒设置），数量可以是随机范围
+      // 特色整蛊盲盒（照时间插件）：param = 事件id,…|显示名，每份从勾选的事件里随机抽一个；
+      // specialTimes = 礼物规则合并的份数（连送 99 个就抽 99 次，一次下发）
       const { runSpecialBox } = await import('./special-gameplay')
-      return runSpecialBox(String(param || ''), options?.viewer)
+      return runSpecialBox(String(param || ''), options?.viewer, options?.specialTimes)
     }
     case 'game-prank': {
       // 游戏整蛊（整蛊器）：param = 游戏id|整蛊id|显示名。礼物规则里能和特色整蛊、视频一起配，

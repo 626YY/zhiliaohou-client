@@ -1,40 +1,38 @@
-// 特色整蛊：17 个叠在直播画面上的互动小游戏（锁链、抓鸭子、粉丝来电…）。
+// 特色整蛊：17 个叠在直播画面上的互动小游戏（锁链、抓鸭子、粉丝来电…），全部在一个直播窗口「特色整蛊」里，各玩各的。
 // 宫格页按真实美术展示玩法；详情页 = 可直接上手玩的预览舞台 + 礼物联动 + 分组设置。
-// 触发统一走娱乐助手的礼物规则（动作「特色整蛊」），转盘/九宫格/时间盲盒也能当中奖动作用。
+// 触发统一走娱乐助手的礼物规则（动作「特色整蛊」/「特色整蛊盲盒」），转盘/九宫格/时间盲盒也能当中奖动作用。
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, Play, Square, Sparkles, Volume2, VolumeX, RotateCcw, Search, Gift, Radio, MonitorPlay, Repeat, Eraser } from 'lucide-react'
-import { Btn, Card, Field, Input, PageHeader, Pill, Segmented, Select, Toggle } from '../components/ui'
+import { ChevronLeft, Sparkles, Volume2, VolumeX, RotateCcw, Search, Gift, Radio, Repeat } from 'lucide-react'
+import { Btn, Card, Field, Input, PageHeader, Pill, Segmented, Select } from '../components/ui'
 import SpecialStage, { type SpecialStageHandle, type StageBackdrop } from '../components/special/SpecialStage'
 import SpecialParamField from '../components/special/SpecialParamField'
 import SpecialLinks from '../components/special/SpecialLinks'
-import WidgetDashboard from '../components/WidgetDashboard'
 import SpecialBoxes from '../components/special/SpecialBoxes'
-import { useSpecialBoxes } from '../lib/useSpecialBoxes'
+import SpecialWindowBar from '../components/special/SpecialWindowBar'
 import AdvancedSection from '../components/AdvancedSection'
-import { AdvancedFields, useConfigurationLevel } from '../lib/configurationLevel'
+import { AdvancedFields } from '../lib/configurationLevel'
 import { specialArtUrls, specialLinksOf } from '../lib/specialArt'
 import { mediaUrl } from '../utils/mediaUrl'
 import { useToast } from '../stores/ui'
 import { normalizeGiftName } from '@shared/giftName'
 import {
+  DEFAULT_SPECIAL_WINDOW,
   SPECIAL_CATEGORY_LABELS,
   SPECIAL_GAMES,
   SPECIAL_GAME_MAP,
-  SPECIAL_SCREEN_PRESETS,
+  SPECIAL_WINDOW_TITLE,
   defaultSpecialConfig,
-  specialOrientation,
-  specialSizeFor,
   resolveSpecialCount,
   type SpecialCategory,
   type SpecialGameConfig,
   type SpecialGameId,
   type SpecialGameMeta,
-  type SpecialParamSpec
+  type SpecialParamSpec,
+  type SpecialWindowConfig
 } from '@shared/specialGames'
 import type { EntertainmentRule } from '@shared/types'
 
-type OpenMap = Partial<Record<SpecialGameId, boolean>>
 type CfgMap = Partial<Record<SpecialGameId, SpecialGameConfig>>
 type Filter = 'all' | 'linked' | SpecialCategory
 
@@ -48,9 +46,9 @@ function readPrefs(): { backdrop: StageBackdrop; muted: boolean; demo: boolean }
   }
 }
 
-// 页面共用的数据：窗口状态、配置、礼物规则、礼物图标
+// 页面共用的数据：直播窗口（全部玩法共用）、各玩法配置、礼物规则、礼物图标
 function useSpecialData() {
-  const [open, setOpen] = useState<OpenMap>({})
+  const [win, setWin] = useState<SpecialWindowConfig & { open: boolean }>({ ...DEFAULT_SPECIAL_WINDOW, open: false })
   const [cfgs, setCfgs] = useState<CfgMap>({})
   const [assetDir, setAssetDir] = useState('')
   const [rules, setRules] = useState<EntertainmentRule[]>([])
@@ -58,10 +56,9 @@ function useSpecialData() {
 
   const refreshState = useCallback(async () => {
     const st = await window.api.specialState()
-    const o: OpenMap = {}
     const c: CfgMap = {}
-    for (const g of st.games) { o[g.id] = g.open; c[g.id] = g.config }
-    setOpen(o)
+    for (const g of st.games) c[g.id] = g.config
+    setWin(st.window)
     setCfgs(c)
     setAssetDir(st.assetDir || '')
   }, [])
@@ -84,7 +81,7 @@ function useSpecialData() {
     return () => { off(); window.removeEventListener('focus', onFocus) }
   }, [refreshState, refreshRules])
 
-  return { open, setOpen, cfgs, setCfgs, assetDir, rules, images, refreshRules, refreshState }
+  return { win, cfgs, setCfgs, assetDir, rules, images, refreshRules, refreshState }
 }
 
 export default function Special() {
@@ -111,26 +108,11 @@ function SpecialGrid({ data, onPick }: { data: ReturnType<typeof useSpecialData>
   const toast = useToast((s) => s.toast)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
-  const { boxes, setBoxes } = useSpecialBoxes()
   const linkCount = useMemo(() => {
     const out: Partial<Record<SpecialGameId, EntertainmentRule[]>> = {}
     for (const g of SPECIAL_GAMES) out[g.id] = specialLinksOf(data.rules, g.id).map((l) => l.rule)
     return out
   }, [data.rules])
-  const openCount = SPECIAL_GAMES.filter((g) => data.open[g.id]).length
-  // 直播画面方向：一键统一全部玩法（各玩法保持自己的清晰度档）；各自不同时显示「各自设置」
-  const orientations = new Set(SPECIAL_GAMES.map((g) => { const c = data.cfgs[g.id]; return c ? specialOrientation(c.width, c.height) : 'landscape' }))
-  const orientation = orientations.size === 1 ? [...orientations][0] : 'mixed'
-  const setOrientationAll = async (v: 'landscape' | 'portrait') => {
-    for (const g of SPECIAL_GAMES) {
-      const c = data.cfgs[g.id] ?? defaultSpecialConfig(g)
-      if (specialOrientation(c.width, c.height) === v) continue
-      const size = specialSizeFor(v, c.width, c.height)
-      data.setCfgs((prev) => ({ ...prev, [g.id]: { ...c, ...size } }))
-      await window.api.specialConfigure(g.id, size)
-    }
-    toast(v === 'portrait' ? '全部玩法改成竖屏 9:16，开着的窗口已跟着变' : '全部玩法改成横屏 16:9，开着的窗口已跟着变', 'success')
-  }
   const totalLinks = SPECIAL_GAMES.reduce((n, g) => n + (linkCount[g.id]?.length || 0), 0)
   const q = query.trim().toLowerCase()
   const list = SPECIAL_GAMES.filter((g) => {
@@ -139,15 +121,11 @@ function SpecialGrid({ data, onPick }: { data: ReturnType<typeof useSpecialData>
     return !q || `${g.name} ${g.desc} ${g.how}`.toLowerCase().includes(q)
   })
 
-  const toggleWindow = async (g: SpecialGameMeta) => {
-    if (data.open[g.id]) {
-      await window.api.specialClose(g.id)
-      data.setOpen((p) => ({ ...p, [g.id]: false }))
-    } else {
-      const r = await window.api.specialOpen(g.id)
-      if (!r.ok) toast(r.error ?? '打开失败', 'error')
-      else { data.setOpen((p) => ({ ...p, [g.id]: true })); toast(`「${g.name}」窗口已开，在直播伴侣里添加窗口采集选它`, 'success') }
-    }
+  // 卡片上的「试一下」：发到直播窗口（窗口没开会先打开），和详情页「在直播窗口试」一样
+  const tryLive = async (g: SpecialGameMeta) => {
+    const r = await window.api.specialTest(g.id)
+    if (!r.ok) toast(r.error ?? '试一试失败', 'error')
+    void data.refreshState()
   }
 
   const chips: { value: Filter; label: string }[] = [
@@ -175,10 +153,8 @@ function SpecialGrid({ data, onPick }: { data: ReturnType<typeof useSpecialData>
         />
       </div>
 
-      {/* 和娱乐助手同一套「管理播放窗口」：基础模式是一条摘要，高级模式是完整面板（同一份开关和自动开启名单） */}
-      <div className="mb-4">
-        <WidgetDashboard groups={['特色整蛊']} scope="special" />
-      </div>
+      {/* 直播窗口：17 个玩法共用一个（和娱乐助手「管理播放窗口」里那一行是同一份开关和自动开启名单） */}
+      <SpecialWindowBar win={data.win} onChange={() => void data.refreshState()} />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {chips.map((c) => (
@@ -192,20 +168,10 @@ function SpecialGrid({ data, onPick }: { data: ReturnType<typeof useSpecialData>
             {c.label}
           </button>
         ))}
-        <span className="ml-auto flex items-center gap-2">
-          {openCount > 0 && <Btn size="sm" variant="ghost" title="把开着的玩法场上的东西全部清掉，窗口保留" onClick={() => void window.api.specialClearAll().then((r) => toast(`已清屏 ${r.cleared} 个玩法`, 'success'))}><Eraser size={13} />全部清屏</Btn>}
-          <span className="text-xs text-[var(--text-3)]">直播画面</span>
-          <Segmented
-            size="sm"
-            value={orientation}
-            onChange={(v) => { if (v !== 'mixed') void setOrientationAll(v) }}
-            options={[{ value: 'landscape' as const, label: '横屏 16:9' }, { value: 'portrait' as const, label: '竖屏 9:16' }, ...(orientation === 'mixed' ? [{ value: 'mixed' as const, label: '各自设置' }] : [])]}
-          />
-        </span>
       </div>
 
       {filter === 'all' && !query.trim() && (
-        <SpecialBoxes boxes={boxes} setBoxes={setBoxes} rules={data.rules} images={data.images} assetDir={data.assetDir} onRulesChanged={() => void data.refreshRules()} />
+        <SpecialBoxes rules={data.rules} images={data.images} onRulesChanged={() => void data.refreshRules()} />
       )}
 
       {list.length === 0 ? (
@@ -217,11 +183,10 @@ function SpecialGrid({ data, onPick }: { data: ReturnType<typeof useSpecialData>
               key={g.id}
               meta={g}
               art={specialArtUrls(g.id, data.assetDir)}
-              open={!!data.open[g.id]}
               links={linkCount[g.id] || []}
               images={data.images}
               onOpen={() => onPick(g.id)}
-              onToggleWindow={() => void toggleWindow(g)}
+              onTry={() => void tryLive(g)}
             />
           ))}
         </div>
@@ -233,19 +198,17 @@ function SpecialGrid({ data, onPick }: { data: ReturnType<typeof useSpecialData>
 function GameCard({
   meta,
   art,
-  open,
   links,
   images,
   onOpen,
-  onToggleWindow
+  onTry
 }: {
   meta: SpecialGameMeta
   art: string[]
-  open: boolean
   links: EntertainmentRule[]
   images: Record<string, string>
   onOpen: () => void
-  onToggleWindow: () => void
+  onTry: () => void
 }) {
   const [artOk, setArtOk] = useState(true)
   const gifts = [...new Set(links.filter((r) => (r.triggerType || 'gift') === 'gift' && r.giftName).map((r) => r.giftName))]
@@ -294,23 +257,18 @@ function GameCard({
         <span className="absolute left-2.5 top-2.5 rounded-full bg-black/35 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
           {SPECIAL_CATEGORY_LABELS[meta.category]}
         </span>
-        {open && (
-          <span className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-semibold text-[#5df0b0] backdrop-blur-sm">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#5df0b0]" />窗口开着
-          </span>
-        )}
       </div>
       <div className="flex flex-1 flex-col px-3.5 pb-3 pt-2.5">
         <div className="flex items-center justify-between gap-2">
           <div className="text-[15px] font-semibold text-[var(--text)]">{meta.name}</div>
           <button
             type="button"
-            title={open ? '关闭窗口' : '开启窗口'}
-            aria-label={open ? `关闭「${meta.name}」窗口` : `开启「${meta.name}」窗口`}
-            onClick={(e) => { e.stopPropagation(); onToggleWindow() }}
-            className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${open ? 'border-[var(--ok-line)] bg-[var(--ok-soft)] text-[var(--ok)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] hover:border-[var(--danger-line)]' : 'border-[var(--line)] text-[var(--text-3)] hover:border-[var(--accent)] hover:text-[var(--accent-2)]'}`}
+            title={`在直播窗口「${SPECIAL_WINDOW_TITLE}」里试一下（窗口没开会先打开）`}
+            aria-label={`在直播窗口试「${meta.name}」`}
+            onClick={(e) => { e.stopPropagation(); onTry() }}
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--line)] text-[var(--text-3)] transition hover:border-[var(--accent)] hover:text-[var(--accent-2)]"
           >
-            {open ? <Square size={12} /> : <Play size={13} />}
+            <Radio size={13} />
           </button>
         </div>
         <div className="mt-1 line-clamp-2 text-xs leading-[18px] text-[var(--text-3)]">{meta.desc}</div>
@@ -349,7 +307,7 @@ function SpecialDetail({ id, data, onBack }: { id: SpecialGameId; data: ReturnTy
   const meta = SPECIAL_GAME_MAP[id]
   const toast = useToast((s) => s.toast)
   const cfg = data.cfgs[id] ?? defaultSpecialConfig(meta)
-  const isOpen = !!data.open[id]
+  const isOpen = data.win.open
   const stage = useRef<SpecialStageHandle>(null)
   const [prefs, setPrefs] = useState(readPrefs)
   const [testOp, setTestOp] = useState(meta.ops[0].value)
@@ -394,21 +352,12 @@ function SpecialDetail({ id, data, onBack }: { id: SpecialGameId; data: ReturnTy
   }
   useEffect(() => () => { if (demoTimer.current) clearTimeout(demoTimer.current) }, [])
 
-  const openWindow = async () => {
-    const r = await window.api.specialOpen(id)
-    if (!r.ok) toast(r.error ?? '打开失败', 'error')
-    else { data.setOpen((p) => ({ ...p, [id]: true })); toast(`「${meta.name}」窗口已开，在直播伴侣里添加窗口采集选它`, 'success') }
-  }
-  const closeWindow = async () => {
-    await window.api.specialClose(id)
-    data.setOpen((p) => ({ ...p, [id]: false }))
-  }
   const testLive = async () => {
     const fields: Record<string, string> = {}
     for (const f of meta.fields ?? []) fields[f.key] = testFields[f.key] || f.def
     const r = await window.api.specialTest(id, { op: opSpec.value, count: resolveSpecialCount(testCount, meta.countDef), fields })
     if (!r.ok) toast(r.error ?? '试一试失败', 'error')
-    else data.setOpen((p) => ({ ...p, [id]: true }))
+    void data.refreshState()
   }
 
   // 累计统计：窗口开着时每 2 秒读一次
@@ -430,19 +379,12 @@ function SpecialDetail({ id, data, onBack }: { id: SpecialGameId; data: ReturnTy
   return (
     <div className="p-6">
       {/* 顶栏 */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <Btn variant="ghost" size="sm" onClick={onBack}><ChevronLeft size={14} />全部玩法</Btn>
         <span className="text-lg font-bold text-[var(--text)]">{meta.name}</span>
         <Pill tone="muted">{SPECIAL_CATEGORY_LABELS[meta.category]}</Pill>
-        {isOpen ? <Pill tone="ok" dot pulse>窗口开着</Pill> : <Pill tone="muted" dot>窗口未开</Pill>}
-        <div className="ml-auto flex items-center gap-2">
-          {isOpen ? (
-            <Btn variant="danger" onClick={() => void closeWindow()}><Square size={13} />关闭窗口</Btn>
-          ) : (
-            <Btn onClick={() => void openWindow()}><MonitorPlay size={14} />开启直播窗口</Btn>
-          )}
-        </div>
       </div>
+      <SpecialWindowBar win={data.win} onChange={() => void data.refreshState()} compact />
 
       <div className="grid gap-4 min-[1100px]:grid-cols-[minmax(0,1fr)_340px]">
         {/* 预览舞台 + 试玩 */}
@@ -469,7 +411,7 @@ function SpecialDetail({ id, data, onBack }: { id: SpecialGameId; data: ReturnTy
             </div>
           </div>
           <div className="p-4">
-            <SpecialStage ref={stage} id={id} config={cfg} backdrop={prefs.backdrop} muted={prefs.muted} onReady={onStageReady} onIdle={onStageIdle} />
+            <SpecialStage ref={stage} id={id} config={cfg} screen={data.win} backdrop={prefs.backdrop} muted={prefs.muted} onReady={onStageReady} onIdle={onStageIdle} />
             {/* 试玩：选操作和数量，在预览里或直播窗口里来一下 */}
             <div className="mt-3 flex flex-wrap items-end gap-2">
               <Field label="操作" className="w-36" advanced>
@@ -516,10 +458,10 @@ function SpecialDetail({ id, data, onBack }: { id: SpecialGameId; data: ReturnTy
           <Card title="上直播三步">
             <ol className="space-y-3 text-[13px]">
               <Step n={1} done={isOpen} title="开启直播窗口">
-                {isOpen ? '窗口已开。' : '点右上角「开启直播窗口」。'}收到联动时窗口没开也会自动打开。
+                {isOpen ? '窗口已开。' : '点上面的「开启窗口」。'}17 个玩法共用这一个窗口，收到联动时窗口没开也会自动打开。
               </Step>
               <Step n={2} title="在直播伴侣里添加">
-                添加「窗口采集」，选「{meta.name}」；{cfg.background === 'green' ? '绿幕底色记得加「色度键」抠掉。' : '透明底色直接叠加。'}
+                添加「窗口采集」，选「{SPECIAL_WINDOW_TITLE}」，加一次所有玩法都能用；{data.win.background === 'green' ? '绿幕底色记得加「色度键」抠掉。' : '透明底色直接叠加。'}
               </Step>
               <Step n={3} done={linkCount > 0} title="绑定礼物">
                 {linkCount > 0 ? `已联动 ${linkCount} 条，观众送礼就会触发。` : '在下面「礼物联动」里绑一个礼物。'}
@@ -554,48 +496,16 @@ function SpecialDetail({ id, data, onBack }: { id: SpecialGameId; data: ReturnTy
                 </div>
               </AdvancedSection>
             )}
-            <section>
-              <h4 className="mb-2.5 text-[11px] font-semibold tracking-wide text-[var(--text-3)]">窗口</h4>
-              <div className="grid gap-x-5 gap-y-3.5 min-[1360px]:grid-cols-2">
-                <Field label="直播画面方向" hint="按你的直播画面选：竖屏直播选竖屏，窗口拉满画面不变形">
-                  <Segmented
-                    size="sm"
-                    value={specialOrientation(cfg.width, cfg.height)}
-                    onChange={(v) => patch(specialSizeFor(v, cfg.width, cfg.height))}
-                    options={[{ value: 'landscape', label: '横屏 16:9' }, { value: 'portrait', label: '竖屏 9:16' }]}
-                  />
-                </Field>
-                <Field label="分辨率" hint="和直播伴侣的画布分辨率一致最清楚" advanced>
-                  <Select
-                    aria-label="窗口分辨率"
-                    value={SPECIAL_SCREEN_PRESETS.find((p) => p.w === cfg.width && p.h === cfg.height)?.value ?? 'custom'}
-                    onChange={(e) => { const p = SPECIAL_SCREEN_PRESETS.find((x) => x.value === e.target.value); if (p) patch({ width: p.w, height: p.h }) }}
-                  >
-                    {SPECIAL_SCREEN_PRESETS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-                    <option value="custom" disabled>自定义 {cfg.width}×{cfg.height}</option>
-                  </Select>
-                </Field>
-                <Field label="底色" hint="绿幕：直播伴侣抠绿；透明：OBS 直接叠加">
-                  <Segmented size="sm" value={cfg.background} onChange={(v) => patch({ background: v })} options={[{ value: 'green', label: '绿幕' }, { value: 'transparent', label: '透明' }]} />
-                </Field>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-xs font-medium text-[var(--text-2)]">联动时自动开窗</div>
-                    <div className="mt-0.5 text-[11px] leading-4 text-[var(--text-4)]">关掉后窗口没开就不触发</div>
-                  </div>
-                  <Toggle value={cfg.autoOpen} onChange={(v) => patch({ autoOpen: v })} label="联动时自动开窗" />
+            {/* 这个玩法自己的快慢和上限；窗口尺寸、底色是全部玩法共用的，在上面的「直播窗口」里 */}
+            <AdvancedFields>
+              <section>
+                <h4 className="mb-2.5 text-[11px] font-semibold tracking-wide text-[var(--text-3)]">通用</h4>
+                <div className="grid gap-x-5 gap-y-3.5 min-[1360px]:grid-cols-2">
+                  <SpecialParamField spec={{ key: 'speed', label: '整体速度', type: 'number', min: 0.25, max: 8, step: 0.25, unit: '倍', def: 1, hint: '这个玩法所有动画的快慢', advanced: true }} value={cfg.speed} onChange={(v) => patch({ speed: Number(v) })} />
+                  <SpecialParamField spec={{ key: 'countCap', label: '单次最多生成', type: 'number', min: 0, max: 100000, step: 10, def: 0, hint: '0 = 不限；弱机可以设个上限兜底', advanced: true }} value={cfg.countCap} onChange={(v) => patch({ countCap: Math.trunc(Number(v)) })} />
                 </div>
-                <SpecialParamField spec={{ key: 'speed', label: '整体速度', type: 'number', min: 0.25, max: 8, step: 0.25, unit: '倍', def: 1, hint: '所有动画的快慢', advanced: true }} value={cfg.speed} onChange={(v) => patch({ speed: Number(v) })} />
-                <SpecialParamField spec={{ key: 'countCap', label: '单次最多生成', type: 'number', min: 0, max: 100000, step: 10, def: 0, hint: '0 = 不限；弱机可以设个上限兜底', advanced: true }} value={cfg.countCap} onChange={(v) => patch({ countCap: Math.trunc(Number(v)) })} />
-                <Field label="自定义窗口大小" hint="特殊画布尺寸才需要手填" advanced>
-                  <div className="flex items-center gap-2">
-                    <Input type="number" aria-label="窗口宽" value={cfg.width} min={160} max={3840} onChange={(e) => patch({ width: Number(e.target.value) })} className="w-24" />
-                    <span className="text-xs text-[var(--text-4)]">×</span>
-                    <Input type="number" aria-label="窗口高" value={cfg.height} min={160} max={2160} onChange={(e) => patch({ height: Number(e.target.value) })} className="w-24" />
-                  </div>
-                </Field>
-              </div>
-            </section>
+              </section>
+            </AdvancedFields>
           </div>
         </Card>
       </div>

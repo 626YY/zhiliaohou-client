@@ -3,7 +3,7 @@ import { COMMAND_LABELS } from '@shared/entertainmentLabels'
 import { Btn, Field, Input, Select, Toggle } from './ui'
 import { prankGroups, usePrankCatalog } from '../lib/pranks'
 import SpecialActionFields from './SpecialActionFields'
-import SpecialBoxSelect from './special/SpecialBoxSelect'
+import SpecialBoxPool, { defaultSpecialBoxParam } from './special/SpecialBoxPool'
 import { specialDefaultParam } from '@shared/specialGames'
 
 // 奖项动作的选项。'command' 是万能出口：把礼物规则那 30 多个动作命令整套接过来
@@ -166,7 +166,7 @@ function ActionFields({
             const next = e.target.value
             // 特色整蛊的参数自成一套（玩法|操作|数量|选项），和别的命令互换时不沿用旧参数
             if (next === 'special-play') onChange({ actionParam: `special-play|${specialDefaultParam('chain_challenge')}` })
-            else if (next === 'special-box') onChange({ actionParam: 'special-box|' })
+            else if (next === 'special-box') void window.api.specialBoxEvents().then((list) => onChange({ actionParam: `special-box|${defaultSpecialBoxParam(list)}` }))
             else if (cmd === 'special-play' || cmd === 'special-box') onChange({ actionParam: next })
             else onChange({ actionParam: cmdParam ? `${next}|${cmdParam}` : next })
           }}
@@ -183,7 +183,7 @@ function ActionFields({
         {cmd === 'special-play' ? (
           <SpecialActionFields value={cmdParam} onChange={(v) => onChange({ actionParam: `special-play|${v}` })} idp={`lottery-${name}`} />
         ) : cmd === 'special-box' ? (
-          <SpecialBoxSelect value={cmdParam} onChange={(v) => onChange({ actionParam: `special-box|${v}` })} label={`${name} 特色整蛊盲盒`} />
+          <SpecialBoxPool value={cmdParam} onChange={(v) => onChange({ actionParam: `special-box|${v}` })} compact idp={`lottery-${name}-box`} />
         ) : folder ? (
           <>
             <div className="flex gap-2">

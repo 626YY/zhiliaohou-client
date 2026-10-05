@@ -162,7 +162,7 @@ window.registerGame((function(){
         if(b.deadAt) continue;
         var size=Math.max(16,Math.min(api.W,api.H)*0.025*b.sizeF)/Math.min(api.W,api.H);
         var dx=(nx-b.x), dy=(ny-b.y);
-        if(dx*dx+dy*dy <= size*size*2.2){ b.deadAt=nowMs; return; }
+        if(dx*dx+dy*dy <= size*size*2.2){ b.deadAt=nowMs; return true; }
       }
     },
     tick:function(dt){

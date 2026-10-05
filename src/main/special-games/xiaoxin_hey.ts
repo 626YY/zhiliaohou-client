@@ -90,7 +90,7 @@ window.registerGame((function(){
           b.strikeAt=nowMs+150;
           b.dieAt=nowMs+360;
           slippers.push({ x:b.x, y:b.y, w:b.w*1.35, h:b.h*1.25, t0:nowMs });
-          return;
+          return true;
         }
       }
     },

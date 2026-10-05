@@ -162,7 +162,8 @@ window.registerGame((function(){
       var d=Math.sqrt(dx*dx+dy*dy)-bugPx(b)/shortSide()*0.35;
       if(d<=rad) cands.push({ d:d, b:b });
     }
-    if(damage(cands, 5)){ lastGestureHitAt=nowMs; }
+    if(damage(cands, 5)){ lastGestureHitAt=nowMs; return true; }
+    return false;
   }
 
   function swatRandom(n){
@@ -279,8 +280,9 @@ window.registerGame((function(){
         }
         hand.px=x; hand.py=y; hand.pt=now;
       } else if(type==='down'){
-        swatAt(x/api.W, y/api.H);
+        var hitBug=swatAt(x/api.W, y/api.H);
         hand.px=x; hand.py=y; hand.pt=now;
+        return hitBug;
       }
     },
     tick:function(dt){

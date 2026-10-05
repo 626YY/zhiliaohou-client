@@ -14,8 +14,9 @@ import {
   ChevronRight
 } from 'lucide-react'
 import type { CustomBox, EntertainmentRule, LiveStateResult, NativeKeybinds } from '@shared/types'
-import { SPECIAL_GAMES, SPECIAL_GAME_MAP, parseSpecialBoxParam, parseSpecialParam, specialDefaultParam, type SpecialGameId } from '@shared/specialGames'
-import { useSpecialBoxes } from '../lib/useSpecialBoxes'
+import { SPECIAL_BOX_ALL, SPECIAL_BOX_DEFAULT_NAME, SPECIAL_GAMES, SPECIAL_GAME_MAP, parseSpecialBoxParam, parseSpecialParam, specialDefaultParam, type SpecialGameId } from '@shared/specialGames'
+import { useSpecialBoxEvents } from '../lib/useSpecialBoxEvents'
+import { defaultSpecialBoxParam } from '../components/special/SpecialBoxPool'
 import { prankGroups, usePrankCatalog } from '../lib/pranks'
 import { PRESET_GIFTS } from '../lib/blindbox'
 import GameSelector from '../components/GameSelector'
@@ -79,7 +80,7 @@ export default function PrankControl() {
   // 特色整蛊的礼物联动：画面整蛊在客户端执行，存成娱乐助手「礼物触发」规则（和游戏整蛊列在同一个礼物联动里）
   const [specialRules, setSpecialRules] = useState<EntertainmentRule[]>([])
   const [boxRules, setBoxRules] = useState<EntertainmentRule[]>([])
-  const { boxes } = useSpecialBoxes()
+  const { events: boxEvents } = useSpecialBoxEvents()
   const loadSpecialRules = useCallback(async () => {
     const list = await window.api.entertainmentRulesList()
     const gift = (r: EntertainmentRule) => (r.triggerType || 'gift') === 'gift' && r.actionType === 'command'
@@ -154,11 +155,12 @@ export default function PrankControl() {
     flash(`special-${id}`)
     window.api.statsPrankTick()
   }
-  const runBox = async (id: string, name: string) => {
-    const res = await window.api.specialBoxTest(id)
-    if (!res.ok) { toast(res.error ?? '开盒失败', 'error'); return }
-    flash(`specialbox-${id}`)
-    toast(`「${name}」开出了 ${res.opened?.length ?? 0} 个特色整蛊`, 'success')
+  // 盲盒抽一次：从盲盒事件库里全部启用的事件随机抽一个（各礼物自己的奖池在「特色整蛊」页勾选）
+  const runBox = async () => {
+    const res = await window.api.specialBoxDraw(`${SPECIAL_BOX_ALL}|${SPECIAL_BOX_DEFAULT_NAME}`)
+    if (!res.ok) { toast(res.error ?? '没抽出来', 'error'); return }
+    flash('specialbox')
+    toast(`开出：${(res.opened ?? []).join('、')}`, 'success')
     window.api.statsPrankTick()
   }
   const unbindSpecial = async (rule: EntertainmentRule) => {
@@ -204,17 +206,17 @@ export default function PrankControl() {
       toast('先选要触发的整蛊', 'info')
       return
     }
-    // 特色整蛊盲盒：同样存成礼物触发规则，立即生效
-    if (giftPrank.startsWith('specialbox:')) {
-      const box = boxes.find((b) => b.id === giftPrank.slice('specialbox:'.length))
-      if (!box) return
+    // 特色整蛊盲盒：同样存成礼物触发规则，立即生效；奖池先勾上事件库里所有启用的事件，到「特色整蛊」页再细调
+    if (giftPrank === 'specialbox') {
+      const param = defaultSpecialBoxParam(boxEvents)
+      if (!parseSpecialBoxParam(param).ids.length) { toast('盲盒事件库里没有启用的事件，先到「特色整蛊」页添加', 'info'); return }
       const r = await window.api.entertainmentRuleAdd({
-        id: '', name: `特色整蛊盲盒·${box.name}`, group: '特色整蛊', giftName: name, triggerType: 'gift',
-        actionType: 'command', commandCmd: 'special-box', commandParam: `${box.id}|${box.name}`,
+        id: '', name: `特色整蛊盲盒·${SPECIAL_BOX_DEFAULT_NAME}`, group: '特色整蛊', giftName: name, triggerType: 'gift',
+        actionType: 'command', commandCmd: 'special-box', commandParam: param,
         times: 1, repeat: 1, multiply: true, queueMode: 'instant', enabled: true
       })
       if (!r.ok) { toast(r.error ?? '绑定失败', 'error'); return }
-      toast(`已绑定：${name} → 特色整蛊盲盒「${box.name}」，立即生效`, 'success')
+      toast(`已绑定：${name} → 特色整蛊盲盒（${parseSpecialBoxParam(param).ids.length} 个事件随机），立即生效`, 'success')
       setGiftName('')
       void loadSpecialRules()
       return
@@ -471,13 +473,9 @@ export default function PrankControl() {
             className="max-w-64"
           >
             <option value="">选择要触发的整蛊…</option>
-            {boxes.length > 0 && (
-              <optgroup label="特色整蛊盲盒（随机开一种）">
-                {boxes.map((b) => (
-                  <option key={b.id} value={`specialbox:${b.id}`}>🎁 {b.name}</option>
-                ))}
-              </optgroup>
-            )}
+            <optgroup label="特色整蛊盲盒">
+              <option value="specialbox">🎁 盲盒随机（每份抽一个）</option>
+            </optgroup>
             <optgroup label="特色整蛊（画面）">
               {SPECIAL_GAMES.map((g) => (
                 <option key={g.id} value={`special:${g.id}`}>{g.name}</option>
@@ -510,11 +508,11 @@ export default function PrankControl() {
           </p>
         ) : (
           <div className="space-y-1.5">
-            {/* 特色整蛊盲盒：按盲盒归并 */}
-            {[...boxRules.reduce((m, r) => { const id = parseSpecialBoxParam(r.commandParam).id; return m.set(id, [...(m.get(id) ?? []), r]) }, new Map<string, EntertainmentRule[]>()).entries()].map(([bid, rules]) => (
-              <div key={`box-${bid}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 py-2 text-sm">
+            {/* 特色整蛊盲盒：按盲盒名字归并（各自的奖池在「特色整蛊」页勾选） */}
+            {[...boxRules.reduce((m, r) => { const n = parseSpecialBoxParam(r.commandParam).name || SPECIAL_BOX_DEFAULT_NAME; return m.set(n, [...(m.get(n) ?? []), r]) }, new Map<string, EntertainmentRule[]>()).entries()].map(([bname, rules]) => (
+              <div key={`box-${bname}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 py-2 text-sm">
                 <span>🎁</span>
-                <span className="font-medium text-[var(--text)]">{boxes.find((b) => b.id === bid)?.name ?? parseSpecialBoxParam(rules[0].commandParam).name ?? bid}</span>
+                <span className="font-medium text-[var(--text)]">{bname}</span>
                 <span className="rounded bg-[var(--accent-soft)] px-1.5 py-px text-[10px] text-[var(--accent-2)]">特色整蛊盲盒</span>
                 <span className="text-[var(--text-3)]">←</span>
                 {rules.map((r) => (
@@ -526,7 +524,7 @@ export default function PrankControl() {
                   </span>
                 ))}
                 <button onClick={() => navigate('/special')} className="ml-auto inline-flex items-center text-xs text-[var(--text-3)] hover:text-[var(--accent-2)]">
-                  盲盒内容<ChevronRight size={13} />
+                  勾选奖池<ChevronRight size={13} />
                 </button>
               </div>
             ))}
@@ -695,11 +693,9 @@ export default function PrankControl() {
             </button>
           </h3>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-            {boxes.map((b) => (
-              <ActionBtn key={b.id} onClick={() => void runBox(b.id, b.name)} flashed={flashed === `specialbox-${b.id}`}>
-                🎁 {b.name}
-              </ActionBtn>
-            ))}
+            <ActionBtn onClick={() => void runBox()} flashed={flashed === 'specialbox'}>
+              🎁 盲盒抽一次
+            </ActionBtn>
             {SPECIAL_GAMES.map((g) => (
               <ActionBtn key={g.id} onClick={() => void runSpecial(g.id)} flashed={flashed === `special-${g.id}`}>
                 {g.name}

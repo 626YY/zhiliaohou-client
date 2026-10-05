@@ -797,9 +797,10 @@ export type EntertainmentCommandCmd =
   //   在这之前时间盲盒只能靠它自己那份礼物表触发，礼物规则/转盘/九宫格都碰不到它。
   | 'blindbox-open'
   // ★special-play=特色整蛊（锁链/抓鸭子/粉丝来电…17 个绿幕小游戏）：param = 玩法|操作|数量|选项，
-  //   例 catch_duck|add|5|size=big。拆合与中文标签在 shared/specialGames.ts。窗口没开会自动打开（玩法设置可关）。
+  //   例 catch_duck|add|5|size=big。拆合与中文标签在 shared/specialGames.ts。窗口「特色整蛊」没开会自动打开（窗口设置可关）。
   | 'special-play'
-  // ★special-box=特色整蛊盲盒：param = 盲盒id|显示名，按权重随机开出一种特色整蛊（数量也可以随机）
+  // ★special-box=特色整蛊盲盒（照时间插件的盲盒）：param = 事件id,事件id,…|显示名（* = 事件库全部启用的），
+  //   每份礼物从勾选的事件里随机抽一个执行；事件库在特色整蛊页。
   | 'special-box'
   // ★game-prank=游戏整蛊（整蛊器里的整蛊，轮椅翻车/DS 惊吓…）：param = 游戏id|整蛊id|显示名，
   //   例 4wheel-challenge|flip|翻车。只在当前选中的就是这款游戏时执行（经 bridge 推给运行中的整蛊器）。
@@ -2092,17 +2093,18 @@ export const Ipc = {
   EffectsClose: 'ent:effects-close',
   EffectsFire: 'ent:effects-fire',
   EffectsState: 'ent:effects-state',
-  SpecialOpen: 'special:open',
-  SpecialClose: 'special:close',
+  SpecialWindowOpen: 'special:window-open',
+  SpecialWindowClose: 'special:window-close',
+  SpecialWindowConfigure: 'special:window-configure',
   SpecialConfigure: 'special:configure',
   SpecialState: 'special:state',
   SpecialTest: 'special:test',
   SpecialStats: 'special:stats',
   SpecialClearAll: 'special:clear-all',
-  SpecialBoxes: 'special:boxes',
-  SpecialBoxSave: 'special:box-save',
-  SpecialBoxRemove: 'special:box-remove',
-  SpecialBoxTest: 'special:box-test',
+  SpecialBoxEvents: 'special:box-events',
+  SpecialBoxEventsSave: 'special:box-events-save',
+  SpecialBoxEventTest: 'special:box-event-test',
+  SpecialBoxDraw: 'special:box-draw',
   SpecialCloseAll: 'special:close-all',
   SpecialChanged: 'special:changed',
   EntranceOpen: 'ent:entrance-open',

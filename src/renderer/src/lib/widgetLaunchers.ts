@@ -4,8 +4,10 @@
 import type { CountChallengeConfig, GreenScreenSlot, LotteryItem, TimeWidgetConfig, VideoWidgetConfig } from '@shared/types'
 import { overtimeToChallengeCfg, readOvertimeCfg } from './overtimeConfig'
 import { NINE_ORDER, nineItems } from '@shared/lottery'
-import { SPECIAL_GAMES } from '@shared/specialGames'
+import { SPECIAL_WINDOW_TITLE } from '@shared/specialGames'
 export const CHALLENGE_MODE_KEY='ent_challenge_active_mode'
+/** 特色整蛊窗口在挂件总控 / 自动开启名单里的 id */
+export const SPECIAL_WIDGET_ID = 'special'
 
 // 九宫格绿幕窗口用的 8 外圈格配色（和九宫格页保持一致）
 
@@ -132,19 +134,19 @@ export const WIDGET_LAUNCHERS: WidgetLauncher[] = [
     },
     close: () => window.api.greenScreenClose(slot)
   })),
-  // 特色整蛊：每个玩法一个窗口，和其它挂件同一份开关 / 自动开启名单（娱乐助手、特色整蛊两处看到的是同一份）
-  ...SPECIAL_GAMES.map((g): WidgetLauncher => ({
-    id: `special-${g.id}`,
-    label: g.name,
+  // 特色整蛊：17 个玩法共用一个窗口「特色整蛊」，和其它挂件同一份开关 / 自动开启名单（娱乐助手、特色整蛊两处看到的是同一份）
+  {
+    id: SPECIAL_WIDGET_ID,
+    label: SPECIAL_WINDOW_TITLE,
     group: '特色整蛊',
-    open: () => window.api.specialOpen(g.id),
-    close: () => window.api.specialClose(g.id)
-  }))
+    open: () => window.api.specialWindowOpen(),
+    close: () => window.api.specialWindowClose()
+  }
 ]
 
 /** 「去配置」去哪：特色整蛊去它自己的页面，其它挂件去娱乐助手对应模块 */
 export function widgetConfigRoute(id: string): string {
-  if (id.startsWith('special-')) return `/special?tool=${id.slice('special-'.length)}`
+  if (id === SPECIAL_WIDGET_ID) return '/special'
   const tool = id.startsWith('green-') ? 'green&slot=' + id.slice(6) : id.startsWith('video-') ? 'video&slot=' + id.slice(6) : id === 'queue' ? 'gift' : id === 'wish' ? 'progress' : id
   return '/ent?tool=' + tool
 }
@@ -184,7 +186,7 @@ export async function readWidgetOpenState(): Promise<WidgetOpenState> {
     'video-vip': !!video?.vip
   }
   for (const slot of [1, 2, 3, 4]) state[`green-${slot}`] = !!green?.slots?.find((s) => s.slot === slot)?.open
-  for (const g of special?.games ?? []) state[`special-${g.id}`] = !!g.open
+  state[SPECIAL_WIDGET_ID] = !!special?.window?.open
   return state
 }
 
@@ -192,7 +194,13 @@ const AUTO_KEY = 'ent_widget_auto'
 
 export function readAutoOpenIds(): string[] {
   const list = readLS<string[]>(AUTO_KEY)
-  return Array.isArray(list) ? list.filter((id) => WIDGET_LAUNCHERS.some((w) => w.id === id)) : []
+  if (!Array.isArray(list)) return []
+  // 0.3.63 每个玩法一个窗口（special-<玩法>）：勾过任何一个就换成合并后的「特色整蛊」窗口
+  const merged = list.some((id) => typeof id === 'string' && id.startsWith('special-'))
+    ? [...new Set(list.map((id) => (typeof id === 'string' && id.startsWith('special-') ? SPECIAL_WIDGET_ID : id)))]
+    : list
+  if (merged !== list) writeAutoOpenIds(merged)
+  return merged.filter((id) => WIDGET_LAUNCHERS.some((w) => w.id === id))
 }
 
 export function writeAutoOpenIds(ids: string[]): void {

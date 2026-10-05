@@ -1,10 +1,13 @@
-// 基础引导里的「选一个特色整蛊」：17 个玩法做成带美术的小卡片，点一下选中，下面填数量。
-// 选中后的参数和礼物规则里的完全一样（玩法|操作|数量|选项），只是换玩法时回到该玩法的默认操作和常用数量。
+// 基础引导里的「选一个特色整蛊」：17 个玩法做成带美术的小卡片，点一下选中，下面填数量；
+// 第一张是「盲盒随机」：选它就在下面勾奖池（和时间插件的盲盒一样，每份礼物从勾选的事件里随机抽一个）。
+// 选中后的参数和礼物规则里的完全一样（玩法|操作|数量|选项），只是换玩法时回到该玩法的默认操作和常用数量；
+// 盲盒在向导里记成「box:奖池参数」（和礼物规则向导的约定一致）。
 import { useEffect, useState } from 'react'
 import SpecialActionFields from '../SpecialActionFields'
+import SpecialBoxPool, { defaultSpecialBoxParam } from './SpecialBoxPool'
 import { specialArtUrls } from '../../lib/specialArt'
-import { useSpecialBoxes } from '../../lib/useSpecialBoxes'
-import { SPECIAL_CATEGORY_LABELS, SPECIAL_GAMES, SPECIAL_GAME_MAP, parseSpecialBoxParam, parseSpecialParam, specialActionText, specialDefaultParam, type SpecialGameId } from '@shared/specialGames'
+import { useSpecialBoxEvents } from '../../lib/useSpecialBoxEvents'
+import { SPECIAL_CATEGORY_LABELS, SPECIAL_GAMES, SPECIAL_GAME_MAP, parseSpecialParam, specialDefaultParam, type SpecialGameId } from '@shared/specialGames'
 
 let assetDirCache: string | null = null
 
@@ -14,11 +17,9 @@ export default function SpecialPicker({ value, onChange, simple = true }: { valu
     if (assetDirCache !== null) return
     void window.api.specialState().then((st) => { assetDirCache = st.assetDir || ''; setAssetDir(assetDirCache) }).catch(() => {})
   }, [])
-  const { boxes } = useSpecialBoxes()
-  // 盲盒记成「box:盲盒id|名字」（和礼物规则向导里的约定一致）
-  const boxId = value.startsWith('box:') ? parseSpecialBoxParam(value.slice(4)).id : ''
-  const box = boxes.find((b) => b.id === boxId)
-  const current = boxId ? '' : parseSpecialParam(value).id
+  const { events } = useSpecialBoxEvents()
+  const isBox = value.startsWith('box:')
+  const current = isBox ? '' : parseSpecialParam(value).id
   const pick = (id: SpecialGameId) => {
     if (id === current) return
     onChange(specialDefaultParam(id))
@@ -26,24 +27,18 @@ export default function SpecialPicker({ value, onChange, simple = true }: { valu
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-2 min-[560px]:grid-cols-4" role="radiogroup" aria-label="选择特色整蛊玩法">
-        {boxes.map((b) => {
-          const on = b.id === boxId
-          return (
-            <button
-              key={b.id}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              aria-label={`盲盒 ${b.name}`}
-              title={`随机开出：${b.entries.map((e) => specialActionText(e.param)).join('、')}`}
-              onClick={() => onChange(`box:${b.id}|${b.name}`)}
-              className={`group flex flex-col items-center gap-1 rounded-lg border p-1.5 text-center transition ${on ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-[var(--line)] hover:border-[var(--line-strong)] hover:bg-[var(--bg-elev)]'}`}
-            >
-              <span className="flex h-12 w-full items-center justify-center rounded-md text-2xl" style={{ background: 'linear-gradient(135deg, #ff7a18, #ff3d7f 60%, #8b5cf6)' }}>🎁</span>
-              <span className={`truncate text-xs ${on ? 'font-semibold text-[var(--accent-2)]' : 'text-[var(--text-2)]'}`}>{b.name}</span>
-            </button>
-          )
-        })}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={isBox}
+          aria-label="盲盒随机"
+          title="每份礼物从你勾选的事件里随机抽一个"
+          onClick={() => { if (!isBox) onChange('box:' + defaultSpecialBoxParam(events)) }}
+          className={`group flex flex-col items-center gap-1 rounded-lg border p-1.5 text-center transition ${isBox ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-[var(--line)] hover:border-[var(--line-strong)] hover:bg-[var(--bg-elev)]'}`}
+        >
+          <span className="flex h-12 w-full items-center justify-center rounded-md text-2xl" style={{ background: 'linear-gradient(135deg, #ff7a18, #ff3d7f 60%, #8b5cf6)' }}>🎁</span>
+          <span className={`truncate text-xs ${isBox ? 'font-semibold text-[var(--accent-2)]' : 'text-[var(--text-2)]'}`}>盲盒随机</span>
+        </button>
         {SPECIAL_GAMES.map((g) => {
           const on = g.id === current
           const art = specialArtUrls(g.id, assetDir)[0]
@@ -73,11 +68,10 @@ export default function SpecialPicker({ value, onChange, simple = true }: { valu
           )
         })}
       </div>
-      {box && (
-        <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] p-3 text-xs leading-6 text-[var(--text-2)]">
-          <p className="mb-1 font-semibold text-[var(--text)]">🎁 盲盒「{box.name}」· 每次开 {box.opens} 个</p>
-          <p>随机开出：{box.entries.map((e) => specialActionText(e.param)).join('、')}</p>
-          <p className="mt-1 text-[var(--text-4)]">盲盒里放什么、各自多大概率，在「特色整蛊」页的盲盒里改。</p>
+      {isBox && (
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] p-3">
+          <p className="mb-2 text-xs leading-5 text-[var(--text-3)]">勾选这个礼物抽哪些事件。事件（玩法、数量）在「特色整蛊」页的盲盒事件库里改。</p>
+          <SpecialBoxPool value={value.slice(4)} onChange={(v) => onChange('box:' + v)} idp="setup-special-box" />
         </div>
       )}
       {current && (

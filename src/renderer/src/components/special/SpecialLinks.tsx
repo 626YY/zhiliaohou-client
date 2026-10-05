@@ -1,7 +1,7 @@
 // 特色整蛊详情页的「礼物联动」：这个玩法被哪些礼物规则触发。
 // 联动就是娱乐助手里的普通礼物规则（动作 = 特色整蛊），这里只是按玩法筛出来、给个顺手的增改入口；
 // 在「礼物触发」里看到、改到的是同一份数据。
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Gift, Pencil, Plus, Trash2, ExternalLink } from 'lucide-react'
 import { Btn, Card, EmptyState, Field, Input, Segmented, Select, Toggle } from '../ui'
@@ -10,12 +10,14 @@ import EmojiText from '../EmojiText'
 import SpecialActionFields from '../SpecialActionFields'
 import GamePrankSelect from '../GamePrankSelect'
 import AdvancedSection from '../AdvancedSection'
+import SpecialBoxPool, { defaultSpecialBoxParam } from './SpecialBoxPool'
 import { useConfigurationLevel } from '../../lib/configurationLevel'
+import { useSpecialBoxEvents } from '../../lib/useSpecialBoxEvents'
 import { actionLabel } from '@shared/entertainmentLabels'
 import { specialLinksOf, triggerText } from '../../lib/specialArt'
 import { DOUYIN_GIFT_NAMES } from '../../data/douyinGifts'
 import { normalizeGiftName } from '@shared/giftName'
-import { SPECIAL_GAME_MAP, specialActionText, specialBoxText, specialDefaultParam, type SpecialBox, type SpecialGameId } from '@shared/specialGames'
+import { SPECIAL_BOX_DEFAULT_NAME, SPECIAL_GAME_MAP, parseSpecialBoxParam, specialActionText, specialBoxText, specialDefaultParam, type SpecialGameId } from '@shared/specialGames'
 import type { EntertainmentRule, EntertainmentTriggerType } from '@shared/types'
 import { useToast } from '../../stores/ui'
 
@@ -37,37 +39,37 @@ export function GiftIcon({ name, images, size = 28 }: { name: string; images: Re
   )
 }
 
-// 联动弹窗：绑一个玩法（id）或一个盲盒（box）。基础模式只填「谁触发 + 礼物 + 数量」，其余收进「更多选项」
+// 联动弹窗：绑一个玩法（id）或一个特色整蛊盲盒（box：勾选奖池）。基础模式只填「谁触发 + 礼物 + 数量/奖池」，其余收进「更多选项」
 export function LinkModal({
   id,
-  box,
+  box = false,
   rule,
   images,
   onClose,
   onSaved
 }: {
   id?: SpecialGameId
-  box?: SpecialBox
+  box?: boolean
   rule: EntertainmentRule | null
   images: Record<string, string>
   onClose: () => void
   onSaved: () => void
 }) {
   const meta = id ? SPECIAL_GAME_MAP[id] : undefined
-  const title = box ? `盲盒「${box.name}」` : meta?.name ?? ''
   const { level } = useConfigurationLevel()
   const toast = useToast((s) => s.toast)
+  const { events, loaded } = useSpecialBoxEvents()
   const [form, setForm] = useState<EntertainmentRule>(
     () =>
       rule ?? {
         id: '',
-        name: box ? `特色整蛊盲盒·${box.name}` : `特色整蛊·${meta?.name ?? ''}`,
+        name: box ? '特色整蛊盲盒' : `特色整蛊·${meta?.name ?? ''}`,
         group: '特色整蛊',
         giftName: '',
         triggerType: 'gift',
         actionType: 'command',
         commandCmd: box ? 'special-box' : 'special-play',
-        commandParam: box ? `${box.id}|${box.name}` : specialDefaultParam(id!),
+        commandParam: box ? '' : specialDefaultParam(id!),
         times: 1,
         repeat: 1,
         multiply: true,
@@ -77,6 +79,16 @@ export function LinkModal({
   )
   const [busy, setBusy] = useState(false)
   const set = (patch: Partial<EntertainmentRule>) => setForm((f) => ({ ...f, ...patch }))
+  // 新建盲盒：奖池默认勾上事件库里所有启用的事件，主播再去掉不要的（只在打开时填一次，主播自己清空了不再填回去）
+  const boxInited = useRef(!box || !!rule)
+  useEffect(() => {
+    if (boxInited.current || !loaded) return
+    boxInited.current = true
+    setForm((f) => (f.commandParam ? f : { ...f, commandParam: defaultSpecialBoxParam(events) }))
+  }, [loaded, events])
+  const boxName = box ? parseSpecialBoxParam(form.commandParam).name || SPECIAL_BOX_DEFAULT_NAME : ''
+  const title = box ? `盲盒「${boxName}」` : meta?.name ?? ''
+  const boxEmpty = box && (() => { const p = parseSpecialBoxParam(form.commandParam); return !p.all && !p.ids.length })()
   const trigger = form.triggerType || 'gift'
   // 「同时触发游戏整蛊」= 规则上的一条附加动作（game-prank），其它附加动作原样保留
   const extras = form.extraActions ?? []
@@ -85,14 +97,17 @@ export function LinkModal({
     const rest = extras.filter((a) => a !== prankExtra)
     set({ extraActions: param ? [...rest, { actionType: 'command', commandCmd: 'game-prank', commandParam: param, delayMs: 0 }] : rest })
   }
-  const invalid = trigger === 'gift' && !form.giftName.trim()
+  const invalid = (trigger === 'gift' && !form.giftName.trim()) || boxEmpty
 
   const save = async () => {
     setBusy(true)
-    const r = form.id ? await window.api.entertainmentRuleUpdate(form) : await window.api.entertainmentRuleAdd(form)
+    // 盲盒规则名跟着盲盒名字走（礼物触发列表里一眼看出是哪个盲盒）
+    const oldName = String(form.name || '').trim()
+    const next = box && (!oldName || oldName.startsWith('特色整蛊盲盒')) ? { ...form, name: `特色整蛊盲盒·${boxName}` } : form
+    const r = next.id ? await window.api.entertainmentRuleUpdate(next) : await window.api.entertainmentRuleAdd(next)
     setBusy(false)
     if (!r.ok) { toast(r.error || '保存失败', 'error'); return }
-    toast(form.id ? '联动已更新' : `已联动：${triggerText(form)} → ${box ? '盲盒' + specialBoxText(form.commandParam) : specialActionText(form.commandParam)}`, 'success')
+    toast(next.id ? '联动已更新' : `已联动：${triggerText(next)} → ${box ? '盲盒' + specialBoxText(next.commandParam) : specialActionText(next.commandParam)}`, 'success')
     onSaved()
   }
 
@@ -102,7 +117,7 @@ export function LinkModal({
       closeOnBackdrop={false}
       onClose={onClose}
       title={form.id ? `编辑联动 · ${title}` : `添加联动 · ${title}`}
-      width={500}
+      width={box ? 620 : 500}
       footer={
         <>
           <Btn variant="secondary" onClick={onClose}>取消</Btn>
@@ -133,7 +148,7 @@ export function LinkModal({
         )}
         <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] p-3">
           {box ? (
-            <p className="text-xs leading-5 text-[var(--text-2)]">每次触发开一次盲盒「{box.name}」：按盲盒里设的概率随机开出 {box.opens > 1 ? `${box.opens} 个` : '一种'}特色整蛊，数量也按盲盒里设的随机。</p>
+            <SpecialBoxPool value={form.commandParam} onChange={(v) => set({ commandParam: v })} idp="special-link-box" />
           ) : (
             <SpecialActionFields fixedId={id} value={form.commandParam} onChange={(v) => set({ commandParam: v })} idp="special-link" simple={level === 'basic'} />
           )}

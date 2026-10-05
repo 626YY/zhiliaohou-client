@@ -18,7 +18,7 @@ import { useToast } from '../stores/ui'
 import { DOUYIN_GIFT_NAMES } from '../data/douyinGifts'
 import SpecialActionFields from '../components/SpecialActionFields'
 import GamePrankSelect from '../components/GamePrankSelect'
-import SpecialBoxSelect from '../components/special/SpecialBoxSelect'
+import SpecialBoxPool, { defaultSpecialBoxParam } from '../components/special/SpecialBoxPool'
 import { specialDefaultParam } from '@shared/specialGames'
 
 const ACTION_LABEL: Record<EntertainmentActionType, string> = {
@@ -1643,18 +1643,21 @@ function ActionEditor({
             </Field>}
             {form.commandCmd === 'special-play' || form.commandCmd === 'special-box' ? (
               <>
-                {/* 指定玩法：每次都是这个；盲盒随机：按盲盒里的概率随机开出一种（盲盒在特色整蛊页编辑） */}
+                {/* 指定玩法：每次都是这个；盲盒随机：每份从勾选的事件里随机抽一个（事件库在特色整蛊页） */}
                 <Field label="怎么出">
                   <Segmented
                     size="sm"
                     value={form.commandCmd === 'special-box' ? 'box' : 'play'}
-                    onChange={(m) => set(m === 'box' ? { commandCmd: 'special-box', commandParam: '' } : { commandCmd: 'special-play', commandParam: specialDefaultParam('chain_challenge') })}
+                    onChange={(m) => {
+                      if (m === 'box') void window.api.specialBoxEvents().then((list) => set({ commandCmd: 'special-box', commandParam: defaultSpecialBoxParam(list) }))
+                      else set({ commandCmd: 'special-play', commandParam: specialDefaultParam('chain_challenge') })
+                    }}
                     options={[{ value: 'play', label: '指定玩法' }, { value: 'box', label: '盲盒随机' }]}
                   />
                 </Field>
                 {form.commandCmd === 'special-box' ? (
-                  <Field label="盲盒" hint="盲盒里放哪些整蛊、各自概率和数量，在「特色整蛊」页的盲盒里编辑">
-                    <SpecialBoxSelect value={form.commandParam} onChange={(v) => set({ commandParam: v })} />
+                  <Field label="盲盒奖池" hint="每份礼物从勾选的事件里随机抽一个；事件（玩法、数量）在「特色整蛊」页的盲盒事件库里改">
+                    <SpecialBoxPool value={form.commandParam} onChange={(v) => set({ commandParam: v })} idp={`${idp}-box`} />
                   </Field>
                 ) : (
                   <SpecialActionFields value={form.commandParam} onChange={(v) => set({ commandParam: v })} idp={idp} />

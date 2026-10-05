@@ -150,8 +150,10 @@ window.registerGame((function(){
     ctx.restore();
   }
 
+  // 计数面板：一直显示 / 场上有东西时显示（默认）/ 不显示——好几个玩法同在一个窗口，用过的面板别一直堆在左上角
+  function statsShown(){ var m=String(api.cfg.statsPanel||'active'); if(m==='off') return false; if(m==='always') return true; return roundActive||remaining>0; }
   function drawStats(ctx){
-    if(!roundActive && remaining<=0) return;
+    if(!statsShown()){ if(api.hud) api.hud(0); return; }
     var fs=Math.max(13,Math.min(20,api.W*0.016));
     var lines=['已清扫：'+cleared,'剩余：'+remaining];
     if(multiplier>1) lines.push('加速清扫：×'+multiplier);
@@ -159,13 +161,14 @@ window.registerGame((function(){
     ctx.font='600 '+fs+'px "Microsoft YaHei",sans-serif';
     var w=0,i;
     for(i=0;i<lines.length;i++) w=Math.max(w,ctx.measureText(lines[i]).width);
-    var padX=fs*0.9,padY=fs*0.55,lh=fs*1.5;
-    ZL.roundRect(ctx,10,10,w+padX*2,lines.length*lh+padY*2-lh*0.5,12);
+    var padX=fs*0.9,padY=fs*0.55,lh=fs*1.5,ph=lines.length*lh+padY*2-lh*0.5;
+    var top=api.hud?api.hud(ph):10;
+    ZL.roundRect(ctx,10,top,w+padX*2,ph,12);
     ctx.fillStyle='rgba(20,22,28,0.66)'; ctx.fill();
     ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,255,255,0.16)'; ctx.stroke();
     ctx.textAlign='left'; ctx.textBaseline='middle';
     for(i=0;i<lines.length;i++){
-      var ly=10+padY+i*lh+lh*0.32;
+      var ly=top+padY+i*lh+lh*0.32;
       ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,fs*0.14); ctx.strokeStyle='rgba(0,0,0,0.6)';
       ctx.strokeText(lines[i],10+padX,ly);
       ctx.fillStyle=(i===2)?'#ffd54a':'#fff'; ctx.fillText(lines[i],10+padX,ly);
@@ -257,7 +260,7 @@ window.registerGame((function(){
           sweep(picked);
           remaining=Math.max(0,remaining-take);
           cleared+=take;
-          return;
+          return true;
         }
       }
     },
@@ -320,7 +323,7 @@ window.registerGame((function(){
         var l3=leaves[i];
         if(l3.phase==='tornado') drawLeaf(ctx,l3,1,l3.talpha==null?1:l3.talpha);
       }
-      drawStats(ctx);
+      drawStats(api.hudCtx||ctx);
     },
     stats:function(){ return { value:cleared }; },
     // 只读调试钩子（离线验收用，生产不调用）

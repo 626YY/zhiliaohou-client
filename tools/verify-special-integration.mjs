@@ -1,12 +1,13 @@
 // 特色整蛊 × 娱乐助手送礼系统 · 端到端回归（隐藏的独立客户端实例，独立 userData，不碰正式配置，不抢前台）。
 // 覆盖：
-//   1. 0.3.63 测试版玩法自带的礼物触发 → 启动时迁成礼物规则（只迁一次）
-//   2. 特色整蛊宫格：17 张卡片、真实美术经 zlspecial 协议加载
+//   1. 0.3.63 测试版玩法自带的礼物触发 → 启动时迁成礼物规则（只迁一次）；各玩法的窗口尺寸合成一个窗口设置
+//   2. 特色整蛊宫格：17 张卡片、真实美术经 zlspecial 协议加载；顶上一条「直播窗口」
 //   3. 详情页预览舞台：iframe 跑真实玩法代码，自动演示有活动
 //   4. 详情页「添加联动」→ 存成礼物规则（动作 = 特色整蛊）
-//   5. 模拟送礼 → 规则触发 → 玩法窗口自动打开并收到命令（带送礼人）
-//   6. 礼物规则编辑器里「特色整蛊」单独一格 + 参数编辑；转盘等走的 entertainmentCommand 出口
-//   7. 全部清屏 / 关闭全部；zlspecial 协议拒绝读素材目录外和非媒体文件
+//   5. 模拟送礼 → 规则触发 → 唯一的「特色整蛊」窗口自动打开，几个玩法在同一个窗口里各自动
+//   6. 礼物规则编辑器里「特色整蛊」单独一格 + 参数编辑；转盘等走的 entertainmentCommand 出口；整蛊遥控融合
+//   6c. 盲盒（照时间插件）：事件库、给礼物勾奖池、送礼按奖池抽、改勾选即存、删事件从奖池摘掉
+//   7. 全部清屏 / 关闭窗口；zlspecial 协议拒绝读素材目录外和非媒体文件
 // 用法：npx electron-vite build --outDir output/special-build && node tools/verify-special-integration.mjs [--out=output/special-build]
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
@@ -74,12 +75,16 @@ async function until(fn, what, timeout = 10_000) {
   }
   throw new Error('等待超时：' + what)
 }
-// 主进程里找某个玩法窗口（标题 = 玩法名），在它页面里跑一段 JS
-const inSpecialWindow = (title, script) => app.evaluate(async ({ BrowserWindow }, a) => {
+// 主进程里找「特色整蛊」窗口（全部玩法共用这一个），在它页面里跑一段 JS
+const SPECIAL_TITLE = '特色整蛊'
+const inSpecialWindow = (script) => app.evaluate(async ({ BrowserWindow }, a) => {
   const w = BrowserWindow.getAllWindows().find((x) => !x.isDestroyed() && x.getTitle() === a.title)
   if (!w) return { missing: true }
   return { value: await w.webContents.executeJavaScript(a.script) }
-}, { title, script })
+}, { title: SPECIAL_TITLE, script })
+const windowOpen = () => api(() => window.api.specialState().then((s) => s.window.open))
+const loadedGames = async () => (await inSpecialWindow('window.__loaded ? window.__loaded() : []')).value || []
+const bannerText = async () => (await inSpecialWindow('document.getElementById("btx") ? document.getElementById("btx").textContent : ""')).value || ''
 
 try {
   // ---- 登录本地测试账号 ----
@@ -108,6 +113,9 @@ try {
   assert.equal(migrated[0].queueMode, 'instant')
   assert.equal(migrated[0].group, '特色整蛊')
   ok('旧版玩法触发 → 礼物规则（玫瑰 → 锁链 +4，即时执行）')
+  const st0 = await api(() => window.api.specialState())
+  assert.deepEqual({ w: st0.window.width, h: st0.window.height, bg: st0.window.background, auto: st0.window.autoOpen, open: st0.window.open }, { w: 1280, h: 720, bg: 'green', auto: true, open: false }, `窗口设置没从旧配置合过来：${JSON.stringify(st0.window)}`)
+  ok('旧版各玩法的窗口尺寸/底色 → 合成一个「特色整蛊」窗口设置（1280×720 绿幕）')
 
   // ---- 2. 宫格页 ----
   await api(() => { window.location.hash = '#/special' })
@@ -118,7 +126,8 @@ try {
   const broken = art.filter((a) => !a.w)
   assert.ok(art.length >= 13, `卡片主图太少：${art.length}`)
   assert.equal(broken.length, 0, `有卡片图没加载出来：${JSON.stringify(broken)}`)
-  ok(`宫格 17 张卡片，${art.length} 张真实美术全部加载`)
+  assert.equal(await page.locator('[data-testid="special-window-bar"]').count(), 1, '宫格页顶上应有一条「直播窗口」')
+  ok(`宫格 17 张卡片，${art.length} 张真实美术全部加载，顶上一条「直播窗口」`)
   await capture('01-grid')
 
   // ---- 3. 详情页预览 ----
@@ -183,16 +192,19 @@ try {
   ok('详情页添加联动 → 礼物规则 catch_duck|add|3|size=big，列表显示「+3只 · 大鸭子」')
   await capture('04-detail-linked')
 
-  // ---- 5. 模拟送礼 → 自动开窗 + 收到命令 ----
-  assert.equal((await api(() => window.api.specialState())).games.find((g) => g.id === 'catch_duck').open, false, '送礼前鸭子窗口不该开着')
+  // ---- 5. 模拟送礼 → 自动开「特色整蛊」窗口 + 收到命令；第二个玩法进同一个窗口 ----
+  assert.equal(await windowOpen(), false, '送礼前特色整蛊窗口不该开着')
   await api(() => window.api.connectorSimulate('礼物: 小心心 ×2  by 阿彪'))
-  await until(() => api(() => window.api.specialState().then((s) => s.games.find((g) => g.id === 'catch_duck').open)), '抓鸭子窗口自动打开')
-  await until(async () => (await inSpecialWindow('抓鸭子', 'window.__alive && window.__alive()')).value === true, '鸭子窗口收到命令开始动')
-  const banner = await inSpecialWindow('抓鸭子', 'document.getElementById("btx") ? document.getElementById("btx").textContent : ""')
-  ok(`模拟送礼「小心心×2 by 阿彪」→ 抓鸭子窗口自动打开并开始生成（横幅：${banner.value || '无'}）`)
+  await until(() => windowOpen(), '特色整蛊窗口自动打开')
+  await until(async () => (await inSpecialWindow("window.__alive && window.__alive('catch_duck')")).value === true, '窗口里的鸭子收到命令开始动')
+  ok(`模拟送礼「小心心×2 by 阿彪」→「特色整蛊」窗口自动打开，鸭子开始生成（横幅：${await bannerText() || '无'}）`)
   await api(() => window.api.connectorSimulate('礼物: 玫瑰 ×1  by 小美'))
-  await until(async () => (await inSpecialWindow('锁链特效', 'window.__alive && window.__alive()')).value === true, '迁移的玫瑰规则触发锁链')
-  ok('迁移来的「玫瑰」规则触发锁链特效窗口')
+  await until(async () => (await inSpecialWindow("window.__alive && window.__alive('chain_challenge')")).value === true, '迁移的玫瑰规则触发锁链')
+  const specialWins = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed() && w.getTitle() !== '知了猴整蛊台').map((w) => w.getTitle()))
+  assert.deepEqual(specialWins.filter((t) => t === SPECIAL_TITLE).length, 1, `应该只有一个特色整蛊窗口：${JSON.stringify(specialWins)}`)
+  assert.ok(!specialWins.some((t) => t === '抓鸭子' || t === '锁链特效'), `不该再有单个玩法的窗口：${JSON.stringify(specialWins)}`)
+  assert.deepEqual(await loadedGames(), ['catch_duck', 'chain_challenge'])
+  ok('迁移来的「玫瑰」规则触发锁链：鸭子和锁链在同一个「特色整蛊」窗口里（不再一个玩法一个窗口）')
 
   // ---- 6. 礼物规则编辑器 + 通用出口 ----
   await api(() => { window.location.hash = '#/ent?tool=gift' })
@@ -202,14 +214,14 @@ try {
   await capture('05-gift-rules')
   const r1 = await api(() => window.api.entertainmentCommand('special-play', 'fan_call|show|1'))
   assert.equal(r1.ok, true, r1.error)
-  await until(() => api(() => window.api.specialState().then((s) => s.games.find((g) => g.id === 'fan_call').open)), '动作命令出口打开粉丝来电')
+  await until(async () => (await loadedGames()).includes('fan_call'), '动作命令出口打开粉丝来电')
   const r2 = await api(() => window.api.entertainmentCommand('special-play', 'no_such|add|1'))
   assert.equal(r2.ok, false, '未知玩法应该报错')
   ok('动作命令出口（转盘/九宫格/时间盲盒共用）能触发特色整蛊，未知玩法会报错')
 
   // ---- 6b. 和整蛊器融合：整蛊遥控里的特色整蛊分组 / 礼物联动 / 模拟观众；礼物触发的「游戏整蛊」动作 ----
   await api(() => window.api.specialCloseAll())
-  await until(() => api(() => window.api.specialState().then((s) => s.games.every((g) => !g.open))), '先全部关掉')
+  await until(async () => !(await windowOpen()), '先关掉特色整蛊窗口')
   await api(() => { window.location.hash = '#/remote' })
   await page.getByText('整蛊遥控', { exact: true }).first().waitFor({ timeout: 15_000 })
   const gated = await page.getByText('礼物联动', { exact: true }).count() === 0
@@ -221,7 +233,7 @@ try {
     await specialBtn.waitFor({ timeout: 10_000 })
     assert.equal(await specialBtn.isDisabled(), false, '没开游戏时特色整蛊按钮也应能点')
     await specialBtn.click()
-    await until(() => api(() => window.api.specialState().then((s) => s.games.find((g) => g.id === 'fan_call').open)), '整蛊遥控点特色整蛊打开窗口')
+    await until(async () => (await windowOpen()) && (await loadedGames()).includes('fan_call'), '整蛊遥控点特色整蛊打开窗口')
     ok('整蛊遥控「特色整蛊」分组：没开游戏也能一键触发')
     // 礼物联动：选「特色整蛊（画面）」里的玩法 → 立即存成礼物触发规则
     await api(() => document.querySelectorAll('input[list]').forEach((i) => i.removeAttribute('list')))
@@ -236,8 +248,8 @@ try {
     if (await simBtn.count()) {
       assert.equal(await simBtn.isDisabled(), false, '模拟观众在没开游戏时也应能点')
       await simBtn.click()
-      await until(() => api(() => window.api.specialState().then((s) => s.games.find((g) => g.id === 'throw_poop').open)), '模拟观众送棒棒糖触发扔粑粑')
-      ok('整蛊遥控「模拟观众」送棒棒糖 → 礼物触发规则 → 扔粑粑窗口自动打开')
+      await until(async () => (await loadedGames()).includes('throw_poop'), '模拟观众送棒棒糖触发扔粑粑')
+      ok('整蛊遥控「模拟观众」送棒棒糖 → 礼物触发规则 → 扔粑粑进了特色整蛊窗口')
     } else {
       console.log('SKIP 模拟观众：预设礼物里没有棒棒糖按钮')
     }
@@ -248,49 +260,78 @@ try {
   assert.equal(gp.ok, false, '游戏没在跑时游戏整蛊不该报成功')
   ok(`礼物触发「游戏整蛊」动作：游戏未运行时报错「${gp.error}」`)
 
-  // ---- 6c. 特色整蛊盲盒：自带三个、开一次、送礼开盒 ----
-  const boxes = await api(() => window.api.specialBoxes())
-  assert.deepEqual(boxes.map((b) => b.name), ['整蛊大礼包', '手忙脚乱盒', '锁链命运盒'], '自带三个盲盒')
-  await api(() => window.api.specialCloseAll())
-  const opened = await api(() => window.api.specialBoxTest('box-busy-hands'))
-  assert.equal(opened.ok, true, opened.error)
-  assert.equal(opened.opened.length, 2, '手忙脚乱盒每次开 2 个')
-  await until(() => api(() => window.api.specialState().then((s) => s.games.filter((g) => g.open).length >= 1)), '开盒后对应玩法窗口打开')
-  ok(`盲盒「手忙脚乱盒」开一次 → 开出 ${opened.opened.join('、')}`)
-  await api(() => window.api.entertainmentRuleAdd({ id: '', name: '盲盒测试', group: '特色整蛊', giftName: '跑车', triggerType: 'gift', actionType: 'command', commandCmd: 'special-box', commandParam: 'box-chain-fate|锁链命运盒', times: 1, repeat: 1, multiply: true, queueMode: 'instant', enabled: true }))
-  await api(() => window.api.specialCloseAll())
-  await api(() => window.api.connectorSimulate('礼物: 跑车 ×1  by 阿彪'))
-  await until(() => api(() => window.api.specialState().then((s) => s.games.find((g) => g.id === 'chain_challenge').open)), '送跑车开锁链命运盒')
-  const announce = await (async () => {
-    for (let i = 0; i < 40; i++) {
-      const r = await inSpecialWindow('锁链特效', 'document.getElementById("btx") ? document.getElementById("btx").textContent : ""')
-      if (r.value && r.value.includes('开出')) return r.value
-      await page.waitForTimeout(150)
-    }
-    return ''
-  })()
-  assert.ok(announce.includes('锁链命运盒') && announce.includes('阿彪'), `开盒提示不对：${announce}`)
-  ok(`送礼开盲盒：模拟「跑车 by 阿彪」→ 锁链命运盒 → 横幅「${announce}」`)
-
-  // ---- 6d. 直播画面方向：竖屏一键统一，开着的窗口跟着变 ----
+  // ---- 6c. 特色整蛊盲盒（照时间插件）：事件库 → 给礼物勾奖池 → 送礼按奖池抽 ----
+  const events = await api(() => window.api.specialBoxEvents())
+  assert.equal(events.length, 17, `第一次用应放进每个玩法一个默认事件：${events.length}`)
   await api(() => { window.location.hash = '#/special' })
-  await page.locator('[data-special-card]').first().waitFor({ timeout: 10_000 })
+  await page.locator('[data-testid="special-boxes"]').waitFor({ timeout: 10_000 })
+  await page.getByRole('button', { name: '添加盲盒礼物' }).click()
+  const boxDialog = page.getByRole('dialog')
+  await boxDialog.waitFor()
+  await api(() => document.querySelectorAll('[role="dialog"] input[list]').forEach((i) => i.removeAttribute('list')))
+  await boxDialog.getByPlaceholder('如：小心心 / 人气票 / 玫瑰').fill('嘉年华')
+  await until(async () => (await boxDialog.locator('[role="checkbox"][aria-checked="true"]').count()) === 17, '奖池默认勾上全部事件')
+  await boxDialog.getByRole('button', { name: '清空选择' }).click()
+  await boxDialog.getByRole('checkbox', { name: /抽奖事件 抓鸭子/ }).click()
+  await boxDialog.getByRole('checkbox', { name: /抽奖事件 锁链特效/ }).click()
+  await boxDialog.getByLabel('盲盒名字').fill('嘉年华盲盒')
+  await page.waitForTimeout(700)
+  await capture('06c-box-modal')
+  await boxDialog.getByRole('button', { name: '添加联动' }).click()
+  await until(() => api(() => window.api.entertainmentRulesList().then((l) => l.some((r) => r.giftName === '嘉年华' && r.commandCmd === 'special-box'))), '盲盒礼物落盘')
+  const boxRule = (await api(() => window.api.entertainmentRulesList())).find((r) => r.giftName === '嘉年华')
+  assert.equal(boxRule.commandParam, 'sbe-default-catch_duck,sbe-default-chain_challenge|嘉年华盲盒')
+  ok('添加盲盒礼物：嘉年华 → 奖池默认全勾，改成只勾「抓鸭子」「锁链」，名字「嘉年华盲盒」')
+
+  await api(() => window.api.specialCloseAll())
+  await until(async () => !(await windowOpen()), '先关掉窗口')
+  await api(() => window.api.connectorSimulate('礼物: 嘉年华 ×3  by 阿彪'))
+  await until(() => windowOpen(), '送嘉年华开窗')
+  let announce = ''
+  for (let i = 0; i < 40 && !announce.includes('开出'); i++) { announce = await bannerText(); if (!announce.includes('开出')) await page.waitForTimeout(150) }
+  assert.ok(announce.includes('阿彪的「嘉年华盲盒」×3 开出'), `开盒提示不对：${announce}`)
+  const got = await loadedGames()
+  assert.ok(got.length >= 1 && got.every((g) => g === 'catch_duck' || g === 'chain_challenge'), `只该从奖池里的两个事件抽：${got}`)
+  ok(`模拟送「嘉年华×3 by 阿彪」→ 一次抽 3 份、只开出奖池里的（${got.join('、')}）：「${announce}」`)
+
+  const row = page.locator(`[data-box-rule="${boxRule.id}"]`)
+  await row.waitFor({ timeout: 10_000 })
+  await row.getByRole('checkbox', { name: /抽奖事件 锁链特效/ }).click()
+  await until(() => api(() => window.api.entertainmentRulesList().then((l) => l.find((r) => r.giftName === '嘉年华')?.commandParam === 'sbe-default-catch_duck|嘉年华盲盒')), '盲盒礼物行里去勾即存')
+  await row.getByRole('button', { name: '抽一次' }).click()
+  let drawn = ''
+  for (let i = 0; i < 40 && !drawn.includes('主播的「嘉年华盲盒」开出：抓鸭子'); i++) { drawn = await bannerText(); await page.waitForTimeout(150) }
+  assert.ok(drawn.includes('主播的「嘉年华盲盒」开出：抓鸭子'), `抽一次的提示不对：${drawn}`)
+  await capture('06d-box-section')
+  ok(`盲盒礼物行里直接去勾「锁链」→ 自动存进礼物规则；「抽一次」只开出鸭子：「${drawn}」`)
+
+  await page.getByRole('button', { name: '添加事件' }).click()
+  await until(() => api(() => window.api.specialBoxEvents().then((l) => l.length === 18)), '新事件落盘')
+  const lib = page.locator('[data-testid="special-box-events"]')
+  const del = lib.locator('[data-box-event="sbe-default-catch_duck"]').getByRole('button', { name: /删除事件/ })
+  await del.click()
+  await del.click()
+  await until(() => api(() => window.api.specialBoxEvents().then((l) => !l.some((e) => e.id === 'sbe-default-catch_duck'))), '删掉的事件落盘')
+  await until(() => api(() => window.api.entertainmentRulesList().then((l) => l.find((r) => r.giftName === '嘉年华')?.commandParam === '|嘉年华盲盒')), '删掉的事件从奖池里摘掉')
+  ok('事件库：添加事件即存；删掉「抓鸭子」事件后，嘉年华的奖池里也跟着摘掉')
+
+  // ---- 6d. 直播画面方向：窗口条上一键竖屏，开着的窗口跟着变 ----
   await page.getByRole('button', { name: '竖屏 9:16', exact: true }).first().click()
-  await until(() => api(() => window.api.specialState().then((s) => s.games.every((g) => g.config.height > g.config.width))), '全部玩法改成竖屏')
-  const winSize = await app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows().find((x) => !x.isDestroyed() && x.getTitle() === '锁链特效'); return w ? w.getSize() : null })
-  assert.ok(winSize && winSize[1] > winSize[0], `开着的锁链窗口应变成竖的：${JSON.stringify(winSize)}`)
+  await until(() => api(() => window.api.specialState().then((s) => s.window.height > s.window.width)), '窗口改成竖屏')
+  const winSize = await app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows().find((x) => !x.isDestroyed() && x.getTitle() === '特色整蛊'); return w ? w.getSize() : null })
+  assert.ok(winSize && winSize[1] > winSize[0], `开着的特色整蛊窗口应变成竖的：${JSON.stringify(winSize)}`)
   await capture('07-portrait-grid')
   await page.getByRole('button', { name: '横屏 16:9', exact: true }).first().click()
-  await until(() => api(() => window.api.specialState().then((s) => s.games.every((g) => g.config.width > g.config.height))), '改回横屏')
-  ok(`直播画面方向：一键竖屏（开着的锁链窗口 ${winSize[0]}×${winSize[1]}），再改回横屏`)
+  await until(() => api(() => window.api.specialState().then((s) => s.window.width > s.window.height)), '改回横屏')
+  ok(`直播画面方向：窗口条一键竖屏（开着的窗口 ${winSize[0]}×${winSize[1]}），再改回横屏`)
 
   // ---- 7. 清屏 / 关闭 / 协议安全 ----
   for (const p of ['catch_duck|add|5', 'chain_challenge|add|3', 'fan_call|show|1']) await api((x) => window.api.entertainmentCommand('special-play', x), p)
-  await until(async () => (await inSpecialWindow('抓鸭子', 'window.__alive && window.__alive()')).value === true, '清屏前鸭子在动')
+  await until(async () => (await inSpecialWindow("window.__alive && window.__alive('catch_duck')")).value === true, '清屏前鸭子在动')
   const cleared = await api(() => window.api.specialClearAll())
-  assert.ok(cleared.cleared >= 3, `清屏应覆盖开着的窗口：${JSON.stringify(cleared)}`)
-  await until(async () => (await inSpecialWindow('抓鸭子', 'window.__alive && window.__alive()')).value === false, '清屏后鸭子窗口空闲', 15_000)
-  ok(`全部清屏（${cleared.cleared} 个窗口），鸭子窗口回到空闲`)
+  assert.ok(cleared.cleared >= 3, `清屏应覆盖窗口里用过的玩法：${JSON.stringify(cleared)}`)
+  await until(async () => (await inSpecialWindow('window.__alive && window.__alive()')).value === false, '清屏后整个窗口空闲', 15_000)
+  ok(`全部清屏（${cleared.cleared} 个玩法），窗口回到空闲`)
   const sec = await api(async () => {
     const st = async (u) => { try { return (await fetch(u)).status } catch { return 'err' } }
     return {
@@ -304,9 +345,9 @@ try {
   assert.equal(sec.beats, 200, `素材目录里的节拍数据应能读：${JSON.stringify(sec)}`)
   ok(`zlspecial 协议：非媒体文件 ${sec.winini}、越界 ${sec.escape}、素材 ${sec.beats}`)
   const closed = await api(() => window.api.specialCloseAll())
-  assert.ok(closed.closed >= 3)
-  await until(() => api(() => window.api.specialState().then((s) => s.games.every((g) => !g.open))), '全部关闭')
-  ok('关闭全部窗口')
+  assert.equal(closed.closed, 1)
+  await until(async () => !(await windowOpen()), '关闭窗口')
+  ok('关闭特色整蛊窗口')
 
   // 不抢前台
   const focus = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed()).map((w) => ({ t: w.getTitle(), v: w.isVisible(), f: w.isFocused() })))

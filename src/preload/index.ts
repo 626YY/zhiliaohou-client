@@ -99,7 +99,7 @@ import {
   type CardRoomCommitInput,
   type CardRoomCommitResult,
 } from '../shared/types'
-import type { SpecialBox, SpecialGameId, SpecialGameConfig, SpecialGameplayState, SpecialTestAction } from '../shared/specialGames'
+import type { SpecialBoxEvent, SpecialGameId, SpecialGameConfig, SpecialGameplayState, SpecialTestAction, SpecialWindowConfig } from '../shared/specialGames'
 
 export interface ZLAPI {
   register: (
@@ -415,17 +415,18 @@ export interface ZLAPI {
   effectsClose: () => Promise<{ ok: boolean }>
   effectsFire: (kind: EffectKind, name: string, count?: number, sender?: string) => Promise<{ ok: boolean }>
   effectsState: () => Promise<{ open: boolean; config: EffectsConfig }>
-  specialOpen: (id: SpecialGameId, cfg?: Partial<SpecialGameConfig>) => Promise<{ ok: boolean; error?: string }>
-  specialClose: (id: SpecialGameId) => Promise<{ ok: boolean }>
+  specialWindowOpen: () => Promise<{ ok: boolean; error?: string }>
+  specialWindowClose: () => Promise<{ ok: boolean; closed: number }>
+  specialWindowConfigure: (cfg: Partial<SpecialWindowConfig>) => Promise<{ ok: boolean; window: SpecialWindowConfig }>
   specialConfigure: (id: SpecialGameId, cfg: Partial<SpecialGameConfig>) => Promise<{ ok: boolean }>
   specialState: () => Promise<SpecialGameplayState>
   specialTest: (id: SpecialGameId, action?: SpecialTestAction) => Promise<{ ok: boolean; error?: string }>
   specialStats: (id: SpecialGameId) => Promise<{ open: boolean; value?: number }>
   specialClearAll: () => Promise<{ ok: boolean; cleared: number }>
-  specialBoxes: () => Promise<SpecialBox[]>
-  specialBoxSave: (box: Partial<SpecialBox>) => Promise<{ ok: boolean; boxes: SpecialBox[]; error?: string }>
-  specialBoxRemove: (id: string) => Promise<{ ok: boolean; boxes: SpecialBox[] }>
-  specialBoxTest: (id: string) => Promise<{ ok: boolean; error?: string; opened?: string[] }>
+  specialBoxEvents: () => Promise<SpecialBoxEvent[]>
+  specialBoxEventsSave: (events: SpecialBoxEvent[]) => Promise<{ ok: boolean; events: SpecialBoxEvent[] }>
+  specialBoxEventTest: (id: string) => Promise<{ ok: boolean; error?: string; opened?: string[] }>
+  specialBoxDraw: (param: string) => Promise<{ ok: boolean; error?: string; opened?: string[] }>
   specialCloseAll: () => Promise<{ ok: boolean; closed: number }>
   onSpecialChanged: (cb: () => void) => () => void
   entranceOpen: () => Promise<{ ok: boolean; error?: string }>
@@ -850,17 +851,18 @@ const api: ZLAPI = {
   effectsClose: () => ipcRenderer.invoke(Ipc.EffectsClose),
   effectsFire: (kind, name, count, sender) => ipcRenderer.invoke(Ipc.EffectsFire, kind, name, count, sender),
   effectsState: () => ipcRenderer.invoke(Ipc.EffectsState),
-  specialOpen: (id, cfg) => ipcRenderer.invoke(Ipc.SpecialOpen, id, cfg),
-  specialClose: (id) => ipcRenderer.invoke(Ipc.SpecialClose, id),
+  specialWindowOpen: () => ipcRenderer.invoke(Ipc.SpecialWindowOpen),
+  specialWindowClose: () => ipcRenderer.invoke(Ipc.SpecialWindowClose),
+  specialWindowConfigure: (cfg) => ipcRenderer.invoke(Ipc.SpecialWindowConfigure, cfg),
   specialConfigure: (id, cfg) => ipcRenderer.invoke(Ipc.SpecialConfigure, id, cfg),
   specialState: () => ipcRenderer.invoke(Ipc.SpecialState),
   specialTest: (id, action) => ipcRenderer.invoke(Ipc.SpecialTest, id, action),
   specialStats: (id) => ipcRenderer.invoke(Ipc.SpecialStats, id),
   specialClearAll: () => ipcRenderer.invoke(Ipc.SpecialClearAll),
-  specialBoxes: () => ipcRenderer.invoke(Ipc.SpecialBoxes),
-  specialBoxSave: (box) => ipcRenderer.invoke(Ipc.SpecialBoxSave, box),
-  specialBoxRemove: (id) => ipcRenderer.invoke(Ipc.SpecialBoxRemove, id),
-  specialBoxTest: (id) => ipcRenderer.invoke(Ipc.SpecialBoxTest, id),
+  specialBoxEvents: () => ipcRenderer.invoke(Ipc.SpecialBoxEvents),
+  specialBoxEventsSave: (events) => ipcRenderer.invoke(Ipc.SpecialBoxEventsSave, events),
+  specialBoxEventTest: (id) => ipcRenderer.invoke(Ipc.SpecialBoxEventTest, id),
+  specialBoxDraw: (param) => ipcRenderer.invoke(Ipc.SpecialBoxDraw, param),
   specialCloseAll: () => ipcRenderer.invoke(Ipc.SpecialCloseAll),
   onSpecialChanged: (cb) => {
     const fn = () => cb()

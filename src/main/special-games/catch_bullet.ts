@@ -117,7 +117,10 @@ window.registerGame((function(){
     if(cs) ZL.sndRaw(cs); else ZL.snd('catch_bullet/catch_bullet_collision.mp3');
   }
 
+  // 计数面板：一直显示 / 场上有东西时显示（默认）/ 不显示——好几个玩法同在一个窗口，用过的面板别一直堆在左上角
+  function statsShown(){ var m=String(api.cfg.statsPanel||'active'); if(m==='off') return false; if(m==='always') return true; return bullets.length>0||pending>0; }
   function drawStats(ctx){
+    if(!statsShown()){ if(api.hud) api.hud(0); return; }
     var fs=Math.max(13,Math.min(20,api.W*0.016));
     var flying=0,i;
     for(i=0;i<bullets.length;i++) if(!bullets[i].landed) flying++;
@@ -126,13 +129,14 @@ window.registerGame((function(){
     ctx.font='600 '+fs+'px "Microsoft YaHei",sans-serif';
     var w=0;
     for(i=0;i<lines.length;i++) w=Math.max(w,ctx.measureText(lines[i]).width);
-    var padX=fs*0.9,padY=fs*0.55,lh=fs*1.5;
-    ZL.roundRect(ctx,10,10,w+padX*2,lines.length*lh+padY*2-lh*0.5,12);
+    var padX=fs*0.9,padY=fs*0.55,lh=fs*1.5,ph=lines.length*lh+padY*2-lh*0.5;
+    var top=api.hud?api.hud(ph):10;
+    ZL.roundRect(ctx,10,top,w+padX*2,ph,12);
     ctx.fillStyle='rgba(20,22,28,0.66)'; ctx.fill();
     ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,255,255,0.16)'; ctx.stroke();
     ctx.textAlign='left'; ctx.textBaseline='middle';
     for(i=0;i<lines.length;i++){
-      var ly=10+padY+i*lh+lh*0.32;
+      var ly=top+padY+i*lh+lh*0.32;
       ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,fs*0.14); ctx.strokeStyle='rgba(0,0,0,0.6)';
       ctx.strokeText(lines[i],10+padX,ly);
       ctx.fillStyle='#fff'; ctx.fillText(lines[i],10+padX,ly);
@@ -152,7 +156,7 @@ window.registerGame((function(){
     ctx.font='700 '+fs+'px "Microsoft YaHei",sans-serif';
     var tw=ctx.measureText(prompt.text).width;
     var bw=Math.min(api.W-24, Math.max(180, tw+fs*2.4));
-    var bh=fs*2.84, bx=api.W/2-bw/2, by=api.H*0.38-bh/2;
+    var bh=fs*2.84, bx=api.W/2-bw/2, by=api.H*0.52-bh/2;
     ZL.roundRect(ctx,bx,by,bw,bh,bh/2);
     ctx.fillStyle='rgba(22,19,15,0.87)'; ctx.fill();
     ctx.lineWidth=1; ctx.strokeStyle='rgb(223,161,58)'; ctx.stroke();
@@ -205,7 +209,7 @@ window.registerGame((function(){
           removeAt(i,cols);
           reflow(cols);
           caught++; ZL.saveTotal('catch_bullet',caught);
-          return;
+          return true;
         }
       }
     },
@@ -264,8 +268,8 @@ window.registerGame((function(){
         else { ctx.fillStyle='rgb(211,157,69)'; ctx.fillRect(-b.w/2,-b.h/2,b.w,b.h); }
         ctx.restore();
       }
-      drawStats(ctx);
-      drawPrompt(ctx);
+      drawStats(api.hudCtx||ctx);
+      drawPrompt(api.hudCtx||ctx);
     },
     stats:function(){ return { value:caught }; },
     // 只读调试钩子（离线验收用，生产不调用）
