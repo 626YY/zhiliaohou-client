@@ -1,5 +1,6 @@
 // 礼物规则动作的中文短标签：排队窗口、日志、规则列表共用一份，别在主进程和页面各写一套对不上。
 import type { EntertainmentAction, EntertainmentCommandCmd, EntertainmentRule, EntertainmentSystemCmd } from './types'
+import { specialActionText, specialBoxText } from './specialGames'
 
 export const SYSTEM_LABELS: Record<EntertainmentSystemCmd, string> = {
   shutdown: '自动关机',
@@ -41,7 +42,10 @@ export const COMMAND_LABELS: Record<EntertainmentCommandCmd, string> = {
   'script-sequence': '动作脚本',
   'random-script': '随机脚本',
   'project-random': '触发项目（文件夹）',
-  'blindbox-open': '开时间盲盒'
+  'blindbox-open': '开时间盲盒',
+  'special-play': '特色整蛊',
+  'special-box': '特色整蛊盲盒',
+  'game-prank': '游戏整蛊'
 }
 
 function baseName(value?: string): string {
@@ -60,8 +64,8 @@ const MOUSE_LABELS: Record<string, string> = {
 
 /**
  * 一条规则「要做什么」的短描述，给排队窗口和列表用；多个动作用「 → 」连起来。
- * 这里故意不 import entertainmentActions：本文件被 tools 里的 .ts 直跑脚本引用，
- * 多一个运行时依赖就要带扩展名，得不偿失。附加动作在保存时已清洗过。
+ * 运行时依赖只有 specialGames（它自己零依赖）；tools 里用到本文件的脚本一律经 esbuild 打包再跑。
+ * 附加动作在保存时已清洗过。
  */
 export function ruleActionLabel(rule: EntertainmentRule): string {
   const actions: EntertainmentAction[] = [rule, ...(Array.isArray(rule.extraActions) ? rule.extraActions : [])]
@@ -87,6 +91,12 @@ export function actionLabel(rule: EntertainmentAction): string {
       if (rule.commandCmd === 'mouse') {
         const [action, x, y] = (rule.commandParam || '').split('|')
         return `鼠标 ${MOUSE_LABELS[action] || action}${x && y ? `（${x}, ${y}）` : ''}`.trim()
+      }
+      if (rule.commandCmd === 'special-play') return `特色整蛊 ${specialActionText(rule.commandParam)}`
+      if (rule.commandCmd === 'special-box') return `特色整蛊盲盒${specialBoxText(rule.commandParam)}`
+      if (rule.commandCmd === 'game-prank') {
+        const [, id = '', name = ''] = (rule.commandParam || '').split('|')
+        return `游戏整蛊 ${name || id || '（未选）'}`.trim()
       }
       if (rule.commandCmd === 'script-sequence') {
         let steps = 0

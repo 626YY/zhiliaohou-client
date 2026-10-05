@@ -4,7 +4,7 @@
   "tagline": "DON'T SCREAM 整蛊直播 mod —— 观众的礼物召唤游戏原生惊吓，主播尖叫停不下来",
   "description": "把抖音直播间的礼物 / 快捷键变成游戏内的原生惊吓：木乃伊扑脸、溺亡女狂奔、吸血鬼、烧焦女巫、木乃伊军团……14 种游戏原生惊吓由游戏自己的惊吓总监驱动，播完自动清场，安全稳定不崩游戏；另有近身召唤与音频惊吓兜底。基于 UE4SS 注入，支持快捷键触发 + 礼物联动 + 随机惊吓池。",
   "category": "整蛊直播",
-  "version": "0.2.16",
+  "version": "0.2.17",
   "author": "知了猴工作室",
   "game": "DON'T SCREAM",
   "gameExe": "DontScream-Win64-Shipping.exe",
@@ -29,6 +29,16 @@
     "UE4SS 注入式安装：解压即玩，不修改游戏文件"
   ],
   "changelog": [
+    {
+      "version": "0.2.17",
+      "date": "2026-09-16",
+      "notes": [
+        "触发惊吓时游戏不再卡顿：惊吓资源在进入游戏后分批预先加载，触发耗时由约 100 毫秒降至 5 毫秒",
+        "查找人物与惊吓总监改为缓存，猎人追逐和后台心跳期间不再反复扫描全部对象",
+        "天降吊尸新增「离主播多远」「从多高落下」「不消失」三个参数，默认落点由 300 改为 160",
+        "「记录惊吓是否出现在画面里」改为默认关闭（新参数名 RenderDiag2），排查时再打开"
+      ]
+    },
     {
       "version": "0.2.16",
       "date": "2026-09-14",
@@ -188,10 +198,10 @@
     }
   ],
   "download": {
-    "url": "https://zhiliaohou.oss-cn-beijing.aliyuncs.com/mods/zhiliao-dontscream-v0.2.16.zip",
-    "size": 7648452,
-    "sha256": "0c9ac3e2ea4476a189e39921d98ae2a023ad31139d4b61c614af8f45f2098510",
-    "filename": "zhiliao-dontscream-v0.2.16.zip"
+    "url": "https://zhiliaohou.oss-cn-beijing.aliyuncs.com/mods/zhiliao-dontscream-v0.2.17.zip",
+    "size": 7652559,
+    "sha256": "642e06e13d1229c662ae26df226ef576a071aa01761ee2ac116a031208e985d5",
+    "filename": "zhiliao-dontscream-v0.2.17.zip"
   },
   "installedMarker": "ue4ss/Mods/zhiliao/enabled.txt"
 }

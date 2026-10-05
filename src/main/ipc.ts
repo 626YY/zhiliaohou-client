@@ -181,6 +181,20 @@ import {
   effectsState
 } from './effects-widget'
 import {
+  openSpecialGame,
+  closeSpecialGame,
+  configureSpecialGame,
+  specialState,
+  specialStats,
+  testSpecialGame,
+  clearAllSpecial,
+  closeAllSpecial,
+  specialBoxes,
+  saveSpecialBox,
+  removeSpecialBox,
+  testSpecialBox
+} from './special-gameplay'
+import {
   openEntranceWindow,
   closeEntranceWindow,
   configureEntrance,
@@ -639,8 +653,8 @@ export function registerIpc(): void {
   )
 
   // ---- 直播连接器 ----
-  handle(Ipc.ConnectorStart, (_e, room, sim) =>
-    startConnector(room, sim)
+  handle(Ipc.ConnectorStart, (_e, room, sim, platform) =>
+    startConnector(room, sim, platform === 'bilibili' ? 'bilibili' : 'douyin')
   )
   handle(Ipc.ConnectorStop, () => {
     stopConnector()
@@ -985,6 +999,20 @@ export function registerIpc(): void {
     effectsFire(kind, String(name ?? ''), Number(count) || 1, undefined, sender ? String(sender) : '')
   )
   handle(Ipc.EffectsState, () => effectsState())
+
+  // ---- 特色整蛊（绿幕叠加层小游戏，独立顶级菜单）----
+  handle(Ipc.SpecialOpen, (_e, id, cfg) => openSpecialGame(id, cfg ?? undefined))
+  handle(Ipc.SpecialClose, (_e, id) => closeSpecialGame(id))
+  handle(Ipc.SpecialConfigure, (_e, id, cfg) => configureSpecialGame(id, cfg ?? {}))
+  handle(Ipc.SpecialState, () => specialState())
+  handle(Ipc.SpecialTest, (_e, id, action) => testSpecialGame(id, action ?? undefined))
+  handle(Ipc.SpecialStats, (_e, id) => specialStats(id))
+  handle(Ipc.SpecialClearAll, () => clearAllSpecial())
+  handle(Ipc.SpecialBoxes, () => specialBoxes())
+  handle(Ipc.SpecialBoxSave, (_e, box) => saveSpecialBox(box ?? {}))
+  handle(Ipc.SpecialBoxRemove, (_e, id) => removeSpecialBox(String(id ?? '')))
+  handle(Ipc.SpecialBoxTest, (_e, id) => testSpecialBox(String(id ?? '')))
+  handle(Ipc.SpecialCloseAll, () => closeAllSpecial())
 
   // ---- 大哥进场 ----
   handle(Ipc.EntranceOpen, () => openEntranceWindow())

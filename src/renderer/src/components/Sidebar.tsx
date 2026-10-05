@@ -15,7 +15,8 @@ import {
   ChevronDown,
   ChevronUp,
   TrendingUp,
-  Sparkles
+  Sparkles,
+  Wand2
 } from 'lucide-react'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../stores/ui'
@@ -33,6 +34,7 @@ const items = [
   { to: '/launch', label: '启动游戏', icon: Play },
   { to: '/stats', label: '直播统计', icon: TrendingUp },
   { to: '/ent', label: '娱乐助手', icon: Sparkles },
+  { to: '/special', label: '特色整蛊', icon: Wand2 },
   { to: '/connector', label: '直播连接器', icon: Radio },
   { to: '/news', label: '公告', icon: Megaphone },
   { to: '/notifications', label: '通知', icon: Bell },

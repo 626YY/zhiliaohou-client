@@ -10,6 +10,7 @@ const titles: Record<string, string> = {
   '/': '游戏库',
   '/config': '参数配置',
   '/ent': '娱乐助手',
+  '/special': '特色整蛊',
   '/launch': '启动游戏',
   '/remote': '整蛊遥控',
   '/stats': '数据统计',

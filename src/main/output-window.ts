@@ -78,7 +78,17 @@ const CAPTURE_WINDOWS = [
   ['高级转盘1', '高级转盘1', 'advanced-wheel-1.html', 680, 720], ['高级转盘2', '高级转盘2', 'advanced-wheel-2.html', 680, 720],
   ['视频', '知了猴视频', 'video-widget-main.html', 640, 360], ['视频VIP', '知了猴视频 VIP', 'video-widget-vip.html', 640, 360],
   ['绿幕1', '知了猴绿幕 1', 'green-1.html', 640, 360], ['绿幕2', '知了猴绿幕 2', 'green-2.html', 640, 360],
-  ['绿幕3', '知了猴绿幕 3', 'green-3.html', 640, 360], ['绿幕4', '知了猴绿幕 4', 'green-4.html', 640, 360]
+  ['绿幕3', '知了猴绿幕 3', 'green-3.html', 640, 360], ['绿幕4', '知了猴绿幕 4', 'green-4.html', 640, 360],
+  // 特色整蛊玩法窗口（标题 = 玩法名，直播伴侣按名采集；默认关，开哪个才有哪个）
+  ['锁链特效', '锁链特效', 'special-chain_challenge.html', 1280, 720], ['抓鸭子', '抓鸭子', 'special-catch_duck.html', 1280, 720],
+  ['扔粑粑', '扔粑粑', 'special-throw_poop.html', 1280, 720], ['扔垃圾', '扔垃圾', 'special-throw_trash.html', 1280, 720],
+  ['抓子弹', '抓子弹', 'special-catch_bullet.html', 1280, 720], ['毛毛虫蠕动', '毛毛虫蠕动', 'special-caterpillar.html', 1280, 720],
+  ['小新哎嘿', '小新哎嘿', 'special-xiaoxin_hey.html', 1280, 720], ['粉丝来电', '粉丝来电', 'special-fan_call.html', 1280, 720],
+  ['粉丝来视频', '粉丝来视频', 'special-fan_video_call.html', 1280, 720], ['符咒封印', '符咒封印', 'special-talisman_seal.html', 1280, 720],
+  ['声控拍蚊子', '声控拍蚊子', 'special-mosquito.html', 1280, 720], ['手势拍蚊子', '手势拍蚊子', 'special-big_mosquito.html', 1280, 720],
+  ['手势拍苍蝇', '手势拍苍蝇', 'special-gesture_fly.html', 1280, 720], ['手势切水果', '手势切水果', 'special-fruit_slice.html', 1280, 720],
+  ['顶金币', '顶金币', 'special-coin_bump.html', 1280, 720], ['捡叶子', '捡叶子', 'special-leaf_pickup.html', 1280, 720],
+  ['音乐球', '音乐球', 'special-music_ball.html', 1280, 720]
 ] as const
 const CAPTURE_TITLES = new Set<string>(CAPTURE_WINDOWS.map(([key]) => key))
 const LEGACY_TO_KEY = new Map<string, string>(CAPTURE_WINDOWS.map(([key, legacy]) => [legacy, key]))

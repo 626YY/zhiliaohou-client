@@ -1,6 +1,7 @@
 export const FEATURE_GROUPS=['素材与触发','抽奖与计时','直播展示','直播辅助'] as const
 type Guide={group:typeof FEATURE_GROUPS[number];steps:[string,string,string];tip?:string}
 export const FEATURE_GUIDES:Record<string,Guide>={
+  special:{group:'素材与触发',steps:['挑一个玩法先在预览里玩','绑定触发它的礼物','开启直播窗口并添加采集'],tip:'锁链、抓鸭子、粉丝来电等 17 个叠在画面上的互动小游戏；礼物触发、转盘、九宫格、时间盲盒里也能选「特色整蛊」当动作。'},
   gift:{group:'素材与触发',steps:['选择效果或视频项目','选择触发它的礼物','测试后启用规则'],tip:'视频盲盒用一个文件夹放素材，每次触发随机播放一个。'},
   transparent:{group:'素材与触发',steps:['选择要展示的内容','编辑文字和图片','预览并导出透明图'],tip:'已经配好礼物规则时，点「从礼物规则生成」即可带入菜单；手动填写时一行一条，例如“小心心 = 屏幕反转”。'},
   green:{group:'素材与触发',steps:['选择视频或图片','预览画面与声音','开启采集窗口'],tip:'可以先不选文件，直接打开一个空窗口，把它添加到直播软件的采集来源。视频盲盒会把抽中的素材送进这个窗口。'},

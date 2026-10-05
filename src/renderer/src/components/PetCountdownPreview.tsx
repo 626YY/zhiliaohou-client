@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import type { TimeWidgetConfig, TimeWidgetGift } from '@shared/types'
-import { drawPetTimeText } from '@shared/petTimeText'
+import { drawPetTimeText, fitPetLabels } from '@shared/petTimeText'
 import { PET_COUNTDOWN_CSS, petCharmHtml, petMascotHtml, petSkin, petSkinVariables, petLayoutVariables, petDisplayTime, petGiftText, petFontCss, petWidgetMetrics } from '@shared/countdownPets'
 
 type Props = {
@@ -20,10 +20,15 @@ export function PetSkinThumbnail({ id }:{id:string}) {
   if(!skin)return null
   const [x,y,w,h]=skin.crop
   const left=skin.side==='left'?20:130
+  const [clockTop,clockEnd]=skin.paintClock||[405,720]
+  const clockHeight=clockEnd-clockTop
+  const metrics=petWidgetMetrics({theme:id})
+  const titleX=skin.titleRightInset?32+metrics.headW*(.08+1-skin.titleRightInset)/2/metrics.paintSX:627
+  if(skin.original)return <svg className="block w-full" viewBox="0 0 1254 765" aria-hidden="true"><image href={atlasUrl(skin.original)} width="1254" height="1254"/></svg>
   if(skin.material)return <svg className="block w-full" viewBox="0 0 1254 765" aria-hidden="true">
     <image href={atlasUrl(skin.material)} x="0" y="0" width="1254" height="1254"/>
-    <text x="627" y="520" textAnchor="middle" fontFamily="PetTitle,Microsoft YaHei" fontSize="68" fill={skin.text}>距离下播</text>
-    <text x="627" y="663" textAnchor="middle" fontFamily="PetDigits,Microsoft YaHei" fontSize="153" fontWeight="900" fill={skin.text}>00:25:36</text>
+    <text x={titleX} y={clockTop+clockHeight*.30} textAnchor="middle" fontFamily="PetTitle,Microsoft YaHei" fontSize={clockHeight*.19} fill={skin.text}>距离下播</text>
+    <text x="627" y={clockTop+clockHeight*.86} textAnchor="middle" fontFamily="PetDigits,Microsoft YaHei" fontSize={clockHeight*.67} fontWeight="900" fill={skin.text}>00:25:36</text>
   </svg>
   return <svg className="block w-full" viewBox="0 0 360 235" aria-hidden="true">
     <rect x="15" y="104" width="330" height="116" rx="30" fill={skin.fill} stroke={skin.ink} strokeWidth="4"/>
@@ -45,7 +50,7 @@ export default function PetCountdownPreview({config,value,zeroed,giftImage,giftT
   const measureContext=useRef<CanvasRenderingContext2D|null>(null)
   const [scale,setScale]=useState(1)
   const gifts=(config.gifts||[]).filter(gift=>gift.name.trim()&&gift.showOnPanel!==false)
-  const variables={...petSkinVariables(skin),...petLayoutVariables(metrics),'--pet-line':config.cellBorder||skin.line} as CSSProperties
+  const variables={...petSkinVariables(skin,skin.material?atlasUrl(skin.material):undefined),...petLayoutVariables(metrics),'--pet-line':config.cellBorder||skin.line} as CSSProperties
   const cellBackground=`color-mix(in srgb, ${config.cellBg||skin.menu} ${Math.round((config.cellAlpha??.92)*100)}%, transparent)`
   useLayoutEffect(()=>{
     if(!host.current)return
@@ -56,16 +61,11 @@ export default function PetCountdownPreview({config,value,zeroed,giftImage,giftT
   useLayoutEffect(()=>{
     if(!surface.current)return
     let alive=true
-    const fit=(element:HTMLElement,base:number,min:number)=>{
-      let size=base;element.style.fontSize=size+'px'
-      while((element.scrollWidth>element.clientWidth||element.scrollHeight>element.clientHeight)&&size>min){size--;element.style.fontSize=size+'px'}
-    }
     const fitAll=()=>{
       if(!alive||!surface.current)return
       measureContext.current??=document.createElement('canvas').getContext('2d')
-      if(digits.current&&measureContext.current)drawPetTimeText(digits.current,zeroed||config.showSeconds?value:petDisplayTime(value),64,measureContext.current,true)
-      surface.current.querySelectorAll<HTMLElement>('.gift-name').forEach(el=>fit(el,config.giftNameSize||16,10))
-      surface.current.querySelectorAll<HTMLElement>('.gift-effect').forEach(el=>fit(el,config.giftTextSize||16,10))
+      if(digits.current&&measureContext.current)drawPetTimeText(digits.current,zeroed||config.showSeconds?value:petDisplayTime(value),96,measureContext.current,true)
+      fitPetLabels(surface.current,config.giftNameSize,config.giftTextSize)
     }
     fitAll();void document.fonts.ready.then(fitAll)
     return ()=>{alive=false}
@@ -80,19 +80,21 @@ export default function PetCountdownPreview({config,value,zeroed,giftImage,giftT
           <div className="pet-clock">
             {config.bgImage&&background&&<img src={background} alt="" className="absolute inset-0 h-full w-full object-fill"/>}
             <div className="pet-title" style={{color:config.titleColor}}>{config.title}</div>
-            <div ref={digits} className="pet-time" data-testid="time-preview-value" data-zeroed={zeroed} style={{color:config.timeColor,fontSize:64}}/>
+            <div ref={digits} className="pet-time" data-testid="time-preview-value" data-zeroed={zeroed} style={{color:config.timeColor,fontSize:96}}/>
           </div>
+          <div className="pet-menu-content">
           {config.giftPanel!==false&&gifts.length>0&&<div className="pet-gifts" data-columns={config.giftColumns||2} style={{gridTemplateColumns:`repeat(${config.giftColumns||2},1fr)`,gap:1,background:config.cellBorder||skin.line}}>
             {gifts.map((gift,index)=><div className="gift-cell" key={index} data-last-row={Math.floor(index/(config.giftColumns||2))===Math.floor((gifts.length-1)/(config.giftColumns||2))} style={{background:cellBackground}}>
-              <div className="gift-icon" style={{width:config.giftIconSize||42,height:config.giftIconSize||42}}>{giftImage(gift)&&<img src={giftImage(gift)} alt=""/>}</div>
+              <div className="gift-icon" style={{width:metrics.giftIconSize,height:metrics.giftIconSize}}>{giftImage(gift)&&<img src={giftImage(gift)} alt=""/>}</div>
               <div className="gift-text">
-                <div className="gift-name" style={{color:config.giftNameColor||skin.text,fontSize:config.giftNameSize||16}}>{gift.name}</div>
+                <div className="gift-name" style={{color:config.giftNameColor||skin.text,fontSize:metrics.giftNameSize}}>{gift.name}</div>
                 <div className="gift-divider"/>
-                <div className="gift-effect" style={{color:giftColor(gift),fontSize:config.giftTextSize||16}}>{petGiftText(gift,giftText(gift))}</div>
+                <div className="gift-effect" style={{color:giftColor(gift),fontSize:metrics.giftTextSize}}>{petGiftText(gift,giftText(gift))}</div>
               </div>
             </div>)}
           </div>}
-          {config.giftTicker&&<div style={{height:30,borderTop:`1px solid ${config.cellBorder||skin.line}`,background:cellBackground}} aria-label="送礼滚动条预留位置"/>}
+          {config.giftTicker&&<div className="pet-ticker" style={{height:30,borderTop:`1px solid ${config.cellBorder||skin.line}`,background:cellBackground}} aria-label="送礼滚动条预留位置"/>}
+          </div>
         </div>
         <div dangerouslySetInnerHTML={{__html:petCharmHtml(skin,atlasUrl('charms.png'))}}/>
       </div>

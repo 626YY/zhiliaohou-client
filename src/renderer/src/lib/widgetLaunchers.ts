@@ -4,14 +4,18 @@
 import type { CountChallengeConfig, GreenScreenSlot, LotteryItem, TimeWidgetConfig, VideoWidgetConfig } from '@shared/types'
 import { overtimeToChallengeCfg, readOvertimeCfg } from './overtimeConfig'
 import { NINE_ORDER, nineItems } from '@shared/lottery'
+import { SPECIAL_GAMES } from '@shared/specialGames'
 export const CHALLENGE_MODE_KEY='ent_challenge_active_mode'
 
 // 九宫格绿幕窗口用的 8 外圈格配色（和九宫格页保持一致）
 
+export type WidgetGroup = '互动' | '展示' | '播放' | '特色整蛊'
+export const WIDGET_GROUPS: WidgetGroup[] = ['互动', '展示', '播放', '特色整蛊']
+
 export interface WidgetLauncher {
   id: string
   label: string
-  group: '互动' | '展示' | '播放'
+  group: WidgetGroup
   open: () => Promise<{ ok: boolean; error?: string }>
   close: () => Promise<unknown>
 }
@@ -127,12 +131,27 @@ export const WIDGET_LAUNCHERS: WidgetLauncher[] = [
       return window.api.greenScreenOpen(draft?.src || '', draft?.type || 'video', draft?.text || '', slot)
     },
     close: () => window.api.greenScreenClose(slot)
+  })),
+  // 特色整蛊：每个玩法一个窗口，和其它挂件同一份开关 / 自动开启名单（娱乐助手、特色整蛊两处看到的是同一份）
+  ...SPECIAL_GAMES.map((g): WidgetLauncher => ({
+    id: `special-${g.id}`,
+    label: g.name,
+    group: '特色整蛊',
+    open: () => window.api.specialOpen(g.id),
+    close: () => window.api.specialClose(g.id)
   }))
 ]
 
+/** 「去配置」去哪：特色整蛊去它自己的页面，其它挂件去娱乐助手对应模块 */
+export function widgetConfigRoute(id: string): string {
+  if (id.startsWith('special-')) return `/special?tool=${id.slice('special-'.length)}`
+  const tool = id.startsWith('green-') ? 'green&slot=' + id.slice(6) : id.startsWith('video-') ? 'video&slot=' + id.slice(6) : id === 'queue' ? 'gift' : id === 'wish' ? 'progress' : id
+  return '/ent?tool=' + tool
+}
+
 // 一次把所有挂件的开关状态查出来（各查各的 state 接口）
 export async function readWidgetOpenState(): Promise<WidgetOpenState> {
-  const [effects, entrance, queue, marquee, keyboard, progress, wish, time, challenge, lottery, video, green, overtime] = await Promise.all([
+  const [effects, entrance, queue, marquee, keyboard, progress, wish, time, challenge, lottery, video, green, overtime, special] = await Promise.all([
     window.api.effectsState().catch(() => null),
     window.api.entranceState().catch(() => null),
     window.api.queueState().catch(() => null),
@@ -145,7 +164,8 @@ export async function readWidgetOpenState(): Promise<WidgetOpenState> {
     window.api.lotteryState().catch(() => null),
     window.api.videoWidgetState().catch(() => null),
     window.api.greenScreenState().catch(() => null),
-    window.api.challengeState('overtime').catch(() => null)
+    window.api.challengeState('overtime').catch(() => null),
+    window.api.specialState().catch(() => null)
   ])
   const state: WidgetOpenState = {
     effects: !!effects?.open,
@@ -164,6 +184,7 @@ export async function readWidgetOpenState(): Promise<WidgetOpenState> {
     'video-vip': !!video?.vip
   }
   for (const slot of [1, 2, 3, 4]) state[`green-${slot}`] = !!green?.slots?.find((s) => s.slot === slot)?.open
+  for (const g of special?.games ?? []) state[`special-${g.id}`] = !!g.open
   return state
 }
 

@@ -38,7 +38,7 @@ for folder in ['src','tools','connector-assets','assets/emoji72','public']:
 for name in ['afterPack.js','icon.ico','icon.png','icon-256.png','license-policy.json','license-provider.json','更新说明.txt']:
     copy(Path('build')/name)
 
-# 采用已提交、已在线的 Mod 清单，不混入另一个任务尚未提交的 0.2.17 数据。
+# 只取已提交（git HEAD）的 Mod 清单，工作区里还没提交、没上线的清单改动不进公开快照。
 archive=root/'output/open-source-audit/catalog-head.zip'
 subprocess.run(['git','archive','--format=zip','--output='+str(archive),'HEAD','mods-catalog'],check=True)
 with zipfile.ZipFile(archive) as z:
@@ -103,7 +103,7 @@ ffmpeg/
 '''
 (dest/'.gitignore').write_text(ignore,encoding='utf-8')
 (dest/'.gitattributes').write_text('* text=auto\n*.png binary\n*.jpg binary\n*.ico binary\n*.ttf binary\n*.mp3 binary\n',encoding='utf-8')
-(dest/'CHANGELOG.md').write_text('# 更新记录\n\n## 0.3.62（2026-09-20）\n\n- 首次公开客户端源码快照。\n- 新增八套萌宠时间皮肤，与实时礼物菜单整套结合。\n- 独立配件轻摆、菜单伸缩、长文字与计时格式适配。\n- 保留客户端、连接器和通用开发验收工具，补充许可与构建说明。\n',encoding='utf-8')
+(dest/'CHANGELOG.md').write_text('# 更新记录\n\n## 0.3.63（2026-10-05）\n\n- 新增「特色整蛊」：17 个叠在直播画面上的互动玩法，接入礼物触发、转盘、九宫格、时间盲盒、整蛊遥控与基础引导；可直接上手玩的预览舞台。\n- 特色整蛊盲盒、固定/随机数量、横屏/竖屏一键切换、锁链五套程序化新皮肤、窗口快捷开关、基础/高级分层。\n- 礼物触发新增「游戏整蛊」动作；连接器支持哔哩哔哩直播间。\n- 萌宠时间皮肤按设计稿重排。\n- 说明：特色整蛊的图片、音效和视频素材（`assets/special-games/`）不随源码分发。\n\n## 0.3.62（2026-09-20）\n\n- 首次公开客户端源码快照。\n- 新增八套萌宠时间皮肤，与实时礼物菜单整套结合。\n- 独立配件轻摆、菜单伸缩、长文字与计时格式适配。\n- 保留客户端、连接器和通用开发验收工具，补充许可与构建说明。\n',encoding='utf-8')
 
 report={'source':str(root),'destination':str(dest),'version':version,'files':len(copied),'excluded':excluded,'transformations':['Current source snapshot without private Git history','Committed Mod metadata only; no Mod/game binary archives','Platform gift images and game promotional images excluded','Production deployment tools excluded','Legacy extracted bitmap countdown frames replaced with independently authored SVG frames','Public build configuration excludes unavailable optional binaries and private publishing destination','Public keys retained; no signing private keys or account data included']}
 (root/'output/open-source-audit/export-report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')

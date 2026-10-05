@@ -11,6 +11,7 @@ export default function EntertainmentProtect() {
     skipPrank: true, // 保护时跳过当前整蛊
     rejectGift: false, // 保护时拒绝礼物
     clearQueue: false, // 保护时清空排队礼物
+    clearSpecial: false, // 保护时清掉特色整蛊画面（鸭子、锁链、蚊子…）
     showTimer: true, // 显示保护计时
     playVideo: false, // 保护时播放视频
     videoPath: '' // 保护视频（参考：保护主播.mp4）
@@ -69,6 +70,7 @@ export default function EntertainmentProtect() {
       if (cfg.rejectGift) await window.api.entertainmentRulesPause(true)
       // 清空排队：把还没执行的排队礼物全丢掉
       if (cfg.clearQueue) await window.api.queueClear()
+      if (cfg.clearSpecial) await window.api.specialClearAll()
       // 计时牌：屏幕右上角挂「主播保护中 00:00」
       if (cfg.showTimer) await window.api.protectWidgetOpen(Date.now())
       // 保护时播放视频（参考：保护主播.mp4）
@@ -134,6 +136,7 @@ export default function EntertainmentProtect() {
           <Row label="保护时跳过当前整蛊" desc="游戏里观众触发的整蛊动作在保护期间被跳过" checked={cfg.skipPrank} on={(v) => set({ skipPrank: v })} />
           <Row label="保护时暂停礼物互动" desc="保护期间收到的礼物/关注/点赞不触发任何礼物规则" checked={cfg.rejectGift} on={(v) => set({ rejectGift: v })} />
           <Row label="保护时清空排队礼物" desc="开启和结束保护时都清掉还没执行的排队礼物" checked={cfg.clearQueue} on={(v) => set({ clearQueue: v })} />
+          <Row label="保护时清掉特色整蛊画面" desc="开启保护时把鸭子、锁链、蚊子等特色整蛊一次清空，窗口保留" checked={cfg.clearSpecial} on={(v) => set({ clearSpecial: v })} />
           <Row label="显示保护计时界面" desc="保护期间屏幕右上角挂一块「主播保护中」计时牌" checked={cfg.showTimer} on={(v) => set({ showTimer: v })} />
           <Row label="保护时播放视频" desc="开启保护时视频窗口播放视频（参考：保护主播.mp4）" checked={cfg.playVideo} on={(v) => set({ playVideo: v })} />
         </div>

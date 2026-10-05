@@ -9,9 +9,13 @@ import {
   Save,
   Trash2,
   Link2,
-  Check
+  Check,
+  Wand2,
+  ChevronRight
 } from 'lucide-react'
-import type { CustomBox, LiveStateResult, NativeKeybinds } from '@shared/types'
+import type { CustomBox, EntertainmentRule, LiveStateResult, NativeKeybinds } from '@shared/types'
+import { SPECIAL_GAMES, SPECIAL_GAME_MAP, parseSpecialBoxParam, parseSpecialParam, specialDefaultParam, type SpecialGameId } from '@shared/specialGames'
+import { useSpecialBoxes } from '../lib/useSpecialBoxes'
 import { prankGroups, usePrankCatalog } from '../lib/pranks'
 import { PRESET_GIFTS } from '../lib/blindbox'
 import GameSelector from '../components/GameSelector'
@@ -72,6 +76,17 @@ export default function PrankControl() {
   const [defaults, setDefaults] = useState<NativeKeybinds | null>(null)
   // 上次已保存的 GiftMap 快照：实时同步时做增量 diff（新增/改绑/解绑分别推送）
   const lastSaved = useRef<Record<string, string>>({})
+  // 特色整蛊的礼物联动：画面整蛊在客户端执行，存成娱乐助手「礼物触发」规则（和游戏整蛊列在同一个礼物联动里）
+  const [specialRules, setSpecialRules] = useState<EntertainmentRule[]>([])
+  const [boxRules, setBoxRules] = useState<EntertainmentRule[]>([])
+  const { boxes } = useSpecialBoxes()
+  const loadSpecialRules = useCallback(async () => {
+    const list = await window.api.entertainmentRulesList()
+    const gift = (r: EntertainmentRule) => (r.triggerType || 'gift') === 'gift' && r.actionType === 'command'
+    setSpecialRules(list.filter((r) => gift(r) && r.commandCmd === 'special-play' && !!parseSpecialParam(r.commandParam).id))
+    setBoxRules(list.filter((r) => gift(r) && r.commandCmd === 'special-box'))
+  }, [])
+  useEffect(() => { void loadSpecialRules() }, [loadSpecialRules])
 
   const refresh = useCallback(async () => {
     setLive(await window.api.liveState())
@@ -129,6 +144,38 @@ export default function PrankControl() {
     window.api.statsPrankTick()
   }
 
+  // 特色整蛊：叠在直播画面上，不经过游戏，没开游戏也能点（玩法窗口没开会自动打开）
+  const runSpecial = async (id: SpecialGameId) => {
+    const res = await window.api.specialTest(id)
+    if (!res.ok) {
+      toast(res.error ?? '触发失败', 'error')
+      return
+    }
+    flash(`special-${id}`)
+    window.api.statsPrankTick()
+  }
+  const runBox = async (id: string, name: string) => {
+    const res = await window.api.specialBoxTest(id)
+    if (!res.ok) { toast(res.error ?? '开盒失败', 'error'); return }
+    flash(`specialbox-${id}`)
+    toast(`「${name}」开出了 ${res.opened?.length ?? 0} 个特色整蛊`, 'success')
+    window.api.statsPrankTick()
+  }
+  const unbindSpecial = async (rule: EntertainmentRule) => {
+    await window.api.entertainmentRuleRemove(rule.id)
+    void loadSpecialRules()
+  }
+
+  // 模拟观众：游戏里的整蛊器收一份（bridge），客户端的礼物触发 / 特色整蛊也收一份——和真礼物走的两条路一样
+  const simulate = async (bridgeCmd: string, line: string, key: string) => {
+    const client = await window.api.connectorSimulate(line)
+    if (connected) {
+      const res = await window.api.liveCmd(bridgeCmd)
+      if (!res.ok) toast(res.error ?? '发送失败', 'error')
+    }
+    if (client.ok) flash(key)
+  }
+
   // prankId → 中文名，礼物联动列表里显示绑定的整蛊。菜单来自定义包（更新源刷新会变），所以订阅整表
   const prankCatalog = usePrankCatalog()
   const groups = useMemo(() => prankGroups(gameId ?? ''), [gameId, prankCatalog])
@@ -147,7 +194,7 @@ export default function PrankControl() {
     return k === '未绑定' ? '' : k
   }
 
-  const bindGift = () => {
+  const bindGift = async () => {
     const name = giftName.trim()
     if (!name) {
       toast('先填礼物名', 'info')
@@ -155,6 +202,37 @@ export default function PrankControl() {
     }
     if (!giftPrank) {
       toast('先选要触发的整蛊', 'info')
+      return
+    }
+    // 特色整蛊盲盒：同样存成礼物触发规则，立即生效
+    if (giftPrank.startsWith('specialbox:')) {
+      const box = boxes.find((b) => b.id === giftPrank.slice('specialbox:'.length))
+      if (!box) return
+      const r = await window.api.entertainmentRuleAdd({
+        id: '', name: `特色整蛊盲盒·${box.name}`, group: '特色整蛊', giftName: name, triggerType: 'gift',
+        actionType: 'command', commandCmd: 'special-box', commandParam: `${box.id}|${box.name}`,
+        times: 1, repeat: 1, multiply: true, queueMode: 'instant', enabled: true
+      })
+      if (!r.ok) { toast(r.error ?? '绑定失败', 'error'); return }
+      toast(`已绑定：${name} → 特色整蛊盲盒「${box.name}」，立即生效`, 'success')
+      setGiftName('')
+      void loadSpecialRules()
+      return
+    }
+    // 特色整蛊：直接存成礼物触发规则，立即生效（不经过游戏，也不用点保存）
+    if (giftPrank.startsWith('special:')) {
+      const meta = SPECIAL_GAME_MAP[giftPrank.slice('special:'.length)]
+      if (!meta) return
+      const r = await window.api.entertainmentRuleAdd({
+        id: '', name: `特色整蛊·${meta.name}`, group: '特色整蛊', giftName: name, triggerType: 'gift',
+        actionType: 'command', commandCmd: 'special-play',
+        commandParam: specialDefaultParam(meta.id),
+        times: 1, repeat: 1, multiply: true, queueMode: 'instant', enabled: true
+      })
+      if (!r.ok) { toast(r.error ?? '绑定失败', 'error'); return }
+      toast(`已绑定：${name} → 特色整蛊「${meta.name}」，立即生效`, 'success')
+      setGiftName('')
+      void loadSpecialRules()
       return
     }
     setGiftMap((prev) => ({ ...prev, [name]: giftPrank }))
@@ -257,7 +335,7 @@ export default function PrankControl() {
       {!connected && (
         <div className="mb-6 flex items-center gap-2 rounded-lg border border-[var(--accent-soft-2)] bg-[var(--accent-soft)] px-4 py-3 text-xs text-[var(--accent-2)]">
           <Radio size={14} />
-          游戏未运行或尚未找到对应 Mod。请先到「启动游戏」页启动游戏，连接成功后即可遥控。
+          游戏未运行或尚未找到对应 Mod。请先到「启动游戏」页启动游戏，连接成功后即可遥控游戏整蛊；下面的特色整蛊和模拟观众不用开游戏也能用。
         </div>
       )}
 
@@ -393,6 +471,18 @@ export default function PrankControl() {
             className="max-w-64"
           >
             <option value="">选择要触发的整蛊…</option>
+            {boxes.length > 0 && (
+              <optgroup label="特色整蛊盲盒（随机开一种）">
+                {boxes.map((b) => (
+                  <option key={b.id} value={`specialbox:${b.id}`}>🎁 {b.name}</option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="特色整蛊（画面）">
+              {SPECIAL_GAMES.map((g) => (
+                <option key={g.id} value={`special:${g.id}`}>{g.name}</option>
+              ))}
+            </optgroup>
             {groups.map((g) => (
               <optgroup key={g.id} label={g.name}>
                 {g.items.map((it) => {
@@ -407,19 +497,59 @@ export default function PrankControl() {
               </optgroup>
             ))}
           </Select>
-          <Btn variant="secondary" onClick={bindGift}>
+          <Btn variant="secondary" onClick={() => void bindGift()}>
             绑定
           </Btn>
           <Btn onClick={saveGiftMap} disabled={!giftDirty}>
             <Save size={14} /> {giftDirty ? '保存绑定' : '已保存'}
           </Btn>
         </div>
-        {Object.entries(giftMap).length === 0 ? (
+        {Object.entries(giftMap).length === 0 && specialRules.length === 0 && boxRules.length === 0 ? (
           <p className="text-xs text-[var(--text-4)]">
-            还没绑定礼物。填礼物名、选整蛊，点「绑定」后保存即可。
+            还没绑定礼物。填礼物名、选整蛊，点「绑定」后保存即可；特色整蛊绑定后立即生效。
           </p>
         ) : (
           <div className="space-y-1.5">
+            {/* 特色整蛊盲盒：按盲盒归并 */}
+            {[...boxRules.reduce((m, r) => { const id = parseSpecialBoxParam(r.commandParam).id; return m.set(id, [...(m.get(id) ?? []), r]) }, new Map<string, EntertainmentRule[]>()).entries()].map(([bid, rules]) => (
+              <div key={`box-${bid}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 py-2 text-sm">
+                <span>🎁</span>
+                <span className="font-medium text-[var(--text)]">{boxes.find((b) => b.id === bid)?.name ?? parseSpecialBoxParam(rules[0].commandParam).name ?? bid}</span>
+                <span className="rounded bg-[var(--accent-soft)] px-1.5 py-px text-[10px] text-[var(--accent-2)]">特色整蛊盲盒</span>
+                <span className="text-[var(--text-3)]">←</span>
+                {rules.map((r) => (
+                  <span key={r.id} className={`inline-flex items-center gap-1 rounded-md bg-[var(--bg-card)] px-2 py-0.5 ${r.enabled === false ? 'text-[var(--text-4)] line-through' : 'text-[var(--text-2)]'}`}>
+                    {r.giftName}
+                    <button onClick={() => void unbindSpecial(r)} title={`解绑 ${r.giftName}`} aria-label={`解绑 ${r.giftName}`} className="text-[var(--text-4)] transition hover:text-[var(--danger)]">
+                      <Trash2 size={13} />
+                    </button>
+                  </span>
+                ))}
+                <button onClick={() => navigate('/special')} className="ml-auto inline-flex items-center text-xs text-[var(--text-3)] hover:text-[var(--accent-2)]">
+                  盲盒内容<ChevronRight size={13} />
+                </button>
+              </div>
+            ))}
+            {/* 特色整蛊（画面）：按玩法归并，存在礼物触发规则里，解绑立即生效 */}
+            {[...specialRules.reduce((m, r) => { const id = parseSpecialParam(r.commandParam).id as SpecialGameId; return m.set(id, [...(m.get(id) ?? []), r]) }, new Map<SpecialGameId, EntertainmentRule[]>()).entries()].map(([sid, rules]) => (
+              <div key={`special-${sid}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 py-2 text-sm">
+                <Wand2 size={13} className="text-[var(--accent-2)]" />
+                <span className="font-medium text-[var(--text)]">{SPECIAL_GAME_MAP[sid]?.name ?? sid}</span>
+                <span className="rounded bg-[var(--accent-soft)] px-1.5 py-px text-[10px] text-[var(--accent-2)]">特色整蛊</span>
+                <span className="text-[var(--text-3)]">←</span>
+                {rules.map((r) => (
+                  <span key={r.id} className={`inline-flex items-center gap-1 rounded-md bg-[var(--bg-card)] px-2 py-0.5 ${r.enabled === false ? 'text-[var(--text-4)] line-through' : 'text-[var(--text-2)]'}`} title={r.enabled === false ? '这条联动停用了' : undefined}>
+                    {r.giftName}
+                    <button onClick={() => void unbindSpecial(r)} title={`解绑 ${r.giftName}`} aria-label={`解绑 ${r.giftName}`} className="text-[var(--text-4)] transition hover:text-[var(--danger)]">
+                      <Trash2 size={13} />
+                    </button>
+                  </span>
+                ))}
+                <button onClick={() => navigate(`/special?tool=${sid}`)} className="ml-auto inline-flex items-center text-xs text-[var(--text-3)] hover:text-[var(--accent-2)]">
+                  数量和玩法设置<ChevronRight size={13} />
+                </button>
+              </div>
+            ))}
             {/* 按整蛊归并：同一个整蛊绑了几个礼物就列在同一行（一个礼物一行时「抖音→猫头鹰、点赞→猫头鹰」看着像重复，2026-09-14 主播反馈） */}
             {[...Object.entries(giftMap).reduce((m, [name, pid]) => m.set(pid, [...(m.get(pid) ?? []), name]), new Map<string, string[]>()).entries()].map(([pid, names]) => {
               const k = keyText(pid)
@@ -462,7 +592,7 @@ export default function PrankControl() {
           <Gift size={16} className="text-[var(--accent-2)]" />
           模拟观众
           <span className="text-xs font-normal text-[var(--text-4)]">
-            没有观众时也能测试直播效果。
+            没有观众时也能测试直播效果：游戏整蛊、礼物触发和特色整蛊一起响应，不开游戏也能测画面整蛊。
           </span>
         </h3>
         <div className="mb-2 flex items-center gap-2 text-xs text-[var(--text-3)]">
@@ -485,9 +615,8 @@ export default function PrankControl() {
           {PRESET_GIFTS.map((name) => (
             <ActionBtn
               key={name}
-              onClick={() => run(`gift ${name} ${giftCount}`, `gift-${name}`)}
+              onClick={() => void simulate(`gift ${name} ${giftCount}`, `礼物: ${name} ×${giftCount}  by 模拟观众`, `gift-${name}`)}
               flashed={flashed === `gift-${name}`}
-              disabled={!connected}
             >
               {name}
             </ActionBtn>
@@ -495,23 +624,20 @@ export default function PrankControl() {
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <ActionBtn
-            onClick={() => run('like 10', 'like10')}
+            onClick={() => void simulate('like 10', '点赞: 10 by 模拟观众', 'like10')}
             flashed={flashed === 'like10'}
-            disabled={!connected}
           >
             点赞 +10
           </ActionBtn>
           <ActionBtn
-            onClick={() => run('like 100', 'like100')}
+            onClick={() => void simulate('like 100', '点赞: 100 by 模拟观众', 'like100')}
             flashed={flashed === 'like100'}
-            disabled={!connected}
           >
             点赞 +100
           </ActionBtn>
           <ActionBtn
-            onClick={() => run('follow', 'follow')}
+            onClick={() => void simulate('follow', '关注 by 模拟观众', 'follow')}
             flashed={flashed === 'follow'}
-            disabled={!connected}
           >
             关注
           </ActionBtn>
@@ -558,8 +684,29 @@ export default function PrankControl() {
       </section>
       )}
 
-      {/* 全部整蛊 */}
+      {/* 全部整蛊：特色整蛊（画面，不用进游戏）+ 游戏里的整蛊分组 */}
       <div className="space-y-6">
+        <section>
+          <h3 className="mb-2 flex flex-wrap items-center gap-x-2 text-sm font-semibold text-[var(--text)]">
+            <span className="inline-flex items-center gap-1.5"><Wand2 size={14} className="text-[var(--accent-2)]" />特色整蛊</span>
+            <span className="text-xs font-normal text-[var(--text-4)]">{SPECIAL_GAMES.length} · 叠在直播画面上，不用进游戏也能点</span>
+            <button onClick={() => navigate('/special')} className="ml-auto inline-flex items-center text-xs font-normal text-[var(--text-3)] hover:text-[var(--accent-2)]">
+              预览和设置<ChevronRight size={13} />
+            </button>
+          </h3>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+            {boxes.map((b) => (
+              <ActionBtn key={b.id} onClick={() => void runBox(b.id, b.name)} flashed={flashed === `specialbox-${b.id}`}>
+                🎁 {b.name}
+              </ActionBtn>
+            ))}
+            {SPECIAL_GAMES.map((g) => (
+              <ActionBtn key={g.id} onClick={() => void runSpecial(g.id)} flashed={flashed === `special-${g.id}`}>
+                {g.name}
+              </ActionBtn>
+            ))}
+          </div>
+        </section>
         {groups.map((group) => (
           <section key={group.id}>
             <h3 className="mb-2 text-sm font-semibold text-[var(--text)]">

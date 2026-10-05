@@ -4,7 +4,7 @@
 //     · 我们自己的老包连接器（0.2.12 及更早的 DS 包、1.0.0.10 轮椅安装包）：log 前缀 `[connector] `、有单实例互斥 → 当作最旧版本换掉
 //     · 图书管理员的薄连接器（前缀 `[darkmage-connector]`）/ 主播自己改的脚本 → 不动
 export function moduleVersionOf(content: string): string {
-  return String(content || '').slice(0, 6000).match(/^(?:DOUYIN_ROOM_VERSION|CONNECTOR_VERSION)\s*=\s*["']([\w.-]+)["']/m)?.[1] ?? ''
+  return String(content || '').slice(0, 6000).match(/^(?:DOUYIN_ROOM_VERSION|BILI_ROOM_VERSION|CONNECTOR_VERSION)\s*=\s*["']([\w.-]+)["']/m)?.[1] ?? ''
 }
 
 const OUR_FULL_CONNECTOR = /print\("\[connector\] "|def acquire_single_instance/

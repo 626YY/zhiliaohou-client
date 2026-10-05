@@ -28,6 +28,7 @@ const Notifications = lazy(() => import('./pages/Notifications'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Guide = lazy(() => import('./pages/Guide'))
 const Entertainment = lazy(() => import('./pages/Entertainment'))
+const Special = lazy(() => import('./pages/Special'))
 import { PageErrorBoundary } from './components/PageErrorBoundary'
 import { openWidgets, readAutoOpenIds } from './lib/widgetLaunchers'
 import { modUpdateAvailable } from './lib/version'
@@ -342,6 +343,7 @@ export default function App() {
             <Route path="/remote" element={<PrankControl />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="/ent" element={<><EntertainmentCardBar /><Entertainment /></>} />
+            <Route path="/special" element={<Special />} />
             <Route path="/connector" element={<Connector />} />
             <Route path="/news" element={<News />} />
             <Route path="/notifications" element={<Notifications />} />

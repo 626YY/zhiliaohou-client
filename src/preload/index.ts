@@ -99,6 +99,7 @@ import {
   type CardRoomCommitInput,
   type CardRoomCommitResult,
 } from '../shared/types'
+import type { SpecialBox, SpecialGameId, SpecialGameConfig, SpecialGameplayState, SpecialTestAction } from '../shared/specialGames'
 
 export interface ZLAPI {
   register: (
@@ -245,7 +246,8 @@ export interface ZLAPI {
 
   connectorStart: (
     room: string,
-    sim?: boolean
+    sim?: boolean,
+    platform?: 'douyin' | 'bilibili'
   ) => Promise<{ ok: boolean; error?: string }>
   connectorStop: () => Promise<{ ok: boolean }>
   connectorState: () => Promise<ConnectorState>
@@ -413,6 +415,19 @@ export interface ZLAPI {
   effectsClose: () => Promise<{ ok: boolean }>
   effectsFire: (kind: EffectKind, name: string, count?: number, sender?: string) => Promise<{ ok: boolean }>
   effectsState: () => Promise<{ open: boolean; config: EffectsConfig }>
+  specialOpen: (id: SpecialGameId, cfg?: Partial<SpecialGameConfig>) => Promise<{ ok: boolean; error?: string }>
+  specialClose: (id: SpecialGameId) => Promise<{ ok: boolean }>
+  specialConfigure: (id: SpecialGameId, cfg: Partial<SpecialGameConfig>) => Promise<{ ok: boolean }>
+  specialState: () => Promise<SpecialGameplayState>
+  specialTest: (id: SpecialGameId, action?: SpecialTestAction) => Promise<{ ok: boolean; error?: string }>
+  specialStats: (id: SpecialGameId) => Promise<{ open: boolean; value?: number }>
+  specialClearAll: () => Promise<{ ok: boolean; cleared: number }>
+  specialBoxes: () => Promise<SpecialBox[]>
+  specialBoxSave: (box: Partial<SpecialBox>) => Promise<{ ok: boolean; boxes: SpecialBox[]; error?: string }>
+  specialBoxRemove: (id: string) => Promise<{ ok: boolean; boxes: SpecialBox[] }>
+  specialBoxTest: (id: string) => Promise<{ ok: boolean; error?: string; opened?: string[] }>
+  specialCloseAll: () => Promise<{ ok: boolean; closed: number }>
+  onSpecialChanged: (cb: () => void) => () => void
   entranceOpen: () => Promise<{ ok: boolean; error?: string }>
   entranceClose: () => Promise<{ ok: boolean }>
   entranceConfigure: (cfg: Partial<EntranceConfig>) => Promise<{ ok: boolean }>
@@ -617,8 +632,8 @@ const api: ZLAPI = {
   liveState: () => ipcRenderer.invoke(Ipc.LiveState),
   giftImagesSync: (roomId) => ipcRenderer.invoke(Ipc.GiftImagesSync, roomId ?? ''),
 
-  connectorStart: (room, sim) =>
-    ipcRenderer.invoke(Ipc.ConnectorStart, room, sim),
+  connectorStart: (room, sim, platform) =>
+    ipcRenderer.invoke(Ipc.ConnectorStart, room, sim, platform),
   connectorStop: () => ipcRenderer.invoke(Ipc.ConnectorStop),
   connectorState: () => ipcRenderer.invoke(Ipc.ConnectorState),
   connectorSend: (cmd) => ipcRenderer.invoke(Ipc.ConnectorSend, cmd),
@@ -835,6 +850,23 @@ const api: ZLAPI = {
   effectsClose: () => ipcRenderer.invoke(Ipc.EffectsClose),
   effectsFire: (kind, name, count, sender) => ipcRenderer.invoke(Ipc.EffectsFire, kind, name, count, sender),
   effectsState: () => ipcRenderer.invoke(Ipc.EffectsState),
+  specialOpen: (id, cfg) => ipcRenderer.invoke(Ipc.SpecialOpen, id, cfg),
+  specialClose: (id) => ipcRenderer.invoke(Ipc.SpecialClose, id),
+  specialConfigure: (id, cfg) => ipcRenderer.invoke(Ipc.SpecialConfigure, id, cfg),
+  specialState: () => ipcRenderer.invoke(Ipc.SpecialState),
+  specialTest: (id, action) => ipcRenderer.invoke(Ipc.SpecialTest, id, action),
+  specialStats: (id) => ipcRenderer.invoke(Ipc.SpecialStats, id),
+  specialClearAll: () => ipcRenderer.invoke(Ipc.SpecialClearAll),
+  specialBoxes: () => ipcRenderer.invoke(Ipc.SpecialBoxes),
+  specialBoxSave: (box) => ipcRenderer.invoke(Ipc.SpecialBoxSave, box),
+  specialBoxRemove: (id) => ipcRenderer.invoke(Ipc.SpecialBoxRemove, id),
+  specialBoxTest: (id) => ipcRenderer.invoke(Ipc.SpecialBoxTest, id),
+  specialCloseAll: () => ipcRenderer.invoke(Ipc.SpecialCloseAll),
+  onSpecialChanged: (cb) => {
+    const fn = () => cb()
+    ipcRenderer.on(Ipc.SpecialChanged, fn)
+    return () => ipcRenderer.removeListener(Ipc.SpecialChanged, fn)
+  },
   entranceOpen: () => ipcRenderer.invoke(Ipc.EntranceOpen),
   entranceClose: () => ipcRenderer.invoke(Ipc.EntranceClose),
   entranceConfigure: (cfg) => ipcRenderer.invoke(Ipc.EntranceConfigure, cfg),

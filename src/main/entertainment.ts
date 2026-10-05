@@ -28,6 +28,7 @@ import {
   type MouseActionType
 } from '@shared/types'
 import { ruleActionLabel } from '../shared/entertainmentLabels'
+import { parseSpecialParam, type SpecialViewer } from '../shared/specialGames'
 import { actionDelayMs, normalizeExtraActions, ruleActions, withActionDefaults } from '../shared/entertainmentActions'
 import { giftNamesEqual } from './connector-events'
 import { runObsAction } from './obs-service'
@@ -251,8 +252,10 @@ function allRules(): EntertainmentRule[] {
   return rulesCache
 }
 
-// options：项目脚本 / 项目条目动作里再触发项目时带着（当前项目目录、嵌套层数、取消判断、接着播的窗口）
-async function executeAction(action: EntertainmentAction, options?: { chroma?: boolean; isCurrent?: () => boolean; projectBase?: string; projectDepth?: number; videoSlot?: GreenScreenSlot }): Promise<void> {
+// options：项目脚本 / 项目条目动作里再触发项目时带着（当前项目目录、嵌套层数、取消判断、接着播的窗口）；
+// viewer：触发这条规则的观众（特色整蛊的提示条/来电卡片要显示昵称和头像）
+// specialTimes：特色整蛊「增加」类动作合并执行的次数（见 enqueueRuns）
+async function executeAction(action: EntertainmentAction, options?: { chroma?: boolean; isCurrent?: () => boolean; projectBase?: string; projectDepth?: number; videoSlot?: GreenScreenSlot; viewer?: SpecialViewer; specialTimes?: number }): Promise<void> {
   if (action.actionType === 'key' && action.keySeq) {
     sendKeys(action.keySeq)
   } else if (action.actionType === 'script' && action.scriptPath) {
@@ -268,7 +271,8 @@ async function executeAction(action: EntertainmentAction, options?: { chroma?: b
     // chroma：这条动作自己勾了就按它来，没勾则沿用带出它的那条（项目视频扣了绿背景，它带出来的也该扣）
     const result = await entertainmentCommand(action.commandCmd, action.commandParam, {
       chroma: action.chroma === true || options?.chroma === true,
-      isCurrent: options?.isCurrent, projectBase: options?.projectBase, projectDepth: options?.projectDepth, videoSlot: options?.videoSlot
+      isCurrent: options?.isCurrent, projectBase: options?.projectBase, projectDepth: options?.projectDepth, videoSlot: options?.videoSlot,
+      viewer: options?.viewer, specialTimes: options?.specialTimes
     })
     if (!result.ok && result.error) console.warn(`[entertainment] 动作「${action.commandCmd}」没执行成功：${result.error}`)
   } else if (action.actionType === 'obs') {
@@ -279,7 +283,7 @@ async function executeAction(action: EntertainmentAction, options?: { chroma?: b
 
 // 一条规则 = 主动作 + 若干附加动作，按顺序执行；每个动作可带 delayMs（先等多久再做）。
 // 一个动作失败不影响后面的：主播要的是「视频照放、按键照按」，不是整条规则一起哑掉。
-async function executeRule(rule: EntertainmentRule): Promise<void> {
+async function executeRule(rule: EntertainmentRule, viewer?: SpecialViewer, specialTimes = 1): Promise<void> {
   const epoch=cardEpoch()
   for (const action of ruleActions(rule)) {
     const wait = actionDelayMs(action)
@@ -290,7 +294,7 @@ async function executeRule(rule: EntertainmentRule): Promise<void> {
         await (await import('./card-auth')).cardRequireRecent('platform:assistant')
         if(cardEpoch()!==epoch)return
       }
-      await executeAction(action,{isCurrent:()=>!cardModeEnabled()||cardEpoch()===epoch})
+      await executeAction(action,{isCurrent:()=>!cardModeEnabled()||cardEpoch()===epoch,viewer,specialTimes})
     } catch (e) {
       console.warn(`[entertainment] 规则「${rule.giftName}」的动作执行失败：`, (e as Error)?.message || e)
     }
@@ -311,6 +315,8 @@ interface QueuedExec {
   gift: string
   sender: string
   image: string
+  // 送礼人头像（特色整蛊的提示条/来电卡片用）
+  avatar: string
 }
 const execQueue: QueuedExec[] = []
 let execTimer: ReturnType<typeof setInterval> | null = null
@@ -428,7 +434,7 @@ function drainOne(): void {
     }
   }, Math.max(800, execIntervalMs))
   emitQueue()
-  void executeRule(next.rule)
+  void executeRule(next.rule, { name: next.sender, avatar: next.avatar, gift: next.gift })
 }
 
 function pumpQueue(): void {
@@ -436,6 +442,15 @@ function pumpQueue(): void {
   drainOne() // 头一次立刻执行，观众看得到即时反馈
   if (!execQueue.length) return
   execTimer = setInterval(drainOne, execIntervalMs || 1)
+}
+
+const MERGEABLE_SPECIAL_OPS = new Set(['add', 'show', 'reduce', 'tornado'])
+function mergeableSpecialRule(rule: EntertainmentRule): boolean {
+  const actions = ruleActions(rule)
+  if (actions.length !== 1) return false
+  const a = actions[0]
+  if (a.actionType !== 'command' || a.commandCmd !== 'special-play' || actionDelayMs(a) > 0) return false
+  return MERGEABLE_SPECIAL_OPS.has(parseSpecialParam(a.commandParam).op)
 }
 
 // 入队：priority 大的先执行；同优先级按先来后到（seq 递增）。
@@ -446,19 +461,26 @@ function enqueueRuns(rule: EntertainmentRule, runs: number, event?: ConnectorEve
     return
   }
   let mode = rule.queueMode || 'normal'
+  const gift = event?.type === 'gift' ? String(event.giftName || '') : event?.type === 'follow' ? '关注' : event?.type === 'like' ? '点赞' : event?.type === 'member' ? '进场' : event?.type === 'comment' ? '弹幕' : rule.giftName
+  const sender = String(event?.sender || '')
+  const image = String(event?.giftImage || '')
+  const avatar = String(event?.avatar || '')
+  // 特色整蛊「增加」类动作（加鸭子、来电、减锁链…）重复 N 次 = 数量 ×N 执行一次：
+  // 连送 999 个小心心就是一次放 999 份，而不是排 999 次队、来回 999 次跨进程。乘除倍数这种叠乘的不合并。
+  if (mode === 'instant' && runs > 1 && mergeableSpecialRule(rule)) {
+    void executeRule(rule, { name: sender, avatar, gift }, runs)
+    return
+  }
   if (mode === 'instant') {
     // 先即时执行一批，剩余优先排队补完；不能同时启动数千个系统动作，也不能吞掉次数。
     const immediate = Math.min(runs, MAX_INSTANT)
-    for (let i = 0; i < immediate; i++) void executeRule(rule)
+    for (let i = 0; i < immediate; i++) void executeRule(rule, { name: sender, avatar, gift })
     runs -= immediate
     if (runs <= 0) return
     mode = 'jump'
   }
   const priority = Math.trunc(Number(rule.priority) || 0)
-  const gift = event?.type === 'gift' ? String(event.giftName || '') : event?.type === 'follow' ? '关注' : event?.type === 'like' ? '点赞' : event?.type === 'member' ? '进场' : event?.type === 'comment' ? '弹幕' : rule.giftName
-  const sender = String(event?.sender || '')
-  const image = String(event?.giftImage || '')
-  execQueue.push({ rule, queueMode: mode === 'jump' ? 'jump' : 'normal', priority, seq: execSeq, count: runs, gift, sender, image })
+  execQueue.push({ rule, queueMode: mode === 'jump' ? 'jump' : 'normal', priority, seq: execSeq, count: runs, gift, sender, image, avatar })
   execSeq += runs
   // 插队始终越过普通队列；同类再按数字优先级，最后按到达顺序。
   execQueue.sort((a, b) => ((b.queueMode === 'jump' ? 1 : 0) - (a.queueMode === 'jump' ? 1 : 0)) || (b.priority - a.priority) || (a.seq - b.seq))
@@ -1031,7 +1053,7 @@ export async function entertainmentCommand(
   param?: string,
   // projectBase / projectDepth：项目脚本里再触发项目时带着——相对项目名按当前项目所在目录找，嵌套最多 6 层
   // videoSlot：上一条视频真正播在哪个绿幕窗口，带出来的视频接着在那儿播（见 continuePlayback）
-  options?: { chroma?: boolean; isCurrent?: () => boolean; projectBase?: string; projectDepth?: number; videoSlot?: GreenScreenSlot }
+  options?: { chroma?: boolean; isCurrent?: () => boolean; projectBase?: string; projectDepth?: number; videoSlot?: GreenScreenSlot; viewer?: SpecialViewer; specialTimes?: number }
 ): Promise<{ ok: boolean; error?: string }> {
   if (options?.isCurrent && !options.isCurrent()) return { ok: false, error: '事件已取消' }
   if(cardModeEnabled()&&!['key-unlock','key-up','video-stop'].includes(cmd)){
@@ -1137,6 +1159,27 @@ export async function entertainmentCommand(
       const picked = path.join(folder, files[Math.floor(Math.random() * files.length)])
       const suffix = target === 'video' ? '|视频' : target ? `|绿幕${target}${overflow ? '' : '固定'}` : overflow ? '' : '|固定'
       return entertainmentCommand('video-play', picked + suffix, options)
+    }
+    case 'special-play': {
+      // 特色整蛊（锁链/抓鸭子/粉丝来电…）：param = 玩法|操作|数量|选项。
+      // 礼物规则、转盘、九宫格、时间盲盒、项目脚本都从这一个出口进来，玩法本身不再单独认礼物。
+      const { runSpecialAction } = await import('./special-gameplay')
+      return runSpecialAction(String(param || ''), options?.viewer, options?.specialTimes)
+    }
+    case 'special-box': {
+      // 特色整蛊盲盒：按权重随机开出一种（每次开几个由盲盒设置），数量可以是随机范围
+      const { runSpecialBox } = await import('./special-gameplay')
+      return runSpecialBox(String(param || ''), options?.viewer)
+    }
+    case 'game-prank': {
+      // 游戏整蛊（整蛊器）：param = 游戏id|整蛊id|显示名。礼物规则里能和特色整蛊、视频一起配，
+      // 一个礼物既整游戏又整画面。只在当前选中的就是这款游戏时推，免得轮椅的整蛊发进 DS。
+      const [game = '', id = ''] = String(param || '').split('|').map((s) => s.trim())
+      if (!game || !id) return { ok: false, error: '没有选择游戏整蛊' }
+      const { currentGameId } = await import('./games')
+      if (currentGameId() !== game) return { ok: false, error: '当前选中的不是这款游戏，游戏整蛊没发出' }
+      const { livePrank } = await import('./live-api')
+      return livePrank(id, options?.isCurrent)
     }
     case 'blindbox-open': {
       // 开一次时间盲盒。param 填事件名或 id；留空 = 从全部启用事件里随机抽一个。

@@ -49,7 +49,7 @@ WINDOWS = 5
 #   "缺少弹幕组件 douyin_room.py"。系统 python 会自动加脚本目录、无此问题——所以 dev(系统py)能连、小白(pyembed)连不上。
 _SELF_DIR = os.path.dirname(os.path.abspath(__file__))
 # 客户端按这个标记把游戏目录里更旧的 connector.py 换成自带的新版（YYYY-MM-DD[.n]，按字串比较；没有标记的副本不动）
-CONNECTOR_VERSION = "2026-09-13.1"
+CONNECTOR_VERSION = "2026-10-05.1"
 if _SELF_DIR and _SELF_DIR not in sys.path:
     sys.path.insert(0, _SELF_DIR)
 
@@ -1901,13 +1901,16 @@ def run_sim(bridge, stop):
     stats.stop()
 
 
-def run_room(bridge, room_id, stop, cloud=None):
+def run_room(bridge, room_id, stop, cloud=None, platform="douyin"):
     """
-    连真抖音直播间(经同目录 douyin_room.py)。
+    连真直播间(经同目录的平台房间模块)。platform: douyin(默认) / bilibili。
     ★铁律：任何一步失败都 status 上报+退出，绝不降级成模拟礼物——
       主播看到的每个礼物都必须是真的。想试效果请用游戏里的【自测】按钮或命令行 --sim。
+    ★多平台只换「房间模块」与礼物图子目录；回调/统计/头像/重连全平台无关，原样复用。
     """
-    log("尝试连接抖音直播间: %s" % room_id)
+    platform = (platform or "douyin").strip().lower()
+    plat_name = {"douyin": "抖音", "bilibili": "B站"}.get(platform, platform)
+    log("尝试连接%s直播间: %s" % (plat_name, room_id))
     try:
         import requests   # noqa
         import websocket  # noqa  (websocket-client)
@@ -1916,11 +1919,17 @@ def run_room(bridge, room_id, stop, cloud=None):
                       e.__class__.__name__)
         return
 
+    # 按平台选房间模块（鸭子接口一致：构造(room_id)+可赋值 on_*+run(stop)+census_text()+_ended/_throttled）
     try:
-        from douyin_room import DouyinLiveRoom
+        if platform == "bilibili":
+            from bilibili_room import BilibiliLiveRoom as RoomClass
+        else:
+            from douyin_room import DouyinLiveRoom as RoomClass
     except Exception as e:
-        bridge.status("连不上真直播间：缺少弹幕组件 douyin_room.py(%r)。请重装安装包补齐。" % e)
+        bridge.status("连不上真直播间：缺少 %s 弹幕组件(%r)。请重装安装包补齐。" % (plat_name, e))
         return
+    # 礼物图子目录按平台分（抖音沿用「抖音」目录名，兼容既有图与客户端读取路径）
+    gift_dir_name = "抖音" if platform == "douyin" else platform
 
     hb_started = [False]
 
@@ -1932,7 +1941,7 @@ def run_room(bridge, room_id, stop, cloud=None):
     # 礼物图缓存：礼物图/抖音/ 就在 bridge.txt 同目录下(= Mods\WheelLive\礼物图\抖音)。
     #   收到真礼物时把抖音下发的礼物图标 URL 下载成本地图，客户端透明图/贴纸/动画/时间插件直接读。
     gift_images = GiftImageCache(
-        os.path.join(os.path.dirname(os.path.abspath(bridge.path)), "礼物图", "抖音"), stop)
+        os.path.join(os.path.dirname(os.path.abspath(bridge.path)), "礼物图", gift_dir_name), stop)
     # ★把头像缓存挂给云端：世界榜上报时用它补观众头像 URL(在这之前世界榜头像 0% 可用，两边都以为对方补)。
     #   ★注意只传 URL 上云，avatars/ 里的本地图片文件绝不外传(观众头像文件是隐私红线，连打包都不许进)。
     if cloud:
@@ -1978,7 +1987,7 @@ def run_room(bridge, room_id, stop, cloud=None):
     while not stop.is_set():
         ended = False
         try:
-            room = DouyinLiveRoom(room_id)
+            room = RoomClass(room_id)
             def on_gift(name, cnt, sender=None, avatar=None, coins=None, gift_img=None):
                 # 桥写入/待发落盘是礼物交付的提交点。统计、头像和日志都属于旁路，
                 # 不能在桥失败时先推进，否则抖音重投也会被连击去重挡掉。
@@ -2138,7 +2147,8 @@ def main():
         except Exception:
             pass
     ap = argparse.ArgumentParser()
-    ap.add_argument("--room", default="", help="抖音直播间号(网页 live.douyin.com/后面那串)")
+    ap.add_argument("--room", default="", help="直播间号/短号(抖音=live.douyin.com/后面那串；B站=live.bilibili.com/后面那串)")
+    ap.add_argument("--platform", default="douyin", help="直播平台: douyin(默认) / bilibili")
     ap.add_argument("--game", default="4wheel-challenge", help="游戏ID(catalog id, 运营数据按游戏分账)")
     ap.add_argument("--sim", action="store_true", help="纯模拟(不连真直播间)")
     ap.add_argument("--bridge", default="", help="事件桥文件 bridge.txt 的完整路径(--sharecmd 模式不用)")
@@ -2212,7 +2222,7 @@ def main():
         if args.sim or not args.room:
             run_sim(bridge, stop)
         else:
-            run_room(bridge, args.room, stop, cloud)
+            run_room(bridge, args.room, stop, cloud, platform=getattr(args, "platform", "douyin"))
     except KeyboardInterrupt:
         pass
     finally:

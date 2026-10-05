@@ -13,7 +13,7 @@ import { normalizeTimeBlindBoxEvents, resolveTimeBlindBoxPool, pickTimeBlindBoxV
 import { COUNTDOWN_ART } from '../shared/countdownArt'
 import { COUNTDOWN_DECORATION_CSS, COUNTDOWN_THEMES, DEFAULT_COUNTDOWN_THEME, FRAME_H, FRAME_LAYOUT, FRAME_W, frameDataUri } from '../shared/countdownFrame'
 import { countdownFormatSource } from '../shared/countdownTime'
-import { drawPetTimeText } from '../shared/petTimeText'
+import { drawPetTimeText, fitPetLabels } from '../shared/petTimeText'
 import { PET_COUNTDOWN_CSS, PET_FRAME_W, petSkin, petWidgetMetrics, petWidgetMetricsSource, petSkinVariables, petLayoutVariables, petDisplayTime, petGiftText, petFontCss, petMascotHtml, petCharmHtml } from '../shared/countdownPets'
 import { listGiftImages, sendKeys, createManagedEntertainmentSound, type ManagedEntertainmentSound } from './entertainment'
 import { giftNamesEqual, normalizeGiftName } from './connector-events'
@@ -432,7 +432,7 @@ const THEMES: Record<string, ThemeEntry> = {
         w: petSkin(theme.id) ? PET_FRAME_W : FRAME_W,
         h: FRAME_H,
         titleSize: 20,
-        timeSize: petSkin(theme.id) ? 64 : 58,
+        timeSize: petSkin(theme.id) ? 96 : 58,
         color: theme.timeColor
       } as ThemeEntry
     ])
@@ -512,6 +512,7 @@ function normalize(value: Partial<TimeWidgetConfig>): TimeWidgetConfig {
     cellBorder: normalizeColor(value.cellBorder, '#3a3a40'),
     cellAlpha: Math.max(0, Math.min(1, numberOr(value.cellAlpha, 0.92))),
     petMotion: value.petMotion !== false,
+    charmScale: Math.max(0.2, Math.min(2, numberOr(value.charmScale, 0.7))),
     giftNameSize: Math.max(8, Math.min(40, Math.trunc(numberOr(value.giftNameSize, 16)))),
     giftTextSize: Math.max(8, Math.min(40, Math.trunc(numberOr(value.giftTextSize, 16)))),
     giftIconSize: Math.max(16, Math.min(96, Math.trunc(numberOr(value.giftIconSize, 42)))),
@@ -747,7 +748,7 @@ function pageThemes() {
     const atlas = skin ? pathToFileURL(path.join(__dirname, '../renderer/pet-skins', skin.atlas)).href : ''
     const material = skin?.material ? pathToFileURL(path.join(__dirname, '../renderer/pet-skins', skin.material)).href : ''
     const charms=pathToFileURL(path.join(__dirname,'../renderer/pet-skins/charms.png')).href
-    return [key, { ...value, pet:skin ? { variables:petSkinVariables(skin),mascot:petMascotHtml(skin,atlas,material),charm:petCharmHtml(skin,charms),material:!!material,menu:skin.menu } : null }]
+    return [key, { ...value, pet:skin ? { variables:petSkinVariables(skin,material),mascot:petMascotHtml(skin,atlas,material),charm:petCharmHtml(skin,charms),material:!!material,menu:skin.menu } : null }]
   }))
 }
 
@@ -765,9 +766,10 @@ ${TIME_TICKER_CSS}
 #gift-pop img{width:28px;height:28px;object-fit:contain}
 </style>${emojiPageScript()}</head><body><div id="stage"><div id="panel" class="pet-panel"><div id="pet-art" class="pet-art"></div><div id="pet-surface" class="pet-surface">
 <div id="head" class="pet-clock"><img id="frame" src="${pageJson(initialBg).slice(1, -1)}" alt=""><div id="title" class="pet-title"></div><div id="time" class="pet-time"></div></div>
+<div id="pet-menu-content" class="pet-menu-content">
 ${giftRowsHtml(cfg, images)}
 ${cfg.giftTicker ? '<div id="ticker"><div id="ticker-track"></div></div>' : ''}
-</div><div id="pet-charms"></div>
+</div></div><div id="pet-charms"></div>
 <div id="gift-pop"></div>
 </div></div><script>
 var cfg=${pageJson(pageCfg)},images=${pageJson(images)},themes=${pageJson(themes)};
@@ -775,13 +777,13 @@ var cfg=${pageJson(pageCfg)},images=${pageJson(images)},themes=${pageJson(themes
 var zlText=window.__zlText||function(el,t){el.textContent=t;return el};
 var ART_TOP=${ART_TOP}, petMetrics=${petWidgetMetricsSource()};
 var petLayoutVars=${petLayoutVariables.toString()},petTimeText=${petDisplayTime.toString()},petGiftLabel=${petGiftText.toString()};
-var drawPetDigits=${drawPetTimeText.toString()},petTextContext=document.createElement('canvas').getContext('2d');
+var drawPetDigits=${drawPetTimeText.toString()},fitPetLabels=${fitPetLabels.toString()},petTextContext=document.createElement('canvas').getContext('2d');
 var stage=document.getElementById('stage'),frame=document.getElementById('frame'),panel=document.getElementById('panel'),head=document.getElementById('head'),titleEl=document.getElementById('title'),timeEl=document.getElementById('time'),giftPop=document.getElementById('gift-pop'),giftPopTimer=0;
 function pad(n){return n<10?'0'+n:String(n)}
 function giftKey(n){return String(n||'').normalize('NFKC').replace(/\\s+/g,' ').trim().toLocaleLowerCase('zh-CN')}
 ${countdownFormatSource()}
 // 时间文字自适应：字数多了（带天/小时、归零文字）就自动缩号，绝不撑出时间框。
-var lastFitKey='';
+var lastFitKey='',fontFitRevision=0;
 function fitTime(base,force){if(themes[cfg.theme]?.pet&&petTextContext){drawPetDigits(timeEl,timeEl.textContent,base,petTextContext,!!force);return}var key=timeEl.textContent.replace(/[0-9]/g,'0')+'|'+timeEl.clientWidth+'|'+timeEl.clientHeight+'|'+base;if(key===lastFitKey)return;lastFitKey=key;var size=base;timeEl.style.fontSize=size+'px';var guard=0;
   while((timeEl.scrollWidth>timeEl.clientWidth||timeEl.scrollHeight>timeEl.clientHeight)&&size>10&&guard++<60){size-=1;timeEl.style.fontSize=size+'px'}}
 // 一行文字装不下就慢慢缩号（礼物名/效果文字共用）；缩到下限还装不下才由 CSS 省略号兜底。
@@ -802,14 +804,14 @@ function rgba(hex,alpha){var h=String(hex||'#242428').replace('#','');var n=pars
   if(!isFinite(n))return 'rgba(36,36,40,'+alpha+')';return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+alpha+')'}
 // 礼物栏按配置的礼物数量重建：加几个显示几个，删完就整条收起来（窗口同步变矮）。
 // 整块板设计：面板底色=边框色，格与格之间留 1px 缝透出边框色当分隔线，格内是 cellBg。
-function buildGifts(){var old=document.getElementById('gift-panel');if(old)old.remove();
+function buildGifts(petLayout){var old=document.getElementById('gift-panel');if(old)old.remove();
   var list=visibleGifts();
   if(cfg.giftPanel===false||!list.length)return;
   var box=document.createElement('div');box.id='gift-panel';box.className='pet-gifts';box.dataset.columns=String(cfg.giftColumns||2);box.style.gridTemplateColumns='repeat('+(cfg.giftColumns||2)+',1fr)';
   box.style.background=cfg.cellBorder||'#3a3a40';box.style.gap='1px';
   list.forEach(function(g,i){var cell=document.createElement('div');cell.className='gift-cell';cell.dataset.gift=String(i);cell.dataset.lastRow=String(Math.floor(i/(cfg.giftColumns||2))===Math.floor((list.length-1)/(cfg.giftColumns||2)));
     cell.style.background=rgba(cfg.cellBg,cfg.cellAlpha==null?0.92:cfg.cellAlpha);
-    var icon=document.createElement('div');icon.className='gift-icon';var size=cfg.giftIconSize||40;icon.style.width=size+'px';icon.style.height=size+'px';
+    var icon=document.createElement('div');icon.className='gift-icon';var size=petLayout?petLayout.giftIconSize:(cfg.giftIconSize||40);icon.style.width=size+'px';icon.style.height=size+'px';
     var src=g.img||images[giftKey(g.name)]||'';if(src){var im=document.createElement('img');im.src=src;im.onerror=function(){this.remove()};icon.appendChild(im)}
     var text=document.createElement('div');text.className='gift-text';
     var name=document.createElement('div');name.className='gift-name';zlText(name,g.name);name.style.color=cfg.giftNameColor||'#fff';name.style.fontSize=(cfg.giftNameSize||15)+'px';
@@ -818,12 +820,12 @@ function buildGifts(){var old=document.getElementById('gift-panel');if(old)old.r
     text.appendChild(name);text.appendChild(line);text.appendChild(eff);cell.appendChild(icon);cell.appendChild(text);box.appendChild(cell)});
   // 滚动条在礼物栏下面：重建礼物栏时要插到它前面，不能把顺序打乱
   var tickerEl=document.getElementById('ticker');
-  var surface=document.getElementById('pet-surface');
+  var surface=document.getElementById('pet-menu-content');
   if(tickerEl)surface.insertBefore(box,tickerEl);else surface.appendChild(box);
   // 礼物名/效果文字整行显示：装不下就自动缩号，不截成「为你…」。
   // 必须在挂进 DOM 之后量，否则 scrollWidth/clientWidth 都是 0。
-  box.querySelectorAll('.gift-name').forEach(function(el){fitRow(el,cfg.giftNameSize||15,10)});
-  box.querySelectorAll('.gift-effect').forEach(function(el){fitRow(el,cfg.giftTextSize||15,10)})}
+  if(!themes[cfg.theme]?.pet){box.querySelectorAll('.gift-name').forEach(function(el){fitRow(el,cfg.giftNameSize||15,10)});
+  box.querySelectorAll('.gift-effect').forEach(function(el){fitRow(el,cfg.giftTextSize||15,10)})}}
 // 上屏的礼物 = 有名字且「屏幕显示」开着的；格子编号、命中闪烁、加宽判断都按这份算（三处必须一致）
 function visibleGifts(){return (cfg.gifts||[]).filter(function(g){return g&&g.name&&g.showOnPanel!==false})}
 function applyConfig(next,nextImages){cfg=next||cfg;images=nextImages||images;document.body.dataset.theme=cfg.theme;var t=themes[cfg.theme]||themes['theatre'];
@@ -848,12 +850,15 @@ function applyConfig(next,nextImages){cfg=next||cfg;images=nextImages||images;do
   if(pm){var layout=petLayoutVars(pm);Object.keys(layout).forEach(function(key){stage.style.setProperty(key,layout[key])})}
   stage.style.transform='translateY('+((pet?0:-ART_TOP)*(cfg.scale||1))+'px) scale('+(cfg.scale||1)+')';
   titleEl.style.fontSize=t.titleSize+'px';titleEl.style.color=cfg.titleColor||'#fff';timeEl.style.color=cfg.timeColor||t.color;
-  zlText(titleEl,cfg.title||'');buildGifts();fitTime(t.timeSize);
+  zlText(titleEl,cfg.title||'');buildGifts(pm);if(pet)fitPetLabels(panel,cfg.giftNameSize,cfg.giftTextSize);fitTime(t.timeSize);
   // 送礼滚动条开关：开着就补一条，关掉就撤掉（窗口高度由主进程按 metrics 同步）
   var tick=document.getElementById('ticker');
-  if(cfg.giftTicker&&!tick){tick=document.createElement('div');tick.id='ticker';tick.innerHTML='<div id="ticker-track"></div>';document.getElementById('pet-surface').appendChild(tick)}
+  if(cfg.giftTicker&&!tick){tick=document.createElement('div');tick.id='ticker';tick.innerHTML='<div id="ticker-track"></div>';document.getElementById('pet-menu-content').appendChild(tick)}
   else if(!cfg.giftTicker&&tick)tick.remove();
-  fitTicker()}
+  fitTicker();
+  // 换肤可能首次加载另一套字体；只重算最后一次配置，避免旧字体回调盖过新皮肤。
+  var revision=++fontFitRevision;
+  document.fonts.ready.then(function(){if(revision!==fontFitRevision)return;lastFitKey='';if(pet)fitPetLabels(panel,cfg.giftNameSize,cfg.giftTextSize);fitTime(t.timeSize,true)})}
 function hitGift(name){var list=visibleGifts();var key=giftKey(name);
   for(var i=0;i<list.length;i++){if(giftKey(list[i].name)===key){var cell=document.querySelector('.gift-cell[data-gift="'+i+'"]');
     if(cell){cell.classList.remove('hit');void cell.offsetWidth;cell.classList.add('hit')}return}}}
@@ -875,7 +880,6 @@ function render(state){var value=Number(state.remaining)||0;var t=themes[cfg.the
   timeEl.textContent='';String(displayed).split(/(:)/).forEach(function(part){if(t.pet&&part===':'){var colon=document.createElement('span');colon.className='pet-colon';colon.textContent=part;timeEl.appendChild(colon)}else timeEl.appendChild(document.createTextNode(part))});
   fitTime(t.timeSize);document.body.style.visibility=state.hidden?'hidden':'visible';if(state.gift)showGift(state.gift.name,state.gift.image)}
 window.__setConfig=applyConfig;window.__render=render;applyConfig(cfg,images)
-document.fonts.ready.then(function(){lastFitKey='';fitTime((themes[cfg.theme]||themes['theatre']).timeSize,true)})
 </script></body></html>`
 }
 

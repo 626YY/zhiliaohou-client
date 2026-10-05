@@ -16,6 +16,10 @@ import { Modal } from '../components/Modal'
 import { KeyboardUnlockButton } from '../components/KeyboardUnlockButton'
 import { useToast } from '../stores/ui'
 import { DOUYIN_GIFT_NAMES } from '../data/douyinGifts'
+import SpecialActionFields from '../components/SpecialActionFields'
+import GamePrankSelect from '../components/GamePrankSelect'
+import SpecialBoxSelect from '../components/special/SpecialBoxSelect'
+import { specialDefaultParam } from '@shared/specialGames'
 
 const ACTION_LABEL: Record<EntertainmentActionType, string> = {
   key: '键鼠',
@@ -56,6 +60,16 @@ const COMMAND_OPTIONS: { value: EntertainmentCommandCmd; label: string; hint: st
     value: 'blindbox-open',
     label: '开时间盲盒',
     hint: '开一次时间盲盒：填盲盒事件名，留空就从全部启用的事件里随机抽（要先在倒计时挂件里配好盲盒事件）'
+  },
+  {
+    value: 'special-play',
+    label: '特色整蛊',
+    hint: '触发锁链、抓鸭子、粉丝来电等特色整蛊玩法：选玩法、操作和数量'
+  },
+  {
+    value: 'game-prank',
+    label: '游戏整蛊',
+    hint: '触发整蛊器里的游戏整蛊（轮椅翻车、DS 惊吓…）；只在当前选中的就是这款游戏时生效'
   },
   {
     value: 'project-random',
@@ -782,8 +796,8 @@ export default function EntertainmentGiftRules() {
                   </span>
                   {/* 规则名和礼物名是两回事：名字是人认的，礼物名才是触发条件。
                       礼物名的输入框就在这一行右边，不用再进弹窗改 */}
-                  <Pill tone="ok" dot>
-                    {ACTION_LABEL[r.actionType]}
+                  <Pill tone={r.actionType === 'command' && (r.commandCmd === 'special-play' || r.commandCmd === 'special-box' || r.commandCmd === 'game-prank') ? 'accent' : 'ok'} dot>
+                    {r.actionType === 'command' && r.commandCmd === 'special-play' ? '特色整蛊' : r.actionType === 'command' && r.commandCmd === 'special-box' ? '特色整蛊盲盒' : r.actionType === 'command' && r.commandCmd === 'game-prank' ? '游戏整蛊' : ACTION_LABEL[r.actionType]}
                   </Pill>
                   {(r.extraActions?.length ?? 0) > 0 && (
                     <Pill tone="muted" className="ent-extra-count">+{r.extraActions!.length} 动作</Pill>
@@ -1210,7 +1224,7 @@ function RuleModal({
           <Btn variant="secondary" onClick={onClose}>
             取消
           </Btn>
-          <Btn onClick={() => onSave(form)} disabled={((!form.triggerType||form.triggerType==='gift')&&!form.giftName.trim())||(form.actionType==='key'&&!form.keySeq)||(form.actionType==='sound'&&!form.soundPath?.trim())||(form.actionType==='command'&&form.commandCmd==='video-play'&&!form.commandParam?.split('|')[0]?.trim())}>保存</Btn>
+          <Btn onClick={() => onSave(form)} disabled={((!form.triggerType||form.triggerType==='gift')&&!form.giftName.trim())||(form.actionType==='key'&&!form.keySeq)||(form.actionType==='sound'&&!form.soundPath?.trim())||(form.actionType==='command'&&form.commandCmd==='video-play'&&!form.commandParam?.split('|')[0]?.trim())||(form.actionType==='command'&&form.commandCmd==='game-prank'&&!form.commandParam?.split('|')[1])||(form.actionType==='command'&&form.commandCmd==='special-box'&&!form.commandParam?.split('|')[0])}>保存</Btn>
         </>
       }
     >
@@ -1393,10 +1407,15 @@ function SecondsInput({ ms, onChange, title }: { ms?: number; onChange: (ms: num
   )
 }
 
-const ACTION_TYPE_OPTIONS: { value: EntertainmentActionType; label: string }[] = [
+// 「特色整蛊」「游戏整蛊」在数据上是动作命令 special-play / game-prank，界面上各占一格，好找：
+// 一条礼物规则里可以同时整游戏、整画面、放视频
+type ActionTypeChoice = EntertainmentActionType | 'special' | 'game'
+const ACTION_TYPE_OPTIONS: { value: ActionTypeChoice; label: string }[] = [
   { value: 'key', label: '键鼠按键' },
   { value: 'script', label: '执行脚本' },
   { value: 'sound', label: '播放音效' },
+  { value: 'special', label: '特色整蛊' },
+  { value: 'game', label: '游戏整蛊' },
   { value: 'system', label: '系统动作' },
   { value: 'command', label: '动作命令' },
   { value: 'obs', label: 'OBS' }
@@ -1444,11 +1463,23 @@ function ActionEditor({
     <>
         <Field advanced label="动作类型">
           <Segmented
-            value={form.actionType}
+            value={(form.actionType === 'command' && (form.commandCmd === 'special-play' || form.commandCmd === 'special-box') ? 'special' : form.actionType === 'command' && form.commandCmd === 'game-prank' ? 'game' : form.actionType) as ActionTypeChoice}
             onChange={(v) => {
+              if (v === 'special') {
+                // 已经是特色整蛊（指定玩法或盲盒）就不动；从别的类型切过来时，之前留着的特色整蛊参数接着用
+                if (form.actionType === 'command' && (form.commandCmd === 'special-play' || form.commandCmd === 'special-box')) return
+                const keep = form.commandCmd === 'special-play' || form.commandCmd === 'special-box'
+                set({ actionType: 'command', commandCmd: keep ? form.commandCmd : 'special-play', commandParam: keep ? form.commandParam : specialDefaultParam('chain_challenge') })
+                return
+              }
+              if (v === 'game') {
+                set({ actionType: 'command', commandCmd: 'game-prank', commandParam: form.commandCmd === 'game-prank' ? form.commandParam : '' })
+                return
+              }
               // 下拉框显示的默认值也要真的写进规则：以前选「动作命令」不碰下拉框直接保存，
               // commandCmd 是空的，规则存下来却什么都不执行（系统动作、OBS 同理）。
               const patch: Partial<EntertainmentAction> = { actionType: v }
+              if (v === 'command' && (form.commandCmd === 'special-play' || form.commandCmd === 'special-box' || form.commandCmd === 'game-prank')) patch.commandCmd = 'countdown-adjust'
               if (v === 'command' && !form.commandCmd) patch.commandCmd = 'countdown-adjust'
               if (v === 'system' && !form.systemCmd) patch.systemCmd = 'shutdown'
               if (v === 'obs' && !form.obsAction) patch.obsAction = 'filter-toggle'
@@ -1593,21 +1624,47 @@ function ActionEditor({
         )}
         {form.actionType === 'command' && (
           <>
-            <Field advanced label="动作命令">
+            {/* 特色整蛊 / 游戏整蛊在上面单独占一格，这里不再重复显示命令下拉 */}
+            {form.commandCmd !== 'special-play' && form.commandCmd !== 'special-box' && form.commandCmd !== 'game-prank' && <Field advanced label="动作命令">
               <Select
                 value={form.commandCmd ?? 'countdown-adjust'}
                 onChange={(e) => {
                   const v = e.target.value as EntertainmentCommandCmd
                   set({ commandCmd: v })
                   if (v === 'mouse') set({ commandParam: 'click-left' })
+                  if (v === 'special-play') set({ commandParam: specialDefaultParam('chain_challenge') })
+                  if (v === 'game-prank') set({ commandParam: '' })
                 }}
               >
                 {COMMAND_OPTIONS.map((c) => (
                   <option key={c.value} value={c.value}>{c.label}</option>
                 ))}
               </Select>
-            </Field>
-            {form.commandCmd === 'mouse' ? (
+            </Field>}
+            {form.commandCmd === 'special-play' || form.commandCmd === 'special-box' ? (
+              <>
+                {/* 指定玩法：每次都是这个；盲盒随机：按盲盒里的概率随机开出一种（盲盒在特色整蛊页编辑） */}
+                <Field label="怎么出">
+                  <Segmented
+                    size="sm"
+                    value={form.commandCmd === 'special-box' ? 'box' : 'play'}
+                    onChange={(m) => set(m === 'box' ? { commandCmd: 'special-box', commandParam: '' } : { commandCmd: 'special-play', commandParam: specialDefaultParam('chain_challenge') })}
+                    options={[{ value: 'play', label: '指定玩法' }, { value: 'box', label: '盲盒随机' }]}
+                  />
+                </Field>
+                {form.commandCmd === 'special-box' ? (
+                  <Field label="盲盒" hint="盲盒里放哪些整蛊、各自概率和数量，在「特色整蛊」页的盲盒里编辑">
+                    <SpecialBoxSelect value={form.commandParam} onChange={(v) => set({ commandParam: v })} />
+                  </Field>
+                ) : (
+                  <SpecialActionFields value={form.commandParam} onChange={(v) => set({ commandParam: v })} idp={idp} />
+                )}
+              </>
+            ) : form.commandCmd === 'game-prank' ? (
+              <Field label="游戏整蛊" hint="整蛊器里的整蛊；游戏在跑、选中的就是这款游戏时才会发出">
+                <GamePrankSelect value={form.commandParam} onChange={(v) => set({ commandParam: v })} />
+              </Field>
+            ) : form.commandCmd === 'mouse' ? (
               <>
                 <Field label="鼠标动作">
                   <Select
@@ -1739,9 +1796,9 @@ function ActionEditor({
                 <Toggle label="绿幕抠图" value={form.chroma === true} onChange={(on) => set({ chroma: on })} />
               </div>
             ) : null}
-            <p className="text-[11px] leading-4 text-[var(--text-4)]">
+            {form.commandCmd !== 'special-play' && form.commandCmd !== 'special-box' && form.commandCmd !== 'game-prank' && <p className="text-[11px] leading-4 text-[var(--text-4)]">
               对应参考软件「动作命令」子执行器：倒计时加减/清零（联动时间插件挂件）、发送/粘贴文本、运行文件、结束进程、鼠标操作。参数支持 -1000,1000 范围内随机。
-            </p>
+            </p>}
           </>
         )}
     </>

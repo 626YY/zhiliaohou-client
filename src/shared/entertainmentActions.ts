@@ -42,6 +42,8 @@ export function withActionDefaults<T extends EntertainmentAction>(action: T): T 
   if (out.actionType === 'command' && !out.commandCmd) out.commandCmd = 'countdown-adjust'
   if (out.actionType === 'system' && !out.systemCmd) out.systemCmd = 'shutdown'
   if (out.actionType === 'obs' && !out.obsAction) out.obsAction = 'filter-toggle'
+  // 特色整蛊：界面上玩法下拉默认显示第一个（锁链特效），没动过就存成它
+  if (out.actionType === 'command' && out.commandCmd === 'special-play' && !String(out.commandParam || '').trim()) out.commandParam = 'chain_challenge|add|1'
   return out
 }
 

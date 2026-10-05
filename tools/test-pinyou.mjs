@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
+import path from 'node:path'
+import { build } from 'esbuild'
 import { convertPinyouTable, triggerFromName, keyToHoldName, parsePinyouScript, extractJsonObjects, findGiftTable, findGiftTables } from '../src/shared/pinyou.ts'
-import { ruleActionLabel, splitVideoParam, joinVideoParam } from '../src/shared/entertainmentLabels.ts'
+// entertainmentLabels 引了 specialGames（无扩展名导入），node 直跑 .ts 认不了，经 esbuild 打包再加载
+const labelsBundle = await build({ entryPoints: [path.resolve(import.meta.dirname, '../src/shared/entertainmentLabels.ts')], bundle: true, platform: 'node', format: 'esm', write: false })
+const { ruleActionLabel, splitVideoParam, joinVideoParam } = await import('data:text/javascript;base64,' + Buffer.from(labelsBundle.outputFiles[0].text).toString('base64'))
 const table = {
   '点赞触发(1000)': { 动作: { 执行功能:'正常按键', 功能代码:'ESCAPE', 次数时间:'2次', 执行次数:'3', 优先等级:'即时', 执行倍数:'假' } },
   '3个小心心': { 动作: { 执行功能:'手游-自动前进', 次数时间:'3秒', 执行次数:'2', 优先等级:'插队', 执行倍数:'真' } },

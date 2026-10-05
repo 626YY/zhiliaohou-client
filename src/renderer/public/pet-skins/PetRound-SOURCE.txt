@@ -1,0 +1,5 @@
+Zhiliao Pet Round is a renamed, static weight-850, upright BMP subset of WenYuan Rounded SC VF v1.100.
+Upstream: https://github.com/takushun-wu/WenYuanFonts/releases/tag/v1.100
+Original file: WenYuanRoundedSCVF.ttf
+Copyright remains with the upstream authors; see PetRound-OFL.md.
+Build: tools/build-pet-round-font.py (fontTools); no outline edits.

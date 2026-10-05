@@ -53,6 +53,8 @@ export function startLiveReporter(): void {
     rows => writeJson('live-report-pending', rows),
     (context, events) => sendLiveEvents(context.email, context.room, context.game, app.getVersion(), events))
   unsubscribe = subscribeConnectorEvent(event => {
+    // 主播自己点的模拟礼物（测试效果用）不算直播数据
+    if (event.simulated) return
     const live = readLiveSession()
     const user = currentAccount()
     if (!live?.running || !user?.email) return

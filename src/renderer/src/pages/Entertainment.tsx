@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import {useSearchParams} from 'react-router-dom'
-import { ChevronLeft, Gift, Image as ImageIcon, Disc3, LayoutGrid, Sparkles, TrendingUp, MonitorPlay, Radio, Shield, Wrench, Gamepad2, Clock, Clapperboard, Sticker, MessageSquare, Crown, Keyboard, SlidersHorizontal, type LucideIcon } from 'lucide-react'
+import {useNavigate,useSearchParams} from 'react-router-dom'
+import { ChevronLeft, Gift, Wand2, Image as ImageIcon, Disc3, LayoutGrid, Sparkles, TrendingUp, MonitorPlay, Radio, Shield, Wrench, Gamepad2, Clock, Clapperboard, Sticker, MessageSquare, Crown, Keyboard, SlidersHorizontal, type LucideIcon } from 'lucide-react'
 import { Btn, Input, Loading, PageHeader } from '../components/ui'
 import {FEATURE_GROUPS,FEATURE_GUIDES} from '../lib/featureGuides'
 import FeatureIntroduction from '../components/FeatureIntroduction'
@@ -28,6 +28,7 @@ const EntertainmentObs = lazy(() => import('./EntertainmentObs'))
 import WidgetDashboard from '../components/WidgetDashboard'
 
 type Tab =
+  | 'special'
   | 'gift'
   | 'entrance'
   | 'keyboard'
@@ -57,6 +58,8 @@ interface Mod {
 }
 
 const MODULES: Mod[] = [
+  // 特色整蛊是独立菜单（/special），这里放个入口：它的触发就是下面「礼物触发」里的规则
+  { id: 'special', label: '特色整蛊', desc: '锁链、抓鸭子、粉丝来电等 17 个画面小游戏', icon: Wand2 },
   { id: 'gift', label: '礼物触发', desc: '收到礼物，播放视频、音效或触发动作', icon: Gift },
   { id: 'transparent', label: '透明图合成', desc: '文字+图片 → 透明 PNG', icon: ImageIcon },
   { id: 'wheel', label: '转盘抽奖', desc: '填写奖项，让观众送礼抽奖', icon: Disc3 },
@@ -81,9 +84,11 @@ const MODULES: Mod[] = [
 
 export default function Entertainment() {
   const [params,setParams]=useSearchParams()
-  const active=MODULES.find(m=>m.id===params.get('tool'))?.id??null
+  const navigate=useNavigate()
+  const active=MODULES.find(m=>m.id===params.get('tool')&&m.id!=='special')?.id??null
   const [query,setQuery]=useState('')
   const setActive=(tab:Tab|null)=>{
+    if(tab==='special'){navigate('/special');return}
     const next=new URLSearchParams(params)
     if(tab)next.set('tool',tab);else next.delete('tool')
     next.delete('setup')

@@ -98,12 +98,44 @@
       "desc": "开：追杀猎人不再自动收走，追上就按游戏规则抓人（会直接进「你被追杀」结算，一局结束）。关：追到「收走距离」就消失。"
     },
     {
-      "key": "RenderDiag",
-      "label": "记录惊吓是否出现在画面里",
+      "key": "PreloadScares",
+      "label": "进游戏后预加载惊吓",
       "type": "boolean",
       "group": "scare",
       "default": true,
-      "desc": "开：每次召唤后在日志里记下这个惊吓有没有真的画到主播屏幕上、离镜头多远，方便排查「送了礼没反应」。"
+      "desc": "开：进游戏后把会用到的惊吓分批提前加载，触发时不再现场读盘，游戏不会顿一下。关：触发时才加载（老行为）。"
+    },
+    {
+      "key": "HangDropDistance",
+      "label": "天降吊尸：离主播多远",
+      "type": "number",
+      "group": "scare",
+      "default": 160,
+      "desc": "吊尸落在主播正前方多远（游戏单位，100≈1 米）。想吊在身边就填 100～200。"
+    },
+    {
+      "key": "HangDropUp",
+      "label": "天降吊尸：从多高落下",
+      "type": "number",
+      "group": "scare",
+      "default": 420,
+      "desc": "吊尸出现的高度（游戏单位）。"
+    },
+    {
+      "key": "HangDropPersist",
+      "label": "天降吊尸：不消失",
+      "type": "boolean",
+      "group": "scare",
+      "default": false,
+      "desc": "开：吊尸落下后一直吊着不收走。关：按「惊吓停留秒数」到点消失。"
+    },
+    {
+      "key": "RenderDiag2",
+      "label": "记录惊吓是否出现在画面里",
+      "type": "boolean",
+      "group": "scare",
+      "default": false,
+      "desc": "排查用。开：每次召唤后在日志里记下这个惊吓有没有真的画到屏幕上、离镜头多远；每次会多几遍全表扫描，平时关。"
     },
     {
       "key": "RealtimeFallback",

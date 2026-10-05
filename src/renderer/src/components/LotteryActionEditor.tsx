@@ -2,6 +2,9 @@ import type { LotteryAction, LotteryExtraAction, LotteryItem } from '@shared/typ
 import { COMMAND_LABELS } from '@shared/entertainmentLabels'
 import { Btn, Field, Input, Select, Toggle } from './ui'
 import { prankGroups, usePrankCatalog } from '../lib/pranks'
+import SpecialActionFields from './SpecialActionFields'
+import SpecialBoxSelect from './special/SpecialBoxSelect'
+import { specialDefaultParam } from '@shared/specialGames'
 
 // 奖项动作的选项。'command' 是万能出口：把礼物规则那 30 多个动作命令整套接过来
 // （加班加减 / 计数 / 锁键盘 / 触发项目（文件夹）/ 随机视频…），
@@ -17,11 +20,12 @@ const ACTION_OPTIONS: { value: LotteryAction; label: string }[] = [
   { value: 'countdown-clear', label: '倒计时清零' },
   { value: 'wheel-spin', label: '触发转盘' },
   { value: 'nine-spin', label: '触发九宫格' },
-  { value: 'command', label: '动作命令（加班/计数/锁键盘/触发项目…）' }
+  { value: 'command', label: '动作命令（特色整蛊/加班/计数/锁键盘/触发项目…）' }
 ]
 
 // 动作命令里对奖项没意义的几个（要么是给规则编辑器用的，要么会自己套自己）
-const COMMAND_SKIP = new Set(['script-sequence', 'wheel-spin', 'nine-spin'])
+// game-prank：奖项自己有「游戏整蛊」选项，不在命令里重复
+const COMMAND_SKIP = new Set(['script-sequence', 'wheel-spin', 'nine-spin', 'game-prank'])
 
 // 参数是「文件夹」的动作命令：给一个能直接粘路径的输入框 + 选文件夹 + 打开文件夹，
 // 免得主播只能凭记忆手打路径（0.3.42 用户反馈：指定项目后没法确认路径对不对）。
@@ -158,7 +162,14 @@ function ActionFields({
         <Select
           aria-label={`${name} 动作命令`}
           value={cmd}
-          onChange={(e) => onChange({ actionParam: cmdParam ? `${e.target.value}|${cmdParam}` : e.target.value })}
+          onChange={(e) => {
+            const next = e.target.value
+            // 特色整蛊的参数自成一套（玩法|操作|数量|选项），和别的命令互换时不沿用旧参数
+            if (next === 'special-play') onChange({ actionParam: `special-play|${specialDefaultParam('chain_challenge')}` })
+            else if (next === 'special-box') onChange({ actionParam: 'special-box|' })
+            else if (cmd === 'special-play' || cmd === 'special-box') onChange({ actionParam: next })
+            else onChange({ actionParam: cmdParam ? `${next}|${cmdParam}` : next })
+          }}
         >
           <option value="">选择命令…</option>
           {Object.entries(COMMAND_LABELS)
@@ -169,7 +180,11 @@ function ActionFields({
               </option>
             ))}
         </Select>
-        {folder ? (
+        {cmd === 'special-play' ? (
+          <SpecialActionFields value={cmdParam} onChange={(v) => onChange({ actionParam: `special-play|${v}` })} idp={`lottery-${name}`} />
+        ) : cmd === 'special-box' ? (
+          <SpecialBoxSelect value={cmdParam} onChange={(v) => onChange({ actionParam: `special-box|${v}` })} label={`${name} 特色整蛊盲盒`} />
+        ) : folder ? (
           <>
             <div className="flex gap-2">
               <Input

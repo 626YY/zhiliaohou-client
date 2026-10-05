@@ -833,6 +833,13 @@ export default function EntertainmentTime() {
         <AdvancedSection title="外观微调"><div className="mt-4 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] p-3">
           <div className="mb-3 text-sm font-medium text-[var(--text)]">挂件外观</div>
           {selectedPet&&<label className="mb-4 flex items-center gap-2 text-sm text-[var(--text-2)]"><Toggle value={config.petMotion!==false} onChange={petMotion=>update({petMotion})}/>萌宠小动作</label>}
+          {selectedPet&&<div className="mb-4 max-w-sm">
+            <div className="mb-1 flex items-center justify-between text-xs text-[var(--text-3)]">
+              <span>边上吊饰大小</span>
+              <span className="tnum text-[var(--text-2)]">{Number(config.charmScale ?? 0.7).toFixed(2)}</span>
+            </div>
+            <input type="range" min={0.2} max={2} step={0.02} value={Number(config.charmScale ?? 0.7)} onChange={(event) => update({ charmScale: Number(event.target.value) })} className="w-full accent-[var(--accent)]" />
+          </div>}
           <div className="grid gap-4 md:grid-cols-2">
             {([
               ['giftNameColor', '礼物名颜色'],

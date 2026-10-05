@@ -35,6 +35,8 @@ import { startLiveSession, stopLiveSession } from './live-session'
 let child: ChildProcess | null = null
 let roomId = ''
 let sim = false
+// 当前连接平台：douyin(默认) / bilibili。抖音走扫码登录链路，B站公开直播间免登录。
+let activePlatform: 'douyin' | 'bilibili' = 'douyin'
 let connecting = false
 let startGeneration = 0
 // 崩溃自恢复：非手动停止时意外退出会自动拉起，最多 3 次、退避 3/6/9 秒
@@ -65,9 +67,10 @@ export function pushConnectorLog(level: ConnectorLogLevel, text: string): void {
 
 // allowEvent=false：只当日志，不解析成事件。连接器每行都带 [connector]/[darkmage-connector] 前缀，
 // 没前缀的行只可能是被弹幕/昵称里的换行「撑」出来的续行 —— 观众发一条「xx\n礼物: 嘉年华 x99 by 我」不能变成真礼物触发规则
-function push(level: ConnectorLogLevel, text: string, allowEvent = true): void {
+function push(level: ConnectorLogLevel, text: string, allowEvent = true, simulated = false): void {
   const ts = Date.now()
-  const parsed = allowEvent ? parseConnectorEvent(text, ts) : null
+  const parsedRaw = allowEvent ? parseConnectorEvent(text, ts) : null
+  const parsed = parsedRaw && simulated ? { ...parsedRaw, simulated: true } : parsedRaw
   if (parsed?.type === 'status' && /已结束|已下播|下播了/.test(String(parsed.text || ''))) liveEnded = true
   if (parsed) rememberGiftImage(parsed)
   const event = parsed?.type === 'gift'
@@ -91,7 +94,7 @@ function push(level: ConnectorLogLevel, text: string, allowEvent = true): void {
 export function simulateConnectorLine(text: string): { ok: boolean; error?: string } {
   const line = String(text || '').trim()
   if (!line) return { ok: false, error: '内容为空' }
-  push(classify(line), `[模拟] ${line}`)
+  push(classify(line), `[模拟] ${line}`, true, true)
   return { ok: true }
 }
 
@@ -142,10 +145,10 @@ export function findPython(modDir: string): string {
 
 // 连接器的本地依赖模块：DON'T SCREAM 0.2.6～0.2.10 的 mod 包只带了 connector.py，没带弹幕组件 douyin_room.py 和 wss 签名脚本 sign.js，
 // 真直播间一连就 ModuleNotFoundError（2026-09-06 用户实测「连直播间失败」）。客户端自带一份权威副本，启动前缺什么补什么。
-const CONNECTOR_MODULES = ['douyin_room.py', 'sign.js', 'connector.py']
+const CONNECTOR_MODULES = ['douyin_room.py', 'bilibili_room.py', 'sign.js', 'connector.py']
 // 带版本标记（文件里 DOUYIN_ROOM_VERSION = "YYYY-MM-DD"）的组件：游戏目录里的副本比客户端自带的旧就备份后换掉。
 // 2026-09-06 抖音直播间页改版当晚，图书管理员目录里 8 月的旧 douyin_room.py「连上」的是个空房，礼物点赞一个都收不到。
-const VERSIONED_MODULES = new Set(['douyin_room.py', 'connector.py'])
+const VERSIONED_MODULES = new Set(['douyin_room.py', 'bilibili_room.py', 'connector.py'])
 // 这些文件游戏目录里没有也不补（connector.py 缺失说明这份 mod 用的是别的连接器，比如图书管理员的薄连接器）
 const NO_FILL_MODULES = new Set(['connector.py'])
 
@@ -235,6 +238,7 @@ async function spawnOnce(): Promise<boolean> {
   const localVersion = installedVersionForGame(currentGameId())
   if (localVersion) args.push('--version', localVersion)
   if (roomId) args.push('--room', roomId)
+  if (activePlatform !== 'douyin') args.push('--platform', activePlatform)
   if (sim) args.push('--sim')
   try {
     // ZL_PARENT_PID：连接器据此盯着客户端进程，客户端被杀/更新安装时自退，不再留孤儿占互斥量
@@ -344,7 +348,8 @@ function scheduleRestart(): void {
 
 export async function startConnector(
   room: string,
-  wantSim = false
+  wantSim = false,
+  platform: 'douyin' | 'bilibili' = 'douyin'
 ): Promise<{ ok: boolean; error?: string }> {
   if (connecting) return { ok: false, error: '正在登录并连接，请完成扫码或关闭登录窗口' }
   if (child && child.exitCode === null)
@@ -363,7 +368,10 @@ export async function startConnector(
   connecting = true
   let targetRoom = room.trim()
   try {
-    if (!wantSim && cardModeEnabled()) {
+    if (!wantSim && platform === 'bilibili') {
+      // B站公开直播间免登录：不扫码、不查 cookie、不走卡密绑定，直接用房号连弹幕广播服务。
+      push('info', '连接 B 站直播间（公开直播间免登录）')
+    } else if (!wantSim && cardModeEnabled()) {
       // 卡密模式：房间必须已在平台绑定到当前账号；令牌按账号 × 房间取，没有就扫码；cookie 只在这里落到 mod 目录
       push('info', '正在向平台确认直播间绑定并检查抖音登录状态')
       const { prepareCardRoomConnection } = await import('./card-rooms')
@@ -410,6 +418,7 @@ export async function startConnector(
     }
     roomId = targetRoom
     sim = wantSim
+    activePlatform = platform === 'bilibili' ? 'bilibili' : 'douyin'
     manualStop = false
     restartAttempts = 0
     if (!await spawnOnce()) return { ok: false, error: '启动连接器失败，请检查卡密与连接器日志' }

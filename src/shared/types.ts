@@ -615,6 +615,8 @@ export interface ConnectorEvent {
   type: ConnectorEventType
   ts: number
   raw: string
+  /** 主播在客户端里点的「模拟」事件（互动工具 / 整蛊遥控的模拟观众）：照常触发规则和挂件，但不上报直播数据 */
+  simulated?: boolean
   giftName?: string
   count?: number
   diamondCount?: number
@@ -794,6 +796,14 @@ export type EntertainmentCommandCmd =
   //   用户 2026-09-07：「礼物触发应该包含所有能触发的东西……比如说我们设置的时间盲盒」——
   //   在这之前时间盲盒只能靠它自己那份礼物表触发，礼物规则/转盘/九宫格都碰不到它。
   | 'blindbox-open'
+  // ★special-play=特色整蛊（锁链/抓鸭子/粉丝来电…17 个绿幕小游戏）：param = 玩法|操作|数量|选项，
+  //   例 catch_duck|add|5|size=big。拆合与中文标签在 shared/specialGames.ts。窗口没开会自动打开（玩法设置可关）。
+  | 'special-play'
+  // ★special-box=特色整蛊盲盒：param = 盲盒id|显示名，按权重随机开出一种特色整蛊（数量也可以随机）
+  | 'special-box'
+  // ★game-prank=游戏整蛊（整蛊器里的整蛊，轮椅翻车/DS 惊吓…）：param = 游戏id|整蛊id|显示名，
+  //   例 4wheel-challenge|flip|翻车。只在当前选中的就是这款游戏时执行（经 bridge 推给运行中的整蛊器）。
+  | 'game-prank'
 
 // 手游动作（参考软件：自动抬头/低头/原地转圈/蹦迪/前进/后退/左右移动）
 export type MobileActionType =
@@ -1096,6 +1106,7 @@ export interface TimeWidgetConfig {
   cellBorder?: string // 礼物格边框色
   cellAlpha?: number // 礼物格底色透明度
   petMotion?: boolean // 萌宠皮肤配件的轻微摆动，默认开启
+  charmScale?: number // 萌宠皮肤边上吊饰的大小，默认 0.70 对齐原稿尺寸。
   giftNameSize?: number
   giftTextSize?: number
   giftIconSize?: number
@@ -2081,6 +2092,19 @@ export const Ipc = {
   EffectsClose: 'ent:effects-close',
   EffectsFire: 'ent:effects-fire',
   EffectsState: 'ent:effects-state',
+  SpecialOpen: 'special:open',
+  SpecialClose: 'special:close',
+  SpecialConfigure: 'special:configure',
+  SpecialState: 'special:state',
+  SpecialTest: 'special:test',
+  SpecialStats: 'special:stats',
+  SpecialClearAll: 'special:clear-all',
+  SpecialBoxes: 'special:boxes',
+  SpecialBoxSave: 'special:box-save',
+  SpecialBoxRemove: 'special:box-remove',
+  SpecialBoxTest: 'special:box-test',
+  SpecialCloseAll: 'special:close-all',
+  SpecialChanged: 'special:changed',
   EntranceOpen: 'ent:entrance-open',
   EntranceClose: 'ent:entrance-close',
   EntranceConfigure: 'ent:entrance-configure',

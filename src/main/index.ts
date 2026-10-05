@@ -28,6 +28,8 @@ import { initExitDiag, markQuitReason, noteSessionEnd } from './exit-diag'
 import { licenseEnforced, logLicensePolicy, refreshLicensePolicyFromRemote } from './license-policy'
 import { registerMemoryGuardHooks, startMemoryGuard } from './memory-guard'
 import { greenQueueLength, resumeGreenQueue } from './green-screen'
+import { SPECIAL_SCHEME_PRIVILEGES, registerSpecialProtocol } from './special-assets'
+import { migrateLegacySpecialTriggers, specialPreviewHtml } from './special-gameplay'
 import { initMediaOptimize, prewarmMedia } from './media-optimize'
 import { listRules, splitVideoTarget } from './entertainment'
 
@@ -38,7 +40,9 @@ const APP_USER_MODEL_ID = 'com.zhiliao.client'
 // （表现为透明图工具里所有礼物图都是空白方块）。走自建协议读本地文件，开发和打包后行为一致。
 const MEDIA_SCHEME = 'zlmedia'
 protocol.registerSchemesAsPrivileged([
-  { scheme: MEDIA_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, bypassCSP: true, stream: true } }
+  { scheme: MEDIA_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, bypassCSP: true, stream: true } },
+  // 特色整蛊详情页的预览舞台（页面 + 素材 + 主播自选文件同源），见 special-assets.ts
+  SPECIAL_SCHEME_PRIVILEGES
 ])
 
 function registerMediaProtocol(): void {
@@ -201,8 +205,11 @@ app.whenReady().then(async () => {
   })
   safeInit('server-tls', installServerCertPin)
   safeInit('media-protocol', registerMediaProtocol)
+  safeInit('special-protocol', () => registerSpecialProtocol(specialPreviewHtml))
   safeInit('db', initDb)
   safeInit('ipc', registerIpc)
+  // 0.3.63 测试版玩法自带的礼物触发搬进礼物规则（只搬一次）
+  safeInit('special-migrate', () => { void migrateLegacySpecialTriggers().catch(error => logLine('startup', `特色整蛊触发迁移失败：${String(error)}`)) })
   // 卡密平台模式：有输出在跑时每 2 秒向平台复核授权（没有 license-provider.json 时什么都不做）
   safeInit('card-license', startCardWatch)
   safeInit('connector-runtime', registerConnectorRuntime)

@@ -3,7 +3,7 @@ import EmojiText from '../components/EmojiText'
 import { useNavigate } from 'react-router-dom'
 import { Play, Square, Radio, FlaskConical, Download, Link2 } from 'lucide-react'
 import type { ConnectorLogLine } from '@shared/types'
-import { Btn, PageHeader, Pill, Select } from '../components/ui'
+import { Btn, PageHeader, Pill, Select, Input, Segmented } from '../components/ui'
 import { Modal } from '../components/Modal'
 import RoomManager from '../components/RoomManager'
 import { useCardAccess } from '../lib/useCardAccess'
@@ -41,6 +41,9 @@ export default function Connector() {
   const [syncingGifts, setSyncingGifts] = useState(false)
   const [sim, setSim] = useState(false)
   const [roomId, setRoomId] = useState('')
+  // 直播平台：抖音(默认，走扫码登录链路) / B站(公开直播间免登录)。更多平台陆续接入。
+  const [platform, setPlatform] = useState<'douyin' | 'bilibili'>('douyin')
+  const [biliRoom, setBiliRoom] = useState('')
   const [scriptReady, setScriptReady] = useState(true)
   const [logs, setLogs] = useState<ConnectorLogLine[]>([])
   const boxRef = useRef<HTMLDivElement>(null)
@@ -91,8 +94,38 @@ export default function Connector() {
     return off
   }, [])
 
+  // B站房号：允许直接填号，或粘 live.bilibili.com/<号> 链接
+  const parseBiliRoom = (s: string): string => {
+    const t = s.trim()
+    const m = t.match(/bilibili\.com\/(?:h5\/)?(\d+)/)
+    if (m) return m[1]
+    const digits = t.replace(/[^\d]/g, '')
+    return digits || t
+  }
+
   const start = async () => {
     if (connecting || startRef.current) return
+    // B站：公开直播间免登录，直接用房号连（不校验绑定、不走卡密）
+    if (platform === 'bilibili') {
+      const room = parseBiliRoom(biliRoom)
+      if (!sim && !room) {
+        toast('请先填写 B 站直播间号', 'error')
+        return
+      }
+      startRef.current = true
+      setConnecting(true)
+      try {
+        const res = await window.api.connectorStart(room, sim, 'bilibili')
+        toast(res.ok ? (sim ? '连接器已启动（模拟模式）' : 'B 站连接器已启动') : res.error ?? '启动失败', res.ok ? 'success' : 'error')
+      } catch {
+        toast('连接失败，请重试', 'error')
+      } finally {
+        startRef.current = false
+        setConnecting(false)
+        window.api.connectorState().then((s) => { setRunning(s.running); setSim(!!s.sim) })
+      }
+      return
+    }
     const room = roomId.trim()
     if (!sim && !room) {
       toast('请先选择直播间号', 'error')
@@ -106,7 +139,7 @@ export default function Connector() {
     startRef.current = true
     setConnecting(true)
     try {
-      const res = await window.api.connectorStart(room, sim)
+      const res = await window.api.connectorStart(room, sim, 'douyin')
       toast(res.ok ? (sim ? '连接器已启动（模拟模式）' : '登录状态已保存，连接器已启动') : res.error ?? '启动失败', res.ok ? 'success' : 'error')
     } catch {
       toast('连接失败，请重试', 'error')
@@ -171,8 +204,32 @@ export default function Connector() {
         </div>
       )}
 
+      {/* 平台选择：抖音走扫码登录链路；B站公开直播间免登录；更多平台陆续接入 */}
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <Segmented
+          value={platform}
+          onChange={(v) => setPlatform(v)}
+          options={[
+            { value: 'douyin', label: '抖音' },
+            { value: 'bilibili', label: '哔哩哔哩' }
+          ]}
+        />
+        <span className="text-xs text-[var(--text-4)]">
+          快手 · 视频号 · 小红书 · TikTok 等平台陆续接入中
+        </span>
+      </div>
+
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {rooms.length > 0 ? (
+        {platform === 'bilibili' ? (
+          <Input
+            value={biliRoom}
+            onChange={(e) => setBiliRoom(e.target.value)}
+            placeholder="B 站直播间号，或粘 live.bilibili.com/ 链接"
+            style={{ width: '22rem' }}
+            aria-label="B 站直播间号"
+            disabled={connecting || running}
+          />
+        ) : rooms.length > 0 ? (
           <Select
             value={rooms.includes(roomId) ? roomId : ''}
             onChange={(e) => setRoomId(e.target.value)}
@@ -202,7 +259,7 @@ export default function Connector() {
             </Btn>
           </span>
         )}
-        {cardMode && rooms.length > 0 ? (
+        {platform === 'douyin' && cardMode && rooms.length > 0 ? (
           <Btn variant="secondary" size="sm" onClick={() => setManage(true)} disabled={connecting || running} data-testid="connector-manage-btn">
             <Link2 size={13} /> 绑定 / 管理直播间
           </Btn>
@@ -220,14 +277,16 @@ export default function Connector() {
         >
           <FlaskConical size={14} /> 模拟模式
         </button>
-        <Btn
-          variant="secondary"
-          disabled={syncingGifts}
-          onClick={syncGifts}
-          title="从抖音拉当前礼物表，把本地还没有的礼物图下到连接器目录；连接直播间时也会自动做"
-        >
-          <Download size={14} /> {syncingGifts ? '同步中…' : '同步礼物图'}
-        </Btn>
+        {platform === 'douyin' && (
+          <Btn
+            variant="secondary"
+            disabled={syncingGifts}
+            onClick={syncGifts}
+            title="从抖音拉当前礼物表，把本地还没有的礼物图下到连接器目录；连接直播间时也会自动做"
+          >
+            <Download size={14} /> {syncingGifts ? '同步中…' : '同步礼物图'}
+          </Btn>
+        )}
         {connecting ? (
           <Btn variant="secondary" onClick={stop}>取消连接</Btn>
         ) : running ? (
@@ -242,12 +301,18 @@ export default function Connector() {
       </div>
 
       <div className="mb-3 flex items-center gap-2 text-xs text-[var(--text-4)]">
-        <span>
-          {cardMode
-            ? '只能连接已绑定的直播间；要加新直播间或更换，点「绑定 / 管理直播间」。'
-            : '直播间号只能从本账号已授权的号中选择，需要新号请到设置页绑定。'}
-          {connecting ? ' 正在登录并连接，请在打开的抖音网页完成扫码。' : cardMode ? ' 连接用的是绑定时扫码保存的登录状态；过期了会再打开抖音网页让你扫一次。' : ' 首次连接会打开抖音网页，扫码后自动保存并继续连接。'}
-        </span>
+        {platform === 'bilibili' ? (
+          <span>
+            B 站公开直播间免登录即可连接：填直播间号就能收弹幕、礼物、进场、点赞、上舰。礼物图会在连接后自动缓存。
+          </span>
+        ) : (
+          <span>
+            {cardMode
+              ? '只能连接已绑定的直播间；要加新直播间或更换，点「绑定 / 管理直播间」。'
+              : '直播间号只能从本账号已授权的号中选择，需要新号请到设置页绑定。'}
+            {connecting ? ' 正在登录并连接，请在打开的抖音网页完成扫码。' : cardMode ? ' 连接用的是绑定时扫码保存的登录状态；过期了会再打开抖音网页让你扫一次。' : ' 首次连接会打开抖音网页，扫码后自动保存并继续连接。'}
+          </span>
+        )}
       </div>
 
       {cardMode ? (

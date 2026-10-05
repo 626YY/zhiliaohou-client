@@ -29,6 +29,10 @@ extraResources:
   to: build/icon.ico
 - from: assets/emoji72
   to: emoji72
+- from: assets/special-games
+  to: special-games
+  filter:
+  - '**/*'
 - from: node_modules/sql.js/dist/sql-wasm.wasm
   to: sql.js/sql-wasm.wasm
 - from: connector-assets
