@@ -1251,6 +1251,13 @@ window.registerGame((function(){
       var op=ZL.op(cmd,OPS);
       var name=ZL.who(cmd);
       if(op==='clear'){
+        // 全部清屏：不演断裂、不出声、不打横幅，锁链和粒子当场收掉
+        if(cmd&&cmd.wipe){
+          phase='idle'; phaseT=0; remaining=0; shakeT=0; impact=0; fx=[]; pop=0; lockKick=0;
+          spaceHeld=false; spaceHoldMs=0; spaceRepeatMs=0;
+          if(modern()) scheduleRelease();
+          return;
+        }
         if(locked()){ beginUnlock(); addShake(); impact=1; api.banner(name?name+' 帮主播直接解开了锁链':'锁链直接解开'); }
         return;
       }

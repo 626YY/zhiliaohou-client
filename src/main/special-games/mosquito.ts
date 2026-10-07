@@ -27,6 +27,8 @@ window.registerGame((function(){
   function scaled(){ return api.cfg.volumeScaledKill!==false; }
   function sensitivity(){ return Math.max(1,Math.min(100,num(api.cfg.clapSensitivity,70))); }
   function cooldown(){ return Math.max(50,Math.min(5000,num(api.cfg.cooldownMs,260))); }
+  // 识别方式：clap = 识别拍手（掌声识别）；volume = 只看音量（任何声音够响就算）
+  function triggerMode(){ return String(api.cfg.triggerMode||'clap')==='volume'?'volume':'clap'; }
   function maxVisible(){ return Math.max(1,Math.trunc(num(api.cfg.maxVisible,1000))); }
   function soundLoop(){ return api.cfg.soundLoop!==false; }
   function level(key,d){ return Math.max(1,Math.min(500,num(api.cfg[key],d))); }
@@ -74,12 +76,12 @@ window.registerGame((function(){
     pending-=k;
   }
 
-  function micKeyNow(){ return [String(api.cfg.micDevice||''),threshold(),sensitivity()].join('|'); }
+  function micKeyNow(){ return [String(api.cfg.micDevice||''),threshold(),sensitivity(),cooldown(),triggerMode()].join('|'); }
   function startMicIfNeeded(){
     if(clap||bugs.length===0) return;
     clapKey=micKeyNow();
     clap=ZL.startClap({
-      sensitivity:sensitivity(), threshold:threshold(), deviceLabel:String(api.cfg.micDevice||''),
+      sensitivity:sensitivity(), threshold:threshold(), cooldownMs:cooldown(), triggerMode:triggerMode(), deviceLabel:String(api.cfg.micDevice||''),
       onClap:function(lv){
         var now=nowMs;
         if(now-lastClapAt<cooldown()) return;

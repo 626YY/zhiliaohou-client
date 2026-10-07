@@ -68,6 +68,8 @@ window.registerGame((function(){
   function threshold(){ return Math.max(1,Math.min(500,num(api.cfg.threshold,180))); }
   function sensitivity(){ return Math.max(1,Math.min(100,num(api.cfg.clapSensitivity,70))); }
   function cooldown(){ return Math.max(50,Math.min(5000,num(api.cfg.cooldownMs,260))); }
+  // 识别方式：clap = 识别拍手（掌声识别）；volume = 只看音量（任何声音够响就算）
+  function triggerMode(){ return String(api.cfg.triggerMode||'clap')==='volume'?'volume':'clap'; }
   function maxVisible(){ return Math.max(1,Math.trunc(num(api.cfg.maxVisible,300))); }
   function textSize(){ return Math.max(12,Math.min(96,num(api.cfg.textSize,32))); }
   function controlMode(){ return String(api.cfg.controlMode||'mouse'); }
@@ -186,13 +188,13 @@ window.registerGame((function(){
   }
 
   function clapMode(){ var m=controlMode(); return m==='clap'||m==='both'; }
-  function micKeyNow(){ return [String(api.cfg.micDevice||''),threshold(),sensitivity()].join('|'); }
+  function micKeyNow(){ return [String(api.cfg.micDevice||''),threshold(),sensitivity(),cooldown(),triggerMode()].join('|'); }
   function startClapIfNeeded(){
     if(!clapMode()){ stopClap(); return; }
     if(clap||bugs.length===0) return;
     clapKey=micKeyNow();
     clap=ZL.startClap({
-      sensitivity:sensitivity(), threshold:threshold(), deviceLabel:String(api.cfg.micDevice||''),
+      sensitivity:sensitivity(), threshold:threshold(), cooldownMs:cooldown(), triggerMode:triggerMode(), deviceLabel:String(api.cfg.micDevice||''),
       onClap:function(){
         var now=nowMs;
         if(now-lastClapAt<cooldown()) return;
@@ -424,9 +426,9 @@ window.registerGame((function(){
     },
     // 只读调试钩子（离线验收用，生产不调用）
     debug:function(){
-      var hits=[], sizes=[], hps=[];
-      for(var i=0;i<bugs.length;i++) if(!bugs[i].deadAt){ hits.push([bugs[i].x*api.W,bugs[i].y*api.H]); sizes.push(bugs[i].sizePct); hps.push(bugs[i].maxHp); }
-      return { alive:aliveCount(), pending:pending.total, count:bugs.length, hits:hits, sizes:sizes, hps:hps, custom:useCustom(), micState:micState, micKind:micKind, clap:!!clap, media:buzzAu?[buzzAu]:[] };
+      var hits=[], sizes=[], hps=[], hpNow=[];
+      for(var i=0;i<bugs.length;i++) if(!bugs[i].deadAt){ hits.push([bugs[i].x*api.W,bugs[i].y*api.H]); sizes.push(bugs[i].sizePct); hps.push(bugs[i].maxHp); hpNow.push(bugs[i].hp); }
+      return { alive:aliveCount(), pending:pending.total, count:bugs.length, hits:hits, sizes:sizes, hps:hps, hpNow:hpNow, custom:useCustom(), micState:micState, micKind:micKind, clap:!!clap, media:buzzAu?[buzzAu]:[] };
     }
   };
 })());

@@ -132,7 +132,8 @@ window.registerGame((function(){
       else if(type==='move'){
         if(lastPt){ sliceAlong(lastPt.x,lastPt.y,x,y); }
         if(pressing) lastPt={x:x,y:y};
-        trail.push({x:x,y:y,t:nowMs});
+        // 刀光只在有水果可切时画：清屏 / 切完以后鼠标在窗口上晃，画面上不该再冒出白线
+        if(fruits.length>0||queue.length>0) trail.push({x:x,y:y,t:nowMs});
       }
     },
     tick:function(dt){

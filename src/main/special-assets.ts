@@ -7,6 +7,7 @@ import { app, net, protocol } from 'electron'
 import fs from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
+import { buildMicTestPage } from './special-games/mic-test-page'
 
 let cachedDir: string | undefined
 
@@ -52,6 +53,10 @@ export function registerSpecialProtocol(previewHtml: (id: string) => string | nu
     try {
       const url = new URL(request.url)
       const route = decodeURIComponent(url.pathname).replace(/^\/+/, '')
+      // zlspecial://app/mictest.html：详情页的麦克风测试（和直播窗口同一份识别代码）
+      if (route === 'mictest.html') {
+        return new Response(buildMicTestPage(), { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
+      }
       // zlspecial://app/preview/<玩法>.html
       const page = /^preview\/([a-z_]+)\.html$/.exec(route)
       if (page) {

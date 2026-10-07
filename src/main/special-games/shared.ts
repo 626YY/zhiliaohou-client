@@ -83,6 +83,8 @@ function playUrl(url,vol){
     if(!arr){ arr=[]; sndChannels[url]=arr; sndIdx[url]=0; }
     if(arr.length<12){
       var a=new Audio(url); arr.push(a);
+      // 整个窗口登记一份：「全部清屏」时一起掐掉（window.__wipe）
+      (window.__zlSounds=window.__zlSounds||[]).push(a);
     }
     var i=sndIdx[url]%arr.length; sndIdx[url]=i+1;
     var au=arr[i];
@@ -162,107 +164,249 @@ ZL.queue=function(){
 })();
 `;
 
-// —— 麦克风掌声检测（声控拍蚊子 / 符咒封印 / 大蚊子苍蝇的声控模式共用）——
-// 掌声识别：音量沿 RMS 包络检出「声音事件」，事件内提取 9 维特征，套预训练好的
-// 标准化逻辑回归模型（clap_feature_model.json 的 mean/scale/weights/bias），概率 >= 阈值判为掌声。
-// getUserMedia 失败 / 无麦克风时 onState('no-mic')，玩法退化为仅手动。
+// —— 麦克风玩法共用（声控拍蚊子 / 符咒封印 / 大蚊子苍蝇的声控模式 / 详情页的麦克风测试）——
+// 识别逻辑和原版一致，设置项的含义、刻度、默认值也一致：
+//   读数：每块（拍手 32ms / 喊叫 60ms）多声道取最响一路、线性插值到 16 kHz，
+//         算 level / rms / peak / crest / high_ratio / flatness / zero_crossing。
+//         level = (块有效值/32768)^0.28 × 300，即设置里「音量阈值」的 0~500 刻度（满幅约 300）。
+//   拍手：起音门槛（音量 + 比底噪 / 比上一块的倍数）→ 候选声音结束时按灵敏度的规则门槛
+//         + 训练好的掌声模型（clap_feature_model.json，按特征名取值）判定。
+//         识别方式「只看音量」：过阈值且冷却到了就算，回落到阈值 55% 再武装。
+//   喊叫：每 45ms 取这段时间里块的最大音量（没有新块是 0），过阈值且冷却到了算喊一声，回落到阈值 55% 再武装。
+// 以前的版本特征口径和掌声模型训练时的定义对不上（峰值×255 当音量、毫秒数当倍数…），所以什么都认不出来（2026-10-07）。
+// getUserMedia 失败 / 没麦克风时 onState('no-mic')，玩法退化为只能点；预览里不开麦克风 onState('preview')。
 export const MIC_CLAP_JS = `
 window.__ZL=window.__ZL||{};
 (function(){
 var ZL=window.__ZL;
+var ANALYSIS_RATE=16000;
+// 掌声模型：标准化逻辑回归（特征名、均值、尺度、权重与 assets/special-games/mosquito/clap_feature_model.json 一致）
 var MODEL={
+  features:['peak_level','crest','high_ratio','flatness','zero_crossing','attack','rise','duration_ms','fall_ratio'],
   mean:[143.49789516775488,5.536516841064406,0.29301040596879524,0.1402608128312133,0.18329266426678736,18.10632234855388,38.63211621516527,145.18518518518417,0.3002425568130497],
   scale:[37.54959288184503,1.9956685855037841,0.25251615672179256,0.11598695608659886,0.08438898417536708,26.070938834040774,36.433821462215704,94.6950568917177,0.2053283822036634],
   weights:[0.6118253682010399,0.5005396645906981,0.012943314258368185,-1.1188335402111822,2.5367725384605264,0.055762079005384525,0.531450681903995,-1.001805072996523,0.21673724346723677],
-  bias:-0.8126118543251913
+  bias:-0.8126118543251913,
+  threshold:0.5
 };
-// opts: { sensitivity 0~100（越大越容易判掌声）, threshold, deviceLabel（麦克风名，空=默认）, onClap(peakLevel0_255), onState(state) }
-// onState：'listening' / 'no-mic'（没麦克风或被拒）/ 'preview'（详情页预览不开麦克风）
-ZL.startClap=function(opts){
-  var state={ running:false, stopped:false, stream:null, ac:null, timer:0 };
+function modelProbability(v){
+  var s=MODEL.bias;
+  for(var i=0;i<MODEL.features.length;i++){
+    var x=Number(v[MODEL.features[i]]); if(!isFinite(x)) x=0;
+    s+=(x-MODEL.mean[i])/Math.max(1e-9,MODEL.scale[i])*MODEL.weights[i];
+  }
+  s=Math.max(-40,Math.min(40,s));
+  return 1/(1+Math.exp(-s));
+}
+
+// —— 读数 ——
+function fftPow2(re,im){
+  var n=re.length,i,j,k,len,half,ang,wr,wi,cr,ci,ur,ui,vr,vi,t;
+  for(i=1,j=0;i<n;i++){ var bit=n>>1; for(;j&bit;bit>>=1) j^=bit; j^=bit; if(i<j){ t=re[i]; re[i]=re[j]; re[j]=t; t=im[i]; im[i]=im[j]; im[j]=t; } }
+  for(len=2;len<=n;len<<=1){
+    ang=-2*Math.PI/len; wr=Math.cos(ang); wi=Math.sin(ang); half=len>>1;
+    for(i=0;i<n;i+=len){
+      cr=1; ci=0;
+      for(k=0;k<half;k++){
+        ur=re[i+k]; ui=im[i+k];
+        vr=re[i+k+half]*cr-im[i+k+half]*ci; vi=re[i+k+half]*ci+im[i+k+half]*cr;
+        re[i+k]=ur+vr; im[i+k]=ui+vi; re[i+k+half]=ur-vr; im[i+k+half]=ui-vi;
+        t=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=t;
+      }
+    }
+  }
+}
+// 实数 FFT 的功率谱 |X_k|²，k=0..N/2（N 不是 2 的幂就直接算 DFT，常见采样率下 N 都是 512）
+function powerSpectrum(x){
+  var N=x.length, half=Math.floor(N/2)+1, out=new Float64Array(half), i, k;
+  if(N>1&&(N&(N-1))===0){
+    var re=new Float64Array(x), im=new Float64Array(N);
+    fftPow2(re,im);
+    for(k=0;k<half;k++) out[k]=re[k]*re[k]+im[k]*im[k];
+  } else {
+    for(k=0;k<half;k++){ var sr=0,si=0; for(i=0;i<N;i++){ var a=-2*Math.PI*k*i/N; sr+=x[i]*Math.cos(a); si+=x[i]*Math.sin(a); } out[k]=sr*sr+si*si; }
+  }
+  return out;
+}
+// 一块的指标（w：16 kHz、int16 单位；会被就地去直流）
+function chunkMetrics(w,spectral){
+  var n=w.length, i, mean=0, s2=0, peak=0;
+  for(i=0;i<n;i++) mean+=w[i];
+  mean/=n;
+  for(i=0;i<n;i++){ w[i]-=mean; var a=w[i]<0?-w[i]:w[i]; if(a>peak) peak=a; s2+=w[i]*w[i]; }
+  var rms=Math.sqrt(s2/n);
+  var norm=Math.max(0,Math.min(1,rms/32768));
+  var level=norm>0?Math.pow(norm,0.28)*300:0;
+  var m={ level:Math.max(0,Math.min(500,level)), rms:rms, peak:peak, crest:peak/Math.max(1,rms), high_ratio:0, flatness:0, zero_crossing:0, duration_ms:n*1000/ANALYSIS_RATE };
+  if(!spectral) return m;
+  var zc=0;
+  for(i=1;i<n;i++) if((w[i]<0)!==(w[i-1]<0)) zc++;
+  m.zero_crossing=n>1?zc/(n-1):0;
+  var x=new Float64Array(n);
+  for(i=0;i<n;i++) x[i]=w[i]*(n>1?(0.5-0.5*Math.cos(2*Math.PI*i/(n-1))):1);
+  var pw=powerSpectrum(x), half=pw.length, hiFrom=1800*n/ANALYSIS_RATE;
+  var total=0, high=0, logSum=0, lin=0, cnt=half-1;
+  for(i=1;i<half;i++){ total+=pw[i]; var p=pw[i]+1e-12; logSum+=Math.log(p); lin+=p; }
+  for(i=0;i<half;i++) if(i>=hiFrom) high+=pw[i];
+  m.high_ratio=high/Math.max(1e-12,total);
+  m.flatness=(cnt>0&&total>0)?Math.exp(logSum/cnt)/(lin/cnt):0;
+  return m;
+}
+// 多声道：各路去直流后取有效值最大的一路，换成 int16 单位
+function loudest(chs,len){
+  var best=null, bestRms=-1;
+  for(var c=0;c<chs.length;c++){
+    var ch=chs[c], mean=0, s2=0, i;
+    for(i=0;i<len;i++) mean+=ch[i];
+    mean/=len;
+    for(i=0;i<len;i++){ var v=ch[i]-mean; s2+=v*v; }
+    if(s2>bestRms){ bestRms=s2; best=ch; }
+  }
+  var out=new Float64Array(len);
+  for(var j=0;j<len;j++) out[j]=best[j]*32768;
+  return out;
+}
+// 线性插值换采样率（和 numpy.interp 一样，端点外取最后一个值）
+function resample(w,target){
+  var L=w.length; if(L===target) return w;
+  var out=new Float64Array(target);
+  for(var j=0;j<target;j++){ var x=j*L/target, i=Math.floor(x), f=x-i; out[j]=i>=L-1?w[L-1]:w[i]+(w[i+1]-w[i])*f; }
+  return out;
+}
+
+// 连续读麦克风、按块出指标。opts: { chunkMs, spectral, deviceLabel, onChunk(metrics, 秒), onState(state) }
+// ScriptProcessor 拿到每一个采样点（不靠定时器抽查，短促的掌声不会漏在两次查看之间）
+ZL.micChunks=function(opts){
+  var st={ stopped:false, stream:null, ac:null, sp:null };
   function stop(){
-    state.stopped=true;
-    state.running=false;
-    if(state.timer){ clearInterval(state.timer); state.timer=0; }
-    try{ if(state.ac) state.ac.close(); }catch(e){}
-    try{ if(state.stream) state.stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
-    state.ac=null; state.stream=null;
+    st.stopped=true;
+    try{ if(st.sp){ st.sp.onaudioprocess=null; st.sp.disconnect(); } }catch(e){}
+    try{ if(st.ac) st.ac.close(); }catch(e){}
+    try{ if(st.stream) st.stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+    st.sp=null; st.ac=null; st.stream=null;
   }
-  function start(){
-    ZL.getMic(opts.deviceLabel).then(function(stream){
-      if(!state.running&&state.stopped){ try{ stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} return; }
-      try{
-        state.stream=stream;
-        var AC=window.AudioContext||window.webkitAudioContext;
-        var ac=new AC(); state.ac=ac;
-        var src=ac.createMediaStreamSource(stream);
-        var an=ac.createAnalyser(); an.fftSize=1024; an.smoothingTimeConstant=0;
-        src.connect(an);
-        var tbuf=new Float32Array(an.fftSize);
-        var fbuf=new Float32Array(an.frequencyBinCount);
-        var floor=0.004;              // 噪声地板（自适应）
-        var inEvent=false, evStart=0, evPeak=0, evRms2=0, evFrames=0, evZc=0, evPrev=0, evHigh=0, evFlatN=0, evFlatSum=0, evFlatSum2=0, attackMs=0, riseFrames=0, belowSince=0, lastRms=0, evPeakFrame=0;
-        var history=[];
-        state.running=true;
-        if(opts.onState)opts.onState('listening');
-        state.timer=setInterval(function(){
-          if(!state.running) return;
-          an.getFloatTimeDomainData(tbuf);
-          an.getFloatFrequencyData(fbuf);
-          var peak=0, sum2=0, zc=0, prev=evPrev;
-          for(var i=0;i<tbuf.length;i++){ var v=tbuf[i], a=v<0?-v:v; if(a>peak)peak=a; sum2+=v*v; if((v>=0)!=(prev>=0))zc++; prev=v; }
-          evPrev=prev;
-          var rms=Math.sqrt(sum2/tbuf.length);
-          var now=performance.now();
-          // 高频能量占比（>4kHz）与频谱平坦度
-          var sr=ac.sampleRate, binHz=sr/an.fftSize, hiFrom=Math.floor(4000/binHz);
-          var hi=0, all=0, flatSum=0, flatSum2=0, flatN=0;
-          for(var b=1;b<fbuf.length;b++){ var mag=Math.pow(10,fbuf[b]/20); all+=mag; if(b>=hiFrom)hi+=mag; if(mag>1e-7){ flatSum+=Math.log(mag); flatSum2+=mag; flatN++; } }
-          var highRatio=all>0?hi/all:0;
-          var flat=flatN>0?Math.exp(flatSum/flatN)/(flatSum2/flatN):0;
-          if(!inEvent){
-            // 事件起点：峰值电平（0~255 刻度）超过阈值（灵敏度越高门槛越低），并保底高于噪声地板
-            var sens=Math.max(1,Math.min(100,Number(opts.sensitivity)||70));
-            var thBase=Math.max(8, Number(opts.threshold)||180);
-            var gate=thBase*(1-(sens-50)*0.005);   // sens=100 → 0.75×阈值；sens=1 → 1.25×
-            if(peak*255>=gate && rms>floor*1.6){
-              inEvent=true; evStart=now; evPeak=peak; evRms2=sum2; evFrames=1; evZc=zc; evHigh=highRatio; evFlatSum=flat; evFlatN=1; evPeakFrame=0;
-              attackMs=0; riseFrames=0; belowSince=0;
-            } else {
-              // 地板跟随安静段缓慢更新
-              floor=floor*0.985+rms*0.015;
-            }
-          } else {
-            evFrames++;
-            if(peak>evPeak){ evPeak=peak; evPeakFrame=evFrames; }
-            evRms2+=sum2; evZc+=zc; evHigh=evHigh*0.7+highRatio*0.3; evFlatSum+=flat; evFlatN++;
-            if(rms>lastRms*1.02) riseFrames++;
-            if(rms<Math.max(floor*1.6,0.008)) belowSince++; else belowSince=0;
-            var dur=now-evStart;
-            if(attackMs===0&&peak>=evPeak*0.9) attackMs=dur;
-            if(belowSince>=4||dur>900){
-              // 事件结束：算 9 维特征 → 逻辑回归
-              inEvent=false;
-              var evRms=Math.sqrt(evRms2/(evFrames*tbuf.length));
-              var crest=evRms>1e-6?evPeak/evRms:0;
-              var level=Math.min(255,Math.round(evPeak*255));
-              var feat=[level, crest, evHigh, evFlatSum/Math.max(1,evFlatN), evZc/Math.max(1,evFrames)/tbuf.length, attackMs, riseFrames*(1000*an.fftSize/ac.sampleRate), dur, evPeak>1e-6?evRms/evPeak:0];
-              var z=MODEL.bias;
-              for(var k=0;k<9;k++) z+=(feat[k]-MODEL.mean[k])/MODEL.scale[k]*MODEL.weights[k];
-              var p=1/(1+Math.exp(-z));
-              var th=ZL.clamp(0.72-(Number(opts.sensitivity)||70)/100*0.45, 0.2, 0.72);
-              if(p>=th&&level>=8){ try{ opts.onClap(level, p); }catch(e){} }
-              floor=floor*0.9+0.001*0.1;
-            }
+  ZL.getMic(opts.deviceLabel).then(function(stream){
+    if(st.stopped){ try{ stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} return; }
+    try{
+      st.stream=stream;
+      var AC=window.AudioContext||window.webkitAudioContext;
+      var ac=new AC(); st.ac=ac;
+      var sr=ac.sampleRate;
+      var src=ac.createMediaStreamSource(stream);
+      var sp=ac.createScriptProcessor(1024,2,1); st.sp=sp;
+      var mute=ac.createGain(); mute.gain.value=0;   // ScriptProcessor 要接到输出才会跑；增益 0，不出声
+      src.connect(sp); sp.connect(mute); mute.connect(ac.destination);
+      var L=Math.max(2,Math.round(sr*opts.chunkMs/1000));
+      var target=Math.max(2,Math.round(L*ANALYSIS_RATE/sr));
+      var bufs=[new Float32Array(L),new Float32Array(L)], fill=0, index=0;
+      sp.onaudioprocess=function(ev){
+        if(st.stopped) return;
+        var inb=ev.inputBuffer, nch=Math.min(2,inb.numberOfChannels), chs=[], c;
+        for(c=0;c<nch;c++) chs.push(inb.getChannelData(c));
+        var n=chs[0].length, i=0;
+        while(i<n){
+          var take=Math.min(L-fill,n-i);
+          for(c=0;c<nch;c++) bufs[c].set(chs[c].subarray(i,i+take),fill);
+          fill+=take; i+=take;
+          if(fill>=L){
+            fill=0; index++;
+            var m=chunkMetrics(resample(loudest(bufs.slice(0,nch),L),target),!!opts.spectral);
+            try{ opts.onChunk(m,index*opts.chunkMs/1000); }catch(e){}
           }
-          lastRms=rms;
-          history.push(rms); if(history.length>400)history.shift();
-        }, 20);
-      }catch(e){ if(opts.onState)opts.onState('no-mic'); }
-    }).catch(function(e){ if(opts.onState)opts.onState(e&&e.message==='preview'?'preview':'no-mic'); });
-  }
-  start();
+        }
+      };
+      if(opts.onState) opts.onState('listening');
+    }catch(e){ if(opts.onState) opts.onState('no-mic'); }
+  }).catch(function(e){ if(opts.onState) opts.onState(e&&e.message==='preview'?'preview':'no-mic'); });
   return { stop:stop };
+};
+
+// —— 拍手识别 ——
+function clapDetector(threshold,sensitivity,cooldownMs){
+  var d={ threshold:threshold, sensitivity:Math.max(1,Math.min(100,Math.trunc(Number(sensitivity))||70)), cooldown_ms:Math.max(100,Math.trunc(Number(cooldownMs))||260),
+    noise_rms:80, previous_rms:80, candidate:null, last_trigger:-1000, last:null };
+  function req(){
+    var s=d.sensitivity/100;
+    return { rise:2.8-1.45*s, attack:2.1-0.8*s, high_ratio:0.22-0.14*s, flatness:0.1-0.065*s, zero_crossing:0.14-0.08*s, crest:2.8-1.2*s, max_duration:(120+140*s)/1000 };
+  }
+  function num(v){ var n=Number(v); return isFinite(n)?n:0; }
+  d.feed=function(m,now){
+    var level=Math.max(0,num(m.level)), rms=Math.max(0,num(m.rms)), r=req();
+    var rise=rms/Math.max(45,d.noise_rms), attack=rms/Math.max(45,d.previous_rms), result=null;
+    if(d.candidate){
+      var c=d.candidate, elapsed=now-c.started;
+      var fell=rms<=Math.max(d.noise_rms*1.7,c.peak_rms*0.38);
+      if(fell){
+        var f={ peak_level:c.peak_level, crest:c.crest, high_ratio:c.high_ratio, flatness:c.flatness, zero_crossing:c.zero_crossing, attack:c.attack, rise:c.rise, duration_ms:elapsed*1000, fall_ratio:rms/Math.max(1,c.peak_rms) };
+        var spectral=c.high_ratio>=r.high_ratio&&(c.flatness>=r.flatness||c.zero_crossing>=r.zero_crossing);
+        var impulsive=c.crest>=r.crest||c.attack>=r.attack*1.25;
+        var p=modelProbability(f);
+        var lt=Math.max(0.3,Math.min(0.76,MODEL.threshold+(70-d.sensitivity)*0.004));
+        var learned=p>=lt&&impulsive;
+        var cooled=(now-d.last_trigger)*1000>=d.cooldown_ms;
+        f.probability=p; f.spectral=spectral; f.impulsive=impulsive;
+        f.ok=elapsed<=r.max_duration&&learned&&cooled;
+        if(f.ok){ result=c.peak_level; d.last_trigger=now; }
+        d.last=f;
+        d.candidate=null;
+      } else {
+        c.peak_level=Math.max(c.peak_level,level); c.peak_rms=Math.max(c.peak_rms,rms);
+        c.crest=Math.max(c.crest,num(m.crest)); c.high_ratio=Math.max(c.high_ratio,num(m.high_ratio));
+        c.flatness=Math.max(c.flatness,num(m.flatness)); c.zero_crossing=Math.max(c.zero_crossing,num(m.zero_crossing));
+        c.attack=Math.max(c.attack,attack); c.rise=Math.max(c.rise,rise);
+        if(elapsed>r.max_duration) d.candidate=null;
+      }
+    }
+    if(!d.candidate&&result===null){
+      if(level>=d.threshold&&rise>=r.rise&&attack>=r.attack){
+        d.candidate={ started:now, peak_level:level, peak_rms:rms, crest:num(m.crest), high_ratio:num(m.high_ratio), flatness:num(m.flatness), zero_crossing:num(m.zero_crossing), attack:attack, rise:rise };
+      } else if(level<d.threshold*0.72){
+        d.noise_rms=d.noise_rms*0.94+rms*0.06;
+      }
+    }
+    d.previous_rms=rms;
+    return result;
+  };
+  return d;
+}
+
+// 拍手（32ms 一块）。opts: { threshold 0~500, sensitivity 1~100, cooldownMs, triggerMode 'clap'|'volume',
+//   deviceLabel, onClap(音量), onState(state), onLevel(音量)?, onCandidate(特征)? }
+ZL.startClap=function(opts){
+  var th=Math.max(1,Math.min(500,Number(opts.threshold)||180));
+  var cd=Math.max(100,Math.min(5000,Math.trunc(Number(opts.cooldownMs))||260));
+  var volumeOnly=String(opts.triggerMode||'clap')==='volume';
+  var det=clapDetector(th,opts.sensitivity==null?70:opts.sensitivity,cd);
+  var armed=true, last=-1e9, release=Math.max(5,th*0.55);
+  return ZL.micChunks({ chunkMs:32, spectral:!volumeOnly, deviceLabel:opts.deviceLabel, onState:opts.onState, onChunk:function(m,t){
+    if(opts.onLevel){ try{ opts.onLevel(m.level); }catch(e){} }
+    if(volumeOnly){
+      if(armed&&m.level>=th&&(t-last)*1000>=cd){ armed=false; last=t; try{ opts.onClap(m.level); }catch(e){} }
+      else if(!armed&&m.level<=release) armed=true;
+      return;
+    }
+    var lv=det.feed(m,t);
+    if(det.last){ if(opts.onCandidate){ try{ opts.onCandidate(det.last); }catch(e){} } det.last=null; }
+    if(lv!==null){ try{ opts.onClap(lv); }catch(e){} }
+  }});
+};
+
+// 喊叫（60ms 一块、每 45ms 读一次）。opts: { threshold 0~500 或取值函数, cooldownMs 或取值函数,
+//   deviceLabel, onShout(音量), onState(state), onLevel(音量)? }
+ZL.startShout=function(opts){
+  function val(v,d,lo,hi){ var n=Number(typeof v==='function'?v():v); return Math.max(lo,Math.min(hi,isFinite(n)&&n>0?n:d)); }
+  var q=[], armed=true, last=-1e9;
+  var h=ZL.micChunks({ chunkMs:60, spectral:false, deviceLabel:opts.deviceLabel, onState:opts.onState, onChunk:function(m){ q.push(m.level); } });
+  var timer=setInterval(function(){
+    var level=0;
+    for(var i=0;i<q.length;i++) if(q[i]>level) level=q[i];
+    q.length=0;
+    if(opts.onLevel){ try{ opts.onLevel(level); }catch(e){} }
+    var th=val(opts.threshold,240,1,500), cd=val(opts.cooldownMs,220,50,5000), now=performance.now()/1000;
+    if(armed&&level>=th&&(now-last)*1000>=cd){ armed=false; last=now; try{ opts.onShout(level); }catch(e){} }
+    else if(!armed&&level<=Math.max(5,th*0.55)) armed=true;
+  },45);
+  return { stop:function(){ clearInterval(timer); h.stop(); } };
 };
 })();
 `

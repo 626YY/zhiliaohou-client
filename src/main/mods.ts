@@ -135,6 +135,19 @@ export function visibleMods(): ModsListResult {
   return { mods: mods.filter((m) => modStatusOf(m) !== 'unlisted' || !!installed[m.id]), installed }
 }
 
+/**
+ * mod 下架、这台电脑又没装过的游戏：游戏选择（遥控 / 参数）、启动游戏、设置里的游戏路径、礼物规则的游戏整蛊都不列它，
+ * 和游戏库同一条规矩（下架只对还没装的人生效，已经装着的照常用）。2026-10-07 用户：「图书管理员要下架的，应该是不显示的才对」。
+ */
+export function hiddenGameIds(): Set<string> {
+  const { mods, installed } = listMods()
+  const hidden = new Set<string>()
+  for (const m of mods) {
+    if (modStatusOf(m) === 'unlisted' && !installed[m.id]) hidden.add(m.gameId || '4wheel-challenge')
+  }
+  return hidden
+}
+
 /** 某游戏已装 mod 的版本（客户端记录或本机检测），连接器启动时用它做「本机版本」，避免把老版本当成新版本反复提示更新。 */
 export function installedVersionForGame(gameId: string): string {
   const { mods, installed } = listMods()

@@ -45,7 +45,7 @@ import { readLiveStats, statsPrankTick } from './stats'
 import { giftLogClear, giftLogState } from './gift-log'
 import { startNotifyWatch, stopNotifyWatch } from './notifications'
 import { startHeartbeatWatch, stopHeartbeatWatch } from './heartbeat'
-import { visibleMods, installMod, uninstallMod } from './mods'
+import { visibleMods, installMod, uninstallMod, hiddenGameIds } from './mods'
 import { modHealth, repairMod, exportModDiagnosis, uploadModDiagnosis } from './mod-health'
 import { readConfig, saveConfig, getPranks, getNativeKeybinds } from './config-editor'
 import { prankCatalog } from './schema-store'
@@ -642,7 +642,11 @@ export function registerIpc(): void {
   handle(Ipc.GameSetPath, (_e, gameId: string, path: string) =>
     resolveGamePath(String(gameId || ''), String(path || ''))
   )
-  handle(Ipc.GamesList, () => listGames())
+  // 页面拿的游戏列表：mod 下架且这台电脑没装的游戏不列（和游戏库同一条规矩，见 mods.ts::hiddenGameIds）；主进程内部仍用 listGames() 全量
+  handle(Ipc.GamesList, () => {
+    const hidden = hiddenGameIds()
+    return listGames().filter((g) => !hidden.has(g.id))
+  })
   // 切当前游戏：主进程的路由（bridge/config/launcher/connector）全部跟着走
   handle(Ipc.GameSetCurrent, (_e, id) => {
     setCurrentGameId(String(id ?? ''))

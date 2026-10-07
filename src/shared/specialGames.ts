@@ -276,6 +276,18 @@ const STATS_PANEL_PARAM: SpecialParamSpec = {
 const micParam: SpecialParamSpec = {
   key: 'micDevice', label: '麦克风', type: 'device', def: '', hint: '用哪个麦克风听声音，留空 = 系统默认', group: 'sound'
 }
+// 声控的识别方式：识别拍手 = 只认短促的掌声；只看音量 = 任何声音够响就算
+const CLAP_TRIGGER_PARAM: SpecialParamSpec = {
+  key: 'triggerMode', label: '识别方式', type: 'select', def: 'clap',
+  options: [{ value: 'clap', label: '识别拍手' }, { value: 'volume', label: '只看音量' }],
+  hint: '识别拍手：只认短促的掌声，说话、音乐不算；只看音量：任何声音够响就算'
+}
+// 垃圾桶（扔垃圾 / 捡叶子）：默认有东西要收时才出现、收完淡出；「全部清屏」一律收起
+const BIN_SHOW_PARAM: SpecialParamSpec = {
+  key: 'binShow', label: '垃圾桶显示', type: 'select', def: 'active', group: 'look',
+  options: [{ value: 'active', label: '有东西要收时显示' }, { value: 'always', label: '用过就一直显示' }],
+  hint: '垃圾桶什么时候出现在画面上；点「全部清屏」时一律收起'
+}
 
 // —— 玩法目录 ——
 // 顺序即卡片顺序。参数范围的 min/max 同时就是主进程夹紧的上下限。
@@ -407,6 +419,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
       { key: 'randomSizeMin', label: '随机最小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 8, hint: '随机大小的下限', advanced: true, group: 'look' },
       { key: 'randomSizeMax', label: '随机最大', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 14, hint: '随机大小的上限', advanced: true, group: 'look' },
       { key: 'binSizePercent', label: '垃圾桶大小', type: 'number', min: 10, max: 60, step: 1, unit: '%', def: 45, hint: '垃圾桶宽占窗口宽的比例', group: 'look' },
+      BIN_SHOW_PARAM,
       { key: 'spawnIntervalMs', label: '飞入间隔', type: 'number', min: 10, max: 2000, step: 10, unit: '毫秒', def: 100, hint: '一批里连续飞入的间隔', advanced: true },
       maxVisibleParam(300, 1000, '件', '垃圾'),
       volumeParam(80, '飞入/进桶音效的音量')
@@ -556,7 +569,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     countRange: '2~6',
     ops: [OP_ADD, OP_REDUCE, OP_MUL, OP_DIV, { value: 'clear', label: '直接破解', count: false, hint: '符咒立刻全部碎掉' }],
     params: [
-      { key: 'threshold', label: '喊叫音量阈值', type: 'number', min: 1, max: 500, step: 5, def: 240, hint: '麦克风音量超过这个值才算喊了一声（0~500）' },
+      { key: 'threshold', label: '喊叫音量阈值', type: 'number', min: 1, max: 500, step: 5, def: 240, hint: '喊声要多响才算喊了一声（0~500，越低越灵敏）' },
       { key: 'decrementPerShout', label: '每声减少', type: 'number', min: 1, max: 20, step: 1, unit: '点', def: 1, hint: '每喊一声削减的封印点数' },
       { key: 'cooldownMs', label: '两声间隔', type: 'number', min: 50, max: 5000, step: 10, unit: '毫秒', def: 220, hint: '两声喊叫至少隔多久才算两声', advanced: true },
       micParam,
@@ -580,7 +593,8 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     countRange: '8~25',
     ops: [OP_ADD, OP_REDUCE, OP_CLEAR],
     params: [
-      { key: 'threshold', label: '拍手音量阈值', type: 'number', min: 1, max: 500, step: 5, def: 180, hint: '拍手音量超过这个值才算一次（0~500）' },
+      { key: 'threshold', label: '拍手音量阈值', type: 'number', min: 1, max: 500, step: 5, def: 180, hint: '拍手声要多响才算一次（0~500，越低越灵敏）' },
+      CLAP_TRIGGER_PARAM,
       { key: 'killPerClap', label: '每次拍手消灭', type: 'number', min: 1, max: 1000, step: 1, unit: '只', def: 1, hint: '一次拍手至少消灭的蚊子数' },
       { key: 'volumeScaledKill', label: '越响灭得越多', type: 'toggle', def: true, hint: '掌声越响一次消灭越多（按下面三档）' },
       { key: 'clapLevel2', label: '第二档音量', type: 'number', min: 1, max: 500, step: 5, def: 200, hint: '掌声到这个音量按第二档消灭', advanced: true },
@@ -625,7 +639,8 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
       { key: 'hitRadius', label: '拍击半径', type: 'number', min: 5, max: 40, step: 1, unit: '%', def: 13, hint: '挥一下能拍到的范围（窗口短边百分比）', advanced: true },
       { key: 'gestureSpeed', label: '挥拍速度门槛', type: 'number', min: 5, max: 100, step: 1, def: 30, hint: '鼠标移动多快才算挥了一巴掌', advanced: true },
       { key: 'killPerClap', label: '每次拍手击中', type: 'number', min: 1, max: 1000, step: 1, unit: '只', def: 1, hint: '声控模式下一次拍手打中几只', advanced: true },
-      { key: 'threshold', label: '拍手音量阈值', type: 'number', min: 1, max: 500, step: 5, def: 180, hint: '声控模式下拍手音量超过这个值才算（0~500）', advanced: true },
+      { key: 'threshold', label: '拍手音量阈值', type: 'number', min: 1, max: 500, step: 5, def: 180, hint: '声控模式下拍手声要多响才算（0~500，越低越灵敏）', advanced: true },
+      { ...CLAP_TRIGGER_PARAM, advanced: true },
       { key: 'clapSensitivity', label: '掌声识别灵敏度', type: 'number', min: 1, max: 100, step: 1, def: 70, hint: '越高越容易认出掌声', advanced: true },
       { key: 'cooldownMs', label: '两次拍手间隔', type: 'number', min: 50, max: 5000, step: 10, unit: '毫秒', def: 260, hint: '两次拍手至少隔多久', advanced: true },
       { key: 'showTriggerUser', label: '显示送礼观众', type: 'toggle', def: true, hint: '蚊子上方显示送礼人昵称', group: 'look' },
@@ -663,7 +678,8 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
       { key: 'hitRadius', label: '拍击半径', type: 'number', min: 5, max: 40, step: 1, unit: '%', def: 13, hint: '挥一下能拍到的范围（窗口短边百分比）', advanced: true },
       { key: 'gestureSpeed', label: '挥拍速度门槛', type: 'number', min: 5, max: 100, step: 1, def: 30, hint: '鼠标移动多快才算挥了一巴掌', advanced: true },
       { key: 'killPerClap', label: '每次拍手击中', type: 'number', min: 1, max: 1000, step: 1, unit: '只', def: 1, hint: '声控模式下一次拍手打中几只', advanced: true },
-      { key: 'threshold', label: '拍手音量阈值', type: 'number', min: 1, max: 500, step: 5, def: 180, hint: '声控模式下拍手音量超过这个值才算（0~500）', advanced: true },
+      { key: 'threshold', label: '拍手音量阈值', type: 'number', min: 1, max: 500, step: 5, def: 180, hint: '声控模式下拍手声要多响才算（0~500，越低越灵敏）', advanced: true },
+      { ...CLAP_TRIGGER_PARAM, advanced: true },
       { key: 'clapSensitivity', label: '掌声识别灵敏度', type: 'number', min: 1, max: 100, step: 1, def: 70, hint: '越高越容易认出掌声', advanced: true },
       { key: 'cooldownMs', label: '两次拍手间隔', type: 'number', min: 50, max: 5000, step: 10, unit: '毫秒', def: 260, hint: '两次拍手至少隔多久', advanced: true },
       { key: 'showTriggerUser', label: '显示送礼观众', type: 'toggle', def: true, hint: '苍蝇上方显示送礼人昵称', group: 'look' },
@@ -751,7 +767,8 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
       { key: 'bigLeafSize', label: '大叶子大小', type: 'number', min: 3, max: 100, step: 1, unit: '%', def: 50, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
       { key: 'smallLeafSize', label: '小叶子大小', type: 'number', min: 3, max: 100, step: 1, unit: '%', def: 10, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
       { key: 'randomSizeMin', label: '随机最小', type: 'number', min: 3, max: 100, step: 1, unit: '%', def: 10, hint: '随机大小的下限', advanced: true, group: 'look' },
-      { key: 'randomSizeMax', label: '随机最大', type: 'number', min: 3, max: 100, step: 1, unit: '%', def: 50, hint: '随机大小的上限', advanced: true, group: 'look' }
+      { key: 'randomSizeMax', label: '随机最大', type: 'number', min: 3, max: 100, step: 1, unit: '%', def: 50, hint: '随机大小的上限', advanced: true, group: 'look' },
+      BIN_SHOW_PARAM
     ]
   },
   {

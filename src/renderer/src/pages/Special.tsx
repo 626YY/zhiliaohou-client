@@ -10,6 +10,7 @@ import SpecialParamField from '../components/special/SpecialParamField'
 import SpecialLinks from '../components/special/SpecialLinks'
 import SpecialBoxes from '../components/special/SpecialBoxes'
 import SpecialWindowBar from '../components/special/SpecialWindowBar'
+import MicTest from '../components/special/MicTest'
 import AdvancedSection from '../components/AdvancedSection'
 import { AdvancedFields } from '../lib/configurationLevel'
 import { specialArtUrls, specialLinksOf } from '../lib/specialArt'
@@ -379,6 +380,10 @@ function SpecialDetail({ id, data, onBack }: { id: SpecialGameId; data: ReturnTy
     for (const p of meta.params) (out[p.group || 'play'] ||= []).push(p)
     return out
   }, [meta])
+  // 用麦克风的玩法给个「麦克风测试」：符咒听喊声，其余听拍手；手势拍蚊子/苍蝇只在开了声控时才有
+  const micKind: 'clap' | 'shout' | null = !meta.params.some((p) => p.key === 'micDevice')
+    ? null
+    : id === 'talisman_seal' ? 'shout' : cfg.params.controlMode === 'mouse' ? null : 'clap'
 
   return (
     <div className="p-6">
@@ -490,6 +495,12 @@ function SpecialDetail({ id, data, onBack }: { id: SpecialGameId; data: ReturnTy
                 </div>
               </section>
             ))}
+            {micKind && (
+              <section>
+                <h4 className="mb-2.5 text-[11px] font-semibold tracking-wide text-[var(--text-3)]">麦克风测试</h4>
+                <MicTest key={id} kind={micKind} params={cfg.params} />
+              </section>
+            )}
             {/* 自定义素材：基础模式收起来（点开就能换），高级模式直接展开 */}
             {!!groups.media?.length && (
               <AdvancedSection title={GROUP_TITLES.media} hint="换成自己的图片、音效、视频或音乐；留空就用内置的。">
@@ -502,7 +513,8 @@ function SpecialDetail({ id, data, onBack }: { id: SpecialGameId; data: ReturnTy
             )}
             {/* 这个玩法自己的快慢和上限；窗口尺寸、底色是全部玩法共用的，在上面的「直播窗口」里 */}
             <AdvancedFields>
-              <section>
+              {/* 外层是 display:contents，吃不到 space-y 的上边距，这里自己留 */}
+              <section className="mt-5">
                 <h4 className="mb-2.5 text-[11px] font-semibold tracking-wide text-[var(--text-3)]">通用</h4>
                 <div className="grid gap-x-5 gap-y-3.5 min-[1360px]:grid-cols-2">
                   <SpecialParamField spec={{ key: 'speed', label: '整体速度', type: 'number', min: 0.25, max: 8, step: 0.25, unit: '倍', def: 1, hint: '这个玩法所有动画的快慢', advanced: true }} value={cfg.speed} onChange={(v) => patch({ speed: Number(v) })} />

@@ -1,5 +1,6 @@
 {
   "id": "darkmage-librarian",
+  "status": "unlisted",
   "name": "图书管理员整蛊",
   "tagline": "观众送礼整蛊主播——打乱全馆图书，红粉帮整理、黑粉来送书",
   "description": "《Librarian: Tidy Up the Arcane Library!》抖音直播整蛊器。礼物按真实价目分档：一钻有独立演出，跑车触发法师降临。整理完的书架金光收书、架数+1，Boss 整蛊减架。自定义红粉/黑粉盲盒、今日榜单、头像字幕、炸毁游戏，全部游戏内反馈。基于 UE4SS（UE5.5），对齐知了猴客户端礼物映射 / 直播连接器。",

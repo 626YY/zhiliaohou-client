@@ -2,6 +2,7 @@ import type { LotteryAction, LotteryExtraAction, LotteryItem } from '@shared/typ
 import { COMMAND_LABELS } from '@shared/entertainmentLabels'
 import { Btn, Field, Input, Select, Toggle } from './ui'
 import { prankGroups, usePrankCatalog } from '../lib/pranks'
+import { useVisiblePrankGames } from './GamePrankSelect'
 import SpecialActionFields from './SpecialActionFields'
 import SpecialBoxPool, { defaultSpecialBoxParam } from './special/SpecialBoxPool'
 import { specialDefaultParam } from '@shared/specialGames'
@@ -51,6 +52,8 @@ function ActionFields({
   onChange: (patch: { actionParam?: string; actionSeconds?: number; chroma?: boolean }) => void
 }): React.JSX.Element | null {
   usePrankCatalog() // 整蛊下拉来自定义包，刷新时重渲染
+  // 游戏整蛊下拉只列能用的游戏（mod 下架且没装的不列），已经选着的那款照常列出
+  const prankGames = useVisiblePrankGames(action === 'prank' ? String(actionParam || '').split('|')[0] : '')
   const video = action === 'video' || action === 'green-video' || action === 'stage-video'
   // 'command' 的参数是「<命令>|<参数>」，只按第一个 | 切
   const cut = String(actionParam || '').indexOf('|')
@@ -80,13 +83,7 @@ function ActionFields({
     return (
       <Select aria-label={`${name} 游戏整蛊`} value={actionParam || ''} onChange={(e) => onChange({ actionParam: e.target.value })}>
         <option value="">选择事件</option>
-        {(
-          [
-            ['4wheel-challenge', '轮椅模拟器'],
-            ['librarian', '图书管理员'],
-            ['dontscream', '不要尖叫']
-          ] as const
-        ).map(([game, label]) => (
+        {prankGames.map(([game, label]) => (
           <optgroup key={game} label={label}>
             {prankGroups(game)
               .flatMap((g) => g.items)

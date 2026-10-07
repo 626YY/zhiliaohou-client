@@ -80,6 +80,12 @@ export const HARNESS_JS = `(function(){
     banner.style.opacity=1; clearTimeout(bt); bt=setTimeout(function(){banner.style.opacity=0;},2600);
   }
   if(bannerAvatar) bannerAvatar.onerror=function(){ bannerAvatar.style.display='none'; };
+  // 全部清屏的收尾（各玩法的场面由各自的 clear 收）：横幅立刻收起，还在响的玩法音效掐掉
+  window.__wipe=function(){
+    clearTimeout(bt); showBanner('');
+    var l=window.__zlSounds||[];
+    for(var i=0;i<l.length;i++){ try{ l[i].pause(); }catch(e){} }
+  };
   // 左上角计数面板（「已经抓 N 只」那块）排队：几个玩法同时在场时按图层顺序上下排开，不叠在一起。
   // 玩法每次画都报一下自己面板多高（没画就报 0），拿回自己那块的 top；位置变了就叫它重画一帧。
   var HUD_TOP=10, HUD_GAP=8, hudH={}, hudY={};

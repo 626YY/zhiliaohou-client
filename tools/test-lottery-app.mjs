@@ -84,6 +84,9 @@ try {
   await page.getByRole('switch', { name: '中心图跟着触发礼物走' }).click()
   await page.waitForFunction(() => (JSON.parse(localStorage.getItem('ent-wheel-trigger') || '{}')).centerGift === true)
   check('再打开开关又存回 true（开关即时生效）')
+  // 2026-09-12（00995fb）起这块收进「声音与上屏表现」折叠区（基础模式默认收起），先展开再找开关
+  const stageSection = page.locator('[data-advanced-section="声音与上屏表现"]').first()
+  if (await stageSection.locator('button[aria-expanded="false"]').count()) await stageSection.locator('button[aria-expanded="false"]').first().click()
   check('奖项动作区有「视频铺在抽奖窗口里播」开关且默认开', await page.getByRole('switch', { name: '抽中的视频铺在抽奖窗口里播' }).getAttribute('aria-checked') === 'true')
   const premiumAsset = path.join(root, 'out/renderer/entertainment-assets/wheel-premium-bg.png')
   check('构建保留昨夜原高级素材', createHash('sha256').update(await fs.readFile(premiumAsset)).digest('hex') === 'c17337b0f50d1b940ebeeb55cd373baadf1b7317fe33d0beb8641ea29ad7ee77')

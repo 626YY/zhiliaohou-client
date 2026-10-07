@@ -26,6 +26,8 @@ window.registerGame((function(){
   var roundActive=false;
   var curSize='random';    // 补落的叶子用最近一次 add 的大小
   var nowMs=0;
+  var binA=0, binUsed=false; // 垃圾桶淡入淡出（0~1）/ 来过叶子没有（「一直显示」用）
+  var BIN_FADE_MS=300;
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
   function pct(v,d){ return Math.max(3,Math.min(100,num(v,d))); }
@@ -134,9 +136,17 @@ window.registerGame((function(){
     if(roundActive && remaining<=0 && leaves.length===0){ roundActive=false; multiplier=1; }
   }
 
+  // 垃圾桶什么时候在画面上：默认这一轮还有叶子（场上 / 飞进桶 / 被卷走 / 还没落下）才淡入、扫完淡出；
+  // 「用过就一直显示」= 来过一次叶子就留着。全部清屏（wipe）一律立刻收起。
+  function binWanted(){
+    if(String(api.cfg.binShow||'active')==='always'&&binUsed) return true;
+    return roundActive||remaining>0||leaves.length>0;
+  }
+
   function drawBin(ctx){
     var b=binRect();
     ctx.save();
+    if(binA<1) ctx.globalAlpha*=binA;
     ctx.translate(b.x,b.y);
     var w=b.w,h=b.h;
     ZL.roundRect(ctx, w*0.12, h*0.18, w*0.76, h*0.77, w*0.08);
@@ -197,9 +207,10 @@ window.registerGame((function(){
     apply:function(cmd){
       var op=ZL.op(cmd,OPS);
       var name=ZL.who(cmd);
-      if(op==='clear'){ leaves=[]; remaining=0; cleared=0; multiplier=1; roundActive=false; return; }
+      if(op==='clear'){ leaves=[]; remaining=0; cleared=0; multiplier=1; roundActive=false; if(cmd&&cmd.wipe){ binA=0; binUsed=false; } return; }
       var n=ZL.count(cmd,5);
       if(op==='add'){
+        binUsed=true;
         n=Math.min(n,api.cap());
         cancelTornado();   // 新叶子来了，正在刮的龙卷风收掉
         if(!roundActive){ remaining=0; cleared=0; multiplier=1; leaves=[]; roundActive=true; }
@@ -304,6 +315,11 @@ window.registerGame((function(){
         }
       }
       finishRoundIfDone();
+      var want=binWanted()?1:0;
+      if(binA!==want){
+        binA=want>binA?Math.min(1,binA+step/BIN_FADE_MS):Math.max(0,binA-step/BIN_FADE_MS);
+        active=true;
+      }
       return active;
     },
     draw:function(ctx){
@@ -318,7 +334,7 @@ window.registerGame((function(){
         var l2=leaves[i];
         if(l2.phase==='flying') drawLeaf(ctx,l2,l2.fscale||1,l2.falpha==null?1:l2.falpha);
       }
-      drawBin(ctx);
+      if(binA>0.004) drawBin(ctx);
       for(i=0;i<leaves.length;i++){
         var l3=leaves[i];
         if(l3.phase==='tornado') drawLeaf(ctx,l3,1,l3.talpha==null?1:l3.talpha);
@@ -335,7 +351,7 @@ window.registerGame((function(){
         else if(l.phase==='flying') flying++;
         else if(l.phase==='tornado') tornado++;
       }
-      return { remaining:remaining, cleared:cleared, multiplier:multiplier, roundActive:roundActive, field:fieldCount(), flying:flying, tornado:tornado, hits:hits };
+      return { remaining:remaining, cleared:cleared, multiplier:multiplier, roundActive:roundActive, field:fieldCount(), flying:flying, tornado:tornado, hits:hits, bin:binA };
     }
   };
 })());

@@ -4,9 +4,9 @@
 // 归零后符纸四散飞落。操作：add 加点 / reduce 等于替主播喊了 N 声 / multiply、divide 只在封印中生效 / clear 直接破解。
 // 素材：talisman_break/ 下的 ivory/rose 符纸 + counter_frame + break_callout + 三个音效。
 // ★禁止在本字符串里使用反引号或 ${…}（主进程按模板串注入）。
-import { SHARED_JS } from './shared'
+import { SHARED_JS, MIC_CLAP_JS } from './shared'
 
-export const code = SHARED_JS + `
+export const code = SHARED_JS + MIC_CLAP_JS + `
 window.registerGame((function(){
   var ZL=window.__ZL;
   var api=null;
@@ -19,9 +19,8 @@ window.registerGame((function(){
   var remaining=0, maximum=0;
   var shakeUntil=0, wobbleUntil=0, flashUntil=0;
   var nowMs=0;
-  var mic=null, micToken=0, micPending=false, micDevice='';
+  var mic=null, micDevice='';
   var micState='', micKind='';   // 麦克风提示文字；kind：error / preview
-  var armed=true, lastTrigger=0;
 
   var LOCK_MS=720, BREAK_MS=1050;
 
@@ -63,51 +62,30 @@ window.registerGame((function(){
     for(i=cards.length-1;i>0;i--){ var j=Math.floor(rnd()*(i+1)); var t=cards[i]; cards[i]=cards[j]; cards[j]=t; }
   }
 
-  // —— 声控（喊叫：电平过阈值 + 回落 55% 再武装 + 冷却）——
-  // 麦克风按设备名挑（ZL.getMic）；详情页预览里不开麦克风，只提示一行字。
+  // —— 声控（喊叫识别见 shared.ts 的 ZL.startShout）——
+  // 麦克风按设备名挑（ZL.getMic）；详情页预览里不开麦克风，只提示一行字。阈值、间隔改了下一次读数就生效。
   function setMicState(text,kind){ micState=text; micKind=kind||''; ZL.kick(); }
   function startMic(){
-    if(mic||micPending) return;
-    var token=++micToken;
-    micPending=true;
+    if(mic) return;
     micDevice=String(api.cfg.micDevice||'');
-    ZL.getMic(micDevice).then(function(stream){
-      micPending=false;
-      if(token!==micToken){ try{ stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} return; }
-      try{
-        var AC=window.AudioContext||window.webkitAudioContext;
-        var ac=new AC();
-        var src=ac.createMediaStreamSource(stream);
-        var an=ac.createAnalyser(); an.fftSize=1024; an.smoothingTimeConstant=0;
-        src.connect(an);
-        var buf=new Float32Array(an.fftSize);
-        var stopped=false;
-        var timer=setInterval(function(){
-          if(stopped) return;
-          an.getFloatTimeDomainData(buf);
-          var peak=0;
-          for(var i=0;i<buf.length;i++){ var a=buf[i]<0?-buf[i]:buf[i]; if(a>peak)peak=a; }
-          var level=Math.min(255,Math.round(peak*255));
-          var now=performance.now();
-          var th=threshold();
-          var release=Math.max(5, th*0.55);
-          if(!armed && level<=release) armed=true;
-          if(armed && level>=th && now-lastTrigger>=cooldown()){
-            armed=false; lastTrigger=now;
-            onShout();
-          }
-        },45);
-        mic={ stop:function(){ stopped=true; clearInterval(timer); try{ac.close();}catch(e){} try{stream.getTracks().forEach(function(t){t.stop();});}catch(e){} } };
-        setMicState('','');
-      }catch(e){ setMicState('麦克风不可用','error'); }
-    }).catch(function(e){
-      micPending=false;
-      if(token!==micToken) return;
-      if(e&&e.message==='preview') setMicState('预览不收音','preview');
-      else setMicState('麦克风不可用','error');
+    mic=ZL.startShout({ threshold:threshold, cooldownMs:cooldown, deviceLabel:micDevice,
+      onShout:function(){ onShout(); },
+      onState:function(st){
+        if(st==='no-mic') setMicState('麦克风不可用','error');
+        else if(st==='preview') setMicState('预览不收音','preview');
+        else setMicState('','');
+      }
     });
   }
-  function stopMic(){ micToken++; micPending=false; if(mic){ mic.stop(); mic=null; } }
+  function stopMic(){ if(mic){ mic.stop(); mic=null; } }
+
+  // 全部清屏：不演破解、不出声、不打横幅，符纸和麦克风一并收掉
+  function wipe(){
+    stopMic();
+    phase='idle'; phaseT=0; remaining=0; maximum=0; cards=[];
+    shakeUntil=0; wobbleUntil=0; flashUntil=0;
+    micState=''; micKind='';
+  }
 
   // 一次破封反馈（喊一声 / reduce / divide 共用）：扣点 + 「破」字 + 抖动 + 全卡摇摆 + 破声，归零进飞散
   function registerBreak(amount){
@@ -152,12 +130,13 @@ window.registerGame((function(){
     resize:function(){ if(sealed()) rebuildCards(); },
     config:function(){
       // 换了麦克风：封印中就按新设备重开监听
-      if(String(api.cfg.micDevice||'')!==micDevice && (mic||micPending)){ stopMic(); if(sealed()) startMic(); }
+      if(String(api.cfg.micDevice||'')!==micDevice && mic){ stopMic(); if(sealed()) startMic(); }
     },
     apply:function(cmd){
       var op=ZL.op(cmd,OPS);
       var name=ZL.who(cmd);
       if(op==='clear'){
+        if(cmd&&cmd.wipe){ wipe(); return; }
         if(sealed()){ beginBreaking(); api.banner(name?name+' 帮主播破解了封印':'封印直接破解'); }
         return;
       }

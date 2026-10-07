@@ -3,6 +3,7 @@ import { Check, ChevronDown, ChevronRight, FolderOpen, Minus, Plus, X, Zap } fro
 import type { TimeBlindBoxEvent, TimeWidgetGift, TimeWidgetState } from '@shared/types'
 import { blindBoxGroups, resolveTimeBlindBoxPool, validateTimeBlindBoxEvent } from '@shared/timeBlindBox'
 import { prankGroups, usePrankCatalog } from '../lib/pranks'
+import { PRANK_GAMES, useVisibleGameIds } from './GamePrankSelect'
 import { Btn, Field, Input, Pill, Select, Toggle } from './ui'
 
 const OPERATIONS = [
@@ -70,6 +71,8 @@ export default function TimeBlindBoxEditor({ events, gifts, state, busy, error, 
   onCancel: () => void
 }) {
   usePrankCatalog() // 整蛊下拉来自定义包，刷新时重渲染
+  // 游戏整蛊下拉只列能用的游戏（mod 下架且没装的不列）；事件里已经选着的那款照常列出
+  const visibleGameIds = useVisibleGameIds()
   const [expanded, setExpanded] = useState<string | null>(null)
   const [fileError, setFileError] = useState('')
   const update = (id: string, patch: Partial<TimeBlindBoxEvent>) => {
@@ -179,7 +182,7 @@ export default function TimeBlindBoxEditor({ events, gifts, state, busy, error, 
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="附加事件"><Select aria-label="附加事件类型" value={event.action || 'none'} onChange={e => update(event.id, { action: e.target.value as TimeBlindBoxEvent['action'], actionParam: '' })}><option value="none">不附加</option><option value="prank">游戏整蛊</option><option value="effect">礼物动画</option></Select></Field>
               {event.action === 'effect' && <Field label="礼物动画"><Select aria-label="事件礼物动画" value={event.actionParam || ''} onChange={e => update(event.id, { actionParam: e.target.value })}><option value="">选择动画</option><option value="parabola">抛物线</option><option value="bomb">炸弹</option><option value="car">跑车</option><option value="firework">烟花</option><option value="rain">礼物雨</option></Select></Field>}
-              {event.action === 'prank' && <Field label="游戏整蛊"><Select aria-label="事件游戏整蛊" value={event.actionParam || ''} onChange={e => update(event.id, { actionParam: e.target.value })}><option value="">选择事件</option>{([['4wheel-challenge', '轮椅模拟器'], ['librarian', '图书管理员'], ['dontscream', '不要尖叫']] as const).map(([game, label]) => <optgroup key={game} label={label}>{prankGroups(game).flatMap(group => group.items).filter(prank => !prank.danger).map(prank => <option key={prank.id} value={`${game}|${prank.id}`}>{prank.name}</option>)}</optgroup>)}</Select></Field>}
+              {event.action === 'prank' && <Field label="游戏整蛊"><Select aria-label="事件游戏整蛊" value={event.actionParam || ''} onChange={e => update(event.id, { actionParam: e.target.value })}><option value="">选择事件</option>{PRANK_GAMES.filter(([game]) => !visibleGameIds || visibleGameIds.has(game) || String(event.actionParam || '').split('|')[0] === game).map(([game, label]) => <optgroup key={game} label={label}>{prankGroups(game).flatMap(group => group.items).filter(prank => !prank.danger).map(prank => <option key={prank.id} value={`${game}|${prank.id}`}>{prank.name}</option>)}</optgroup>)}</Select></Field>}
             </div>
           </div>}
         </div>

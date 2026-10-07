@@ -840,12 +840,16 @@ export function clearAllSpecial(): { ok: boolean; cleared: number } {
   if (!specialWindowOpen()) return { ok: true, cleared: 0 }
   // 排着没播的开奖一起清掉（不再生效）
   void runWhenReady('window.__revealClear && window.__revealClear()')
+  // wipe：告诉玩法这是清屏，不是礼物触发的「清场」——瞬间收干净，不演收场动画、不出声、不打横幅，
+  // 垃圾桶这类「有东西才出现」的摆设也一起收起
   const cmds = [...loaded].map((id) => {
     const meta = SPECIAL_GAME_MAP[id]
     const op = meta.ops.some((o) => o.value === 'clear') ? 'clear' : 'stop'
-    return { game: id, operation: op, count: 1, username: '', avatar: '', gift: '' }
+    return { game: id, operation: op, count: 1, username: '', avatar: '', gift: '', wipe: true }
   })
   applyToWindow(cmds)
+  // 横幅收起、还在响的音效掐掉（排在各玩法清场之后，清场里万一出了声也一并掐）
+  void runWhenReady('window.__wipe && window.__wipe()')
   return { ok: true, cleared: cmds.length }
 }
 

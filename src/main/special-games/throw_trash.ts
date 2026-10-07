@@ -17,6 +17,8 @@ window.registerGame((function(){
   var collected=0;         // 累计进桶（持久）
   var dragIdx=-1, dragDX=0, dragDY=0;
   var nowMs=0;
+  var binA=0, binUsed=false; // 垃圾桶淡入淡出（0~1）/ 扔过没有（「一直显示」用）
+  var BIN_FADE_MS=300;
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
   function pct(v,d){ return Math.max(5,Math.min(100,num(v,d))); }
@@ -118,10 +120,18 @@ window.registerGame((function(){
     ctx.restore();
   }
 
+  // 垃圾桶什么时候在画面上：默认有垃圾（场上 / 待飞入 / 正拖着）才淡入、收完淡出；
+  // 「用过就一直显示」= 扔过一次就留着。全部清屏（wipe）一律立刻收起。
+  function binWanted(){
+    if(String(api.cfg.binShow||'active')==='always'&&binUsed) return true;
+    return items.length>0||pending.total>0||dragIdx>=0;
+  }
+
   // 代码画垃圾桶（浅灰桶身+深色椭圆桶口）
   function drawBin(ctx){
     var b=binRect();
     ctx.save();
+    if(binA<1) ctx.globalAlpha*=binA;
     ctx.translate(b.x,b.y);
     var w=b.w,h=b.h;
     // 桶身
@@ -174,8 +184,9 @@ window.registerGame((function(){
     config:function(){},
     apply:function(cmd){
       var op=ZL.op(cmd,OPS);
-      if(op==='clear'){ items=[]; pending.clear(); dragIdx=-1; return; }
+      if(op==='clear'){ items=[]; pending.clear(); dragIdx=-1; if(cmd&&cmd.wipe){ binA=0; binUsed=false; } return; }
       if(op==='reset'){ collected=0; ZL.saveTotal('throw_trash',0); return; }
+      binUsed=true;
       var n=Math.min(ZL.count(cmd,5), api.cap());
       var size=String((cmd&&cmd.size)||'random');
       var kind=String((cmd&&cmd.kind)||'random');
@@ -259,6 +270,11 @@ window.registerGame((function(){
           active=true;
         }
       }
+      var want=binWanted()?1:0;
+      if(binA!==want){
+        binA=want>binA?Math.min(1,binA+step/BIN_FADE_MS):Math.max(0,binA-step/BIN_FADE_MS);
+        active=true;
+      }
       return active;
     },
     draw:function(ctx){
@@ -268,7 +284,7 @@ window.registerGame((function(){
         if(it.phase==='wait'||it.phase==='dragging') continue;
         drawItem(ctx,it);
       }
-      drawBin(ctx);
+      if(binA>0.004) drawBin(ctx);
       if(dragIdx>=0&&items[dragIdx]) drawItem(ctx,items[dragIdx]);
       drawStats(api.hudCtx||ctx);
     },
@@ -281,7 +297,7 @@ window.registerGame((function(){
         if(items[i].phase==='settled') hits.push([items[i].x,items[i].y,items[i].size]);
       }
       var b=binRect();
-      return { pending:pending.total, count:items.length, collected:collected, hits:hits, drop:[b.x+b.w/2,b.y+b.h/2], kinds:Object.keys(kinds) };
+      return { pending:pending.total, count:items.length, collected:collected, hits:hits, drop:[b.x+b.w/2,b.y+b.h/2], kinds:Object.keys(kinds), bin:binA };
     }
   };
 })());
