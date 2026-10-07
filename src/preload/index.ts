@@ -99,7 +99,7 @@ import {
   type CardRoomCommitInput,
   type CardRoomCommitResult,
 } from '../shared/types'
-import type { SpecialBoxEvent, SpecialGameId, SpecialGameConfig, SpecialGameplayState, SpecialTestAction, SpecialWindowConfig } from '../shared/specialGames'
+import type { SpecialBoxEvent, SpecialGameId, SpecialGameConfig, SpecialGameplayState, SpecialRevealConfig, SpecialTestAction, SpecialVoicePreview, SpecialVoicePreviewRequest, SpecialWindowConfig } from '../shared/specialGames'
 
 export interface ZLAPI {
   register: (
@@ -427,6 +427,9 @@ export interface ZLAPI {
   specialBoxEventsSave: (events: SpecialBoxEvent[]) => Promise<{ ok: boolean; events: SpecialBoxEvent[] }>
   specialBoxEventTest: (id: string) => Promise<{ ok: boolean; error?: string; opened?: string[] }>
   specialBoxDraw: (param: string) => Promise<{ ok: boolean; error?: string; opened?: string[] }>
+  specialRevealConfigure: (cfg: Partial<SpecialRevealConfig>) => Promise<{ ok: boolean; reveal: SpecialRevealConfig }>
+  specialVoicePreview: (req: SpecialVoicePreviewRequest) => Promise<SpecialVoicePreview>
+  specialBoxImportVideos: (game: SpecialGameId, files?: string[]) => Promise<{ ok: boolean; error?: string; attached: number; added: number; skipped: number; events: SpecialBoxEvent[] }>
   specialCloseAll: () => Promise<{ ok: boolean; closed: number }>
   onSpecialChanged: (cb: () => void) => () => void
   entranceOpen: () => Promise<{ ok: boolean; error?: string }>
@@ -863,6 +866,9 @@ const api: ZLAPI = {
   specialBoxEventsSave: (events) => ipcRenderer.invoke(Ipc.SpecialBoxEventsSave, events),
   specialBoxEventTest: (id) => ipcRenderer.invoke(Ipc.SpecialBoxEventTest, id),
   specialBoxDraw: (param) => ipcRenderer.invoke(Ipc.SpecialBoxDraw, param),
+  specialRevealConfigure: (cfg) => ipcRenderer.invoke(Ipc.SpecialRevealConfigure, cfg),
+  specialVoicePreview: (req) => ipcRenderer.invoke(Ipc.SpecialVoicePreview, req),
+  specialBoxImportVideos: (game, files) => ipcRenderer.invoke(Ipc.SpecialBoxImportVideos, game, files),
   specialCloseAll: () => ipcRenderer.invoke(Ipc.SpecialCloseAll),
   onSpecialChanged: (cb) => {
     const fn = () => cb()

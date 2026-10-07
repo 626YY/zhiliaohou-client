@@ -54,12 +54,16 @@ function useSpecialData() {
   const [rules, setRules] = useState<EntertainmentRule[]>([])
   const [images, setImages] = useState<Record<string, string>>({})
 
+  // 广播一来就重读，但内容没变就不换状态（换了整页都要重画：17 张卡片、盲盒、事件库）
+  const sigs = useRef({ win: '', cfgs: '' })
   const refreshState = useCallback(async () => {
     const st = await window.api.specialState()
     const c: CfgMap = {}
     for (const g of st.games) c[g.id] = g.config
-    setWin(st.window)
-    setCfgs(c)
+    const w = JSON.stringify(st.window)
+    const k = JSON.stringify(c)
+    if (w !== sigs.current.win) { sigs.current.win = w; setWin(st.window) }
+    if (k !== sigs.current.cfgs) { sigs.current.cfgs = k; setCfgs(c) }
     setAssetDir(st.assetDir || '')
   }, [])
   const refreshRules = useCallback(async () => setRules(await window.api.entertainmentRulesList()), [])

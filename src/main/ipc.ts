@@ -193,7 +193,10 @@ import {
   specialBoxEvents,
   saveSpecialBoxEvents,
   testSpecialBoxEvent,
-  drawSpecialBox
+  drawSpecialBox,
+  configureSpecialReveal,
+  specialVoicePreview,
+  importSpecialBoxVideos
 } from './special-gameplay'
 import {
   openEntranceWindow,
@@ -1014,6 +1017,9 @@ export function registerIpc(): void {
   handle(Ipc.SpecialBoxEventsSave, (_e, list) => saveSpecialBoxEvents(Array.isArray(list) ? list : []))
   handle(Ipc.SpecialBoxEventTest, (_e, id) => testSpecialBoxEvent(String(id ?? '')))
   handle(Ipc.SpecialBoxDraw, (_e, param) => drawSpecialBox(String(param ?? '')))
+  handle(Ipc.SpecialRevealConfigure, (_e, cfg) => configureSpecialReveal(cfg ?? {}))
+  handle(Ipc.SpecialVoicePreview, (_e, req) => specialVoicePreview(req ?? {}))
+  handle(Ipc.SpecialBoxImportVideos, (_e, game, files) => importSpecialBoxVideos(game, Array.isArray(files) ? files : undefined))
   handle(Ipc.SpecialCloseAll, () => closeAllSpecial())
 
   // ---- 大哥进场 ----

@@ -8,22 +8,29 @@
 // `special-play`（entertainment.ts → runSpecialAction），参数 `玩法|操作|数量|选项`；
 // 盲盒走 `special-box`（runSpecialBox），参数 `事件id,事件id,…|显示名`，从盲盒事件库里随机抽。
 // 窗口没开且允许「自动开窗」就先开窗再下发。内存告急时不再执行（和绿幕排队一致），主播亲手「试一试」不受限。
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, dialog } from 'electron'
 import fs from 'fs'
 import path from 'path'
-import { captureTitle, mediaUrl, scriptJson } from './capture-output'
+import { captureTitle, mediaUrl, scriptJson, validMedia } from './capture-output'
+import { optimizedMedia, prewarmMedia } from './media-optimize'
 import { createCaptureOutputWindow, outputsAlwaysOnTop, registerOutputWindow, onOutputWindowClosed, setOutputCloseHandler } from './output-window'
 import { readJson, writeJson } from './db'
 import { memoryLevel } from './memory-guard'
 import { GAME_CODE } from './special-games'
 import { buildSpecialPage, buildSpecialWindowPage, specialPageConfig } from './special-page'
 import { specialAssetBase, specialAssetDir } from './special-assets'
+import { specialGongFile, specialVoiceCached, specialVoiceFile, voiceFileUrl, voicePreviewUrl } from './special-voice'
+import { voiceFileName } from './special-voice-name'
 import {
+  DEFAULT_SPECIAL_REVEAL,
   DEFAULT_SPECIAL_WINDOW,
+  LEGACY_DEFAULT_BOX_EVENT_IDS,
   SPECIAL_BOX_DEFAULT_NAME,
+  SPECIAL_BOX_DEFAULTS_LEVEL,
   SPECIAL_GAMES,
   SPECIAL_GAME_MAP,
   SPECIAL_LAYER_ORDER,
+  SPECIAL_REVEAL_PARAMS,
   SPECIAL_WINDOW_TITLE,
   defaultSpecialBoxEvents,
   defaultSpecialConfig,
@@ -35,13 +42,20 @@ import {
   resolveSpecialCount,
   specialActionText,
   specialBoxEventDefaultName,
+  specialBoxEventVoice,
+  specialRevealText,
+  type SpecialActionParam,
   type SpecialBoxEvent,
   type SpecialGameId,
   type SpecialGameMeta,
   type SpecialGameConfig,
   type SpecialGameplayState,
+  type SpecialOpSpec,
+  type SpecialRevealConfig,
   type SpecialTestAction,
   type SpecialViewer,
+  type SpecialVoicePreview,
+  type SpecialVoicePreviewRequest,
   type SpecialWindowConfig
 } from '../shared/specialGames'
 import { Ipc, type EntertainmentAction, type EntertainmentRule } from '@shared/types'
@@ -54,16 +68,21 @@ const WINDOW_PAGE = 'special-window.html'
 interface LegacyBox { id: string; name: string; entries: { param: string; weight: number }[]; opens: number }
 
 // window：直播窗口（全部玩法共用）；没有 = 从 0.3.63 每个玩法各存的尺寸/底色里取用得最多的那组
-// boxEvents：盲盒事件库；没有这个字段 = 第一次用，放进每个玩法一个的默认事件
+// boxEvents：盲盒事件库；没有这个字段 = 第一次用，放进默认事件库
+// reveal：盲盒开奖画面与配音
 // legacyMigrated：0.3.63 测试版玩法自带「触发礼物」，已搬进礼物规则（只搬一次）
 // chainSkinV2：锁链默认皮肤从「经典金属」换成「霓虹」（存着的 default 都是自动落盘的默认值，换一次）
+// boxDefaults：事件库里的默认事件补到第几版（SPECIAL_BOX_DEFAULTS_LEVEL）；0.3.65 测试包第一包写的是 boxEventsV2=true（= 第 2 版）
 type Store = {
   games: Partial<Record<SpecialGameId, Partial<SpecialGameConfig>>>
   window?: SpecialWindowConfig
   boxEvents?: SpecialBoxEvent[]
+  reveal?: SpecialRevealConfig
   boxes?: LegacyBox[]
   legacyMigrated?: boolean
   chainSkinV2?: boolean
+  boxDefaults?: number
+  boxEventsV2?: boolean
 }
 const rawStore = readJson<Store>(STORE, { games: {} })
 let store: Store = normalizeStore(rawStore)
@@ -114,7 +133,9 @@ function normalizeWindow(value?: Partial<SpecialWindowConfig>): SpecialWindowCon
     autoOpen: value?.autoOpen !== false,
     background: value?.background === 'transparent' ? 'transparent' : 'green',
     width: Math.trunc(clampNumber(value?.width, base.width, 160, 3840)),
-    height: Math.trunc(clampNumber(value?.height, base.height, 160, 2160))
+    height: Math.trunc(clampNumber(value?.height, base.height, 160, 2160)),
+    // 0 = 跟显示器；其余夹在 10~240 帧
+    fps: Number(value?.fps) === 0 ? 0 : Math.trunc(clampNumber(value?.fps, base.fps, 10, 240))
   }
 }
 
@@ -146,16 +167,45 @@ function normalizeBoxEvents(list: unknown): SpecialBoxEvent[] {
     let id = String(r.id || '').trim()
     if (!id || seen.has(id) || id.includes(',') || id.includes('|') || id === '*') id = newSpecialBoxEventId()
     seen.add(id)
+    const voice = String(r.voice ?? '').trim().slice(0, 200)
+    const video = String(r.video ?? '').trim()
     out.push({
       id,
       name: String(r.name || '').trim() || specialBoxEventDefaultName(param),
       param,
       enabled: r.enabled !== false,
       weight: clampNumber(r.weight, 1, 0, 1_000_000),
-      prank: String(r.prank || '').trim()
+      prank: String(r.prank || '').trim(),
+      ...(voice ? { voice } : {}),
+      ...(r.silent === true ? { silent: true } : {}),
+      ...(video ? { video } : {}),
+      ...(video && r.videoVolume != null ? { videoVolume: clampNumber(r.videoVolume, 100, 0, 100) } : {}),
+      ...(video && r.voiceWithVideo === true ? { voiceWithVideo: true } : {})
     })
   }
   return out
+}
+
+// 开奖设置夹紧：按控件规格（SPECIAL_REVEAL_PARAMS 的 min/max/候选项）；
+// 声音除了下拉里那几个，写对格式的别的 Edge 声音也认（主播自己改配置换声音）。
+// ★模块加载时（读配置 normalizeStore）就会调到这里，里面别引用写在后面的模块级常量
+function normalizeReveal(value?: Partial<SpecialRevealConfig>): SpecialRevealConfig {
+  const v = (value || {}) as Record<string, unknown>
+  const out: Record<string, unknown> = { ...DEFAULT_SPECIAL_REVEAL }
+  const ints = ['rate', 'gapMs', 'holdMs', 'maxQueue']
+  for (const p of SPECIAL_REVEAL_PARAMS) {
+    const raw = v[p.key]
+    if (p.type === 'number') {
+      const n = clampNumber(raw, p.def as number, p.min ?? 0, p.max ?? 1_000_000)
+      out[p.key] = ints.includes(p.key) ? Math.round(n) : n
+    } else if (p.type === 'toggle') out[p.key] = raw == null ? p.def : raw === true
+    else if (p.type === 'color') out[p.key] = /^#[0-9a-f]{6}$/i.test(String(raw)) ? String(raw).toLowerCase() : p.def
+    else if (p.type === 'select') {
+      const ok = (p.options || []).some((o) => o.value === raw)
+      out[p.key] = ok || (p.key === 'voiceName' && /^[a-z]{2,3}-[A-Z]{2}(?:-[a-z]+)?-[A-Za-z]+Neural$/.test(String(raw ?? ''))) ? String(raw) : p.def
+    } else out[p.key] = raw == null ? p.def : String(raw).trim()
+  }
+  return out as unknown as SpecialRevealConfig
 }
 
 function normalizeLegacyBox(raw: Partial<LegacyBox> | undefined): LegacyBox | null {
@@ -174,10 +224,20 @@ function normalizeStore(value?: Partial<Store>): Store {
     games,
     window: normalizeWindow(value?.window ?? windowFromLegacy(value?.games)),
     boxEvents: Array.isArray(value?.boxEvents) ? normalizeBoxEvents(value!.boxEvents) : defaultSpecialBoxEvents(),
+    reveal: normalizeReveal(value?.reveal),
     ...(boxes.length ? { boxes } : {}),
     legacyMigrated: value?.legacyMigrated === true,
-    chainSkinV2: value?.chainSkinV2 === true
+    chainSkinV2: value?.chainSkinV2 === true,
+    boxDefaults: boxDefaultsLevel(value)
   }
+}
+
+// 事件库里的默认事件是第几版：第一次用（还没有事件库）= 最新版；0.3.64 的老事件库 = 第 1 版
+function boxDefaultsLevel(value?: Partial<Store>): number {
+  if (!Array.isArray(value?.boxEvents)) return SPECIAL_BOX_DEFAULTS_LEVEL
+  const n = Math.trunc(Number(value?.boxDefaults))
+  if (Number.isFinite(n) && n >= 1) return n
+  return value?.boxEventsV2 === true ? 2 : 1
 }
 
 export function specialConfig(id: SpecialGameId): SpecialGameConfig {
@@ -187,6 +247,21 @@ export function specialConfig(id: SpecialGameId): SpecialGameConfig {
 
 export function specialWindowConfig(): SpecialWindowConfig {
   return normalizeWindow(store.window)
+}
+
+export function specialRevealConfig(): SpecialRevealConfig {
+  return normalizeReveal(store.reveal)
+}
+
+// 开场音效：主播自选的文件还在就用它，不然用内置的锣
+function gongFileFor(r: SpecialRevealConfig): string {
+  return r.gongPath && validMedia(r.gongPath) ? r.gongPath : specialGongFile()
+}
+
+// 下发给直播窗口的开奖设置：多带一个锣声地址
+function revealPageConfig(r: SpecialRevealConfig): Record<string, unknown> {
+  const gong = gongFileFor(r)
+  return { ...r, gongUrl: gong ? mediaUrl(gong) : '' }
 }
 
 function persist(): void {
@@ -209,7 +284,7 @@ function emitChanged(): void {
 function writeWindowPage(): string {
   const tmp = path.join(app.getPath('userData'), WINDOW_PAGE)
   const games = SPECIAL_GAMES.map((meta) => ({ meta, cfg: specialConfig(meta.id), code: GAME_CODE[meta.id] || '' }))
-  fs.writeFileSync(tmp, buildSpecialWindowPage(games, specialWindowConfig(), SPECIAL_LAYER_ORDER, specialAssetBase()))
+  fs.writeFileSync(tmp, buildSpecialWindowPage(games, specialWindowConfig(), SPECIAL_LAYER_ORDER, specialAssetBase(), revealPageConfig(specialRevealConfig())))
   return tmp
 }
 
@@ -292,9 +367,20 @@ export function configureSpecialWindow(value: Partial<SpecialWindowConfig>): { o
       win.setBackgroundColor(next.background === 'green' ? '#00ff00' : '#00000000')
       void runWhenReady(`window.__window && window.__window(${scriptJson({ background: next.background })})`)
     }
+    if (previous.fps !== next.fps) void runWhenReady(`window.__window && window.__window(${scriptJson({ fps: next.fps })})`)
   }
   emitChanged()
   return { ok: true, window: next }
+}
+
+/** 改盲盒开奖画面与配音：开着的窗口跟着变（排着没播的按新设置播） */
+export function configureSpecialReveal(value: Partial<SpecialRevealConfig>): { ok: boolean; reveal: SpecialRevealConfig } {
+  const next = normalizeReveal({ ...specialRevealConfig(), ...value })
+  store.reveal = next
+  persist()
+  if (win && !win.isDestroyed()) void runWhenReady(`window.__revealConfig && window.__revealConfig(${scriptJson(revealPageConfig(next))})`)
+  // 不广播 SpecialChanged：开奖设置只有设置面板自己用，广播会让整页（事件库、各礼物奖池）跟着重读重画，拖滑块就卡
+  return { ok: true, reveal: next }
 }
 
 export function configureSpecialGame(id: SpecialGameId, value: Partial<SpecialGameConfig>): { ok: boolean } {
@@ -329,6 +415,7 @@ export function specialState(): SpecialGameplayState {
   return {
     games: SPECIAL_GAMES.map((meta) => ({ id: meta.id, config: specialConfig(meta.id) })),
     window: { ...specialWindowConfig(), open: specialWindowOpen() },
+    reveal: specialRevealConfig(),
     assetDir: specialAssetDir()
   }
 }
@@ -379,7 +466,15 @@ export function runSpecialAction(param: string, viewer?: SpecialViewer, times = 
   const n = Math.max(1, Math.trunc(Number(times) || 1))
   const count = resolveSpecialCount(p.count, meta.countDef) * n
   if (!Number.isSafeInteger(count)) return { ok: false, error: '数量超出可精确表示范围，请检查规则数值' }
-  applyToWindow([buildCommand(meta, cfg, p.op, count, p.fields, viewer, force)])
+  const cmd = buildCommand(meta, cfg, p.op, count, p.fields, viewer, force)
+  const reveal = specialRevealConfig()
+  // 开奖设置里打开了「礼物直接触发的也播」：和盲盒开出来一样，锣 + 大字 + 配音，锣响时生效
+  if (reveal.enabled && reveal.direct) {
+    const op = meta.ops.find((o) => o.value === p.op) ?? meta.ops[0]
+    const item = revealItem({ ev: { id: '', name: '', param, enabled: true, weight: 1, prank: '' }, meta, p, op, count }, cmd, reveal)
+    revealToWindow([item], [], '', '')
+    fillVoices([item], reveal)
+  } else applyToWindow([cmd])
   return { ok: true }
 }
 
@@ -395,6 +490,8 @@ export async function saveSpecialBoxEvents(list: SpecialBoxEvent[]): Promise<{ o
   const before = new Set((store.boxEvents ?? []).map((e) => e.id))
   store.boxEvents = normalizeBoxEvents(list)
   persist()
+  // 配了开奖视频的先在后台压一份小副本（原片常常是 4K 60 帧），开奖时直接放副本
+  prewarmMedia(store.boxEvents.map((e) => e.video || '').filter(Boolean))
   const after = new Set(store.boxEvents.map((e) => e.id))
   const removed = [...before].filter((id) => !after.has(id))
   if (removed.length) await dropBoxEventsFromRules(removed).catch((e) => console.warn('[special-gameplay] 清理奖池引用失败', (e as Error).message))
@@ -402,21 +499,103 @@ export async function saveSpecialBoxEvents(list: SpecialBoxEvent[]): Promise<{ o
   return { ok: true, events: specialBoxEvents() }
 }
 
-async function dropBoxEventsFromRules(ids: string[]): Promise<void> {
-  const gone = new Set(ids)
+// ===== 给一个玩法导入一批开奖视频（照时间盲盒：一段视频一个事件）=====
+// 文件名里认操作和数量：「抓5只」= 加 5，「-12分」「减5」= 减，「×2」= 乘，「÷2」= 除；第一个数字就是数量。
+// 这个玩法里已经有同操作、同数量、还没配视频的事件 → 直接挂上；没有 → 新建一个事件（名字用视频名）。同一段视频不重复导。
+const VIDEO_FILE = /\.(mp4|mov|mkv|webm|avi|m4v|flv|wmv)$/i
+/** 视频文件 → 事件名：去掉扩展名、店铺后缀和「(2)」（「抓5只-创作淘宝店路师傅的特效铺(2).mp4」→「抓5只」） */
+export function videoEventName(file: string): string {
+  return path.basename(file).replace(/\.[^.]+$/, '').replace(/\s*[-_—]\s*创作.*$/, '').replace(/\s*\(\d+\)\s*$/, '').trim() || path.basename(file)
+}
+function videoEventAction(meta: SpecialGameMeta, name: string): { op: string; count: number } | null {
+  const m = /(\d+)/.exec(name)
+  const count = m ? Math.trunc(Number(m[1])) : 0
+  if (!(count >= 1)) return null
+  const has = (op: string): boolean => meta.ops.some((o) => o.value === op && o.count !== false)
+  let op = meta.ops[0].value
+  if (/[×xX*＊乘]/.test(name) && has('multiply')) op = 'multiply'
+  else if (/[÷除]/.test(name) && has('divide')) op = 'divide'
+  else if ((/^\s*[-−－]/.test(name) || /减/.test(name)) && has('reduce')) op = 'reduce'
+  else if (has('add')) op = 'add'
+  return { op, count }
+}
+
+export async function importSpecialBoxVideos(game: SpecialGameId, files?: string[]): Promise<{ ok: boolean; error?: string; attached: number; added: number; skipped: number; events: SpecialBoxEvent[] }> {
+  const meta = SPECIAL_GAME_MAP[game]
+  const none = { attached: 0, added: 0, skipped: 0, events: specialBoxEvents() }
+  if (!meta) return { ok: false, error: '未知玩法', ...none }
+  let list = Array.isArray(files) ? files.map(String) : []
+  if (!list.length) {
+    const owner = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows().find((w) => !w.isDestroyed() && w !== win)
+    const opts = { title: `给「${meta.name}」导入开奖视频（可以一次选多个）`, properties: ['openFile', 'multiSelections'] as ('openFile' | 'multiSelections')[], filters: [{ name: '视频', extensions: ['mp4', 'mov', 'mkv', 'webm', 'avi', 'm4v', 'flv', 'wmv'] }] }
+    const picked = owner ? await dialog.showOpenDialog(owner, opts) : await dialog.showOpenDialog(opts)
+    if (picked.canceled) return { ok: true, ...none }
+    list = picked.filePaths
+  }
+  const lib = [...(store.boxEvents ?? [])]
+  const used = new Set(lib.map((e) => String(e.video || '').toLowerCase()).filter(Boolean))
+  let attached = 0, added = 0, skipped = 0
+  const parsed = list
+    .filter((f) => VIDEO_FILE.test(f) && validMedia(f))
+    .map((file) => ({ file, name: videoEventName(file), act: videoEventAction(meta, videoEventName(file)) }))
+    .sort((a, b) => (a.act?.count ?? 0) - (b.act?.count ?? 0))
+  skipped += list.length - parsed.length
+  for (const { file, name, act } of parsed) {
+    if (!act || used.has(file.toLowerCase())) { skipped++; continue }
+    used.add(file.toLowerCase())
+    const same = lib.findIndex((e) => {
+      const p = parseSpecialParam(e.param)
+      return p.id === game && p.op === act.op && p.count.trim() === String(act.count) && !Object.keys(p.fields).length && !e.video
+    })
+    if (same >= 0) { lib[same] = { ...lib[same], video: file }; attached++; continue }
+    const param = joinSpecialParam({ id: game, op: act.op, count: String(act.count), fields: {} })
+    lib.push({ id: newSpecialBoxEventId(), name, param, enabled: true, weight: 1, prank: '', video: file })
+    added++
+  }
+  if (attached || added) await saveSpecialBoxEvents(lib)
+  return { ok: true, attached, added, skipped, events: specialBoxEvents() }
+}
+
+// 改礼物规则里「特色整蛊盲盒」动作的奖池（主动作和附加动作都看）：fix 返回 null = 这条不用改
+async function rewriteBoxPools(fix: (p: ReturnType<typeof parseSpecialBoxParam>) => string[] | null): Promise<void> {
   const { listRules, updateRule } = await import('./entertainment')
-  const fix = <T extends EntertainmentAction>(a: T): T => {
+  const apply = <T extends EntertainmentAction>(a: T): T => {
     if (a.actionType !== 'command' || a.commandCmd !== 'special-box') return a
     const p = parseSpecialBoxParam(a.commandParam)
-    if (p.all || !p.ids.some((id) => gone.has(id))) return a
-    return { ...a, commandParam: joinSpecialBoxParam({ ...p, ids: p.ids.filter((id) => !gone.has(id)) }) }
+    if (p.all) return a
+    const ids = fix(p)
+    return ids ? { ...a, commandParam: joinSpecialBoxParam({ ...p, ids }) } : a
   }
   for (const rule of listRules()) {
-    const primary = fix(rule)
-    const extras = (rule.extraActions ?? []).map(fix)
+    const primary = apply(rule)
+    const extras = (rule.extraActions ?? []).map(apply)
     if (primary === rule && extras.every((a, i) => a === rule.extraActions?.[i])) continue
     updateRule({ ...rule, commandParam: primary.commandParam, extraActions: rule.extraActions ? extras : undefined } as EntertainmentRule)
   }
+}
+
+async function dropBoxEventsFromRules(ids: string[]): Promise<void> {
+  const gone = new Set(ids)
+  await rewriteBoxPools((p) => (p.ids.some((id) => gone.has(id)) ? p.ids.filter((id) => !gone.has(id)) : null))
+}
+
+// 默认事件库一版一版补（第 2 版：照时间盲盒、带配音的一大排；第 3 版：加减照时间盲盒那排数配满）。
+// 老用户的事件库只补「比他手上那版新出的」默认事件——自己删掉的老默认事件不会再加回来；
+// 礼物奖池还是默认全选的（库里原有的默认事件全勾着）就把新的也勾上——用户：「直接给默认加上去」。
+// 自己挑过奖池的不动（新事件在库里，想要自己勾）。每版只做一次。
+const isDefaultBoxEventId = (id: string): boolean => id.startsWith('sbe-v-') || LEGACY_DEFAULT_BOX_EVENT_IDS.includes(id)
+async function mergeDefaultBoxEvents(level: number): Promise<void> {
+  const before = store.boxEvents ?? []
+  const have = new Set(before.map((e) => e.id))
+  const fresh = defaultSpecialBoxEvents(level).filter((e) => !have.has(e.id))
+  store.boxDefaults = SPECIAL_BOX_DEFAULTS_LEVEL
+  if (fresh.length) store.boxEvents = [...before, ...fresh]
+  persist()
+  const defaults = before.map((e) => e.id).filter(isDefaultBoxEventId)
+  if (!fresh.length || !defaults.length) return
+  const add = fresh.map((e) => e.id)
+  await rewriteBoxPools((p) => (defaults.every((id) => p.ids.includes(id)) ? [...p.ids, ...add.filter((id) => !p.ids.includes(id))] : null))
+  emitChanged()
 }
 
 type BoxPool = { ok: true; events: SpecialBoxEvent[]; name: string; opens: number } | { ok: false; error: string }
@@ -458,8 +637,97 @@ function pickWeighted(events: SpecialBoxEvent[]): SpecialBoxEvent {
   return events[events.length - 1]
 }
 
-// 抽 draws 次并下发：同一个事件抽中几次——增加类合并成一条（各次的随机数量相加），
-// 乘除按次数逐条叠乘，清空/暂停这类不要数量的只做一次。最后整窗盖一条「某某的盲盒开出：…」。
+// 抽中一次：哪个事件、这次的数量（随机范围在这里就定下来，开奖念的、横幅写的、真生效的是同一个数）
+interface Drawn { ev: SpecialBoxEvent; meta: SpecialGameMeta; p: SpecialActionParam; op: SpecialOpSpec; count: number }
+// 下发给窗口的一条开奖：大字、小字（事件自己起了名字时写动作）、念的那句、声音地址；
+// 声音还在现念的带 vid（声音文件名），念好了再补（__revealVoice）
+// 事件配了开奖视频的：video = 视频地址（有瘦身副本就用副本），放视频、不敲锣不出大字；念不念看 voiceWithVideo
+interface RevealItem { text: string; sub: string; line: string; voice: string; vid: string; cmds: Record<string, unknown>[]; video?: string; videoVolume?: number }
+
+function drawOnce(ev: SpecialBoxEvent): Drawn | null {
+  const p = parseSpecialParam(ev.param)
+  if (!p.id) return null
+  const meta = SPECIAL_GAME_MAP[p.id]
+  const op = meta.ops.find((o) => o.value === p.op) ?? meta.ops[0]
+  return { ev, meta, p, op, count: op.count === false ? 1 : resolveSpecialCount(p.count, meta.countDef) }
+}
+
+// 同一个事件抽中几次合成一条：增加类数量相加，乘除按次数逐条叠乘，清空/暂停这类不要数量的只做一次。
+// 横幅文字「开出：…」也按这个合并（盲盒开奖逐条播时，横幅照样一次列全）。
+function tallyDraws(list: Drawn[], viewer: SpecialViewer | undefined, force: boolean): { cmds: Record<string, unknown>[]; texts: string[]; error?: string } {
+  const groups = new Map<SpecialBoxEvent, Drawn[]>()
+  for (const d of list) {
+    const g = groups.get(d.ev)
+    if (g) g.push(d)
+    else groups.set(d.ev, [d])
+  }
+  const cmds: Record<string, unknown>[] = []
+  const texts: string[] = []
+  for (const [ev, ds] of groups) {
+    const { meta, p, op } = ds[0]
+    const cfg = specialConfig(meta.id)
+    let label: string
+    if (op.count === false) {
+      cmds.push(buildCommand(meta, cfg, op.value, 1, p.fields, viewer, force))
+      label = specialActionText(ev.param)
+    } else if (MERGEABLE_OPS.has(op.value)) {
+      const total = ds.reduce((sum, d) => sum + d.count, 0)
+      if (!Number.isSafeInteger(total)) return { cmds, texts, error: '数量超出可精确表示范围，请检查规则数值' }
+      cmds.push(buildCommand(meta, cfg, op.value, total, p.fields, viewer, force))
+      label = specialActionText(joinSpecialParam({ ...p, count: String(total) }))
+    } else {
+      for (const d of ds) cmds.push(buildCommand(meta, cfg, op.value, d.count, p.fields, viewer, force))
+      label = ds.length > 1 ? `${specialActionText(ev.param)} ×${ds.length}次` : specialActionText(joinSpecialParam({ ...p, count: String(ds[0].count) }))
+    }
+    const custom = !!ev.name && ev.name !== specialBoxEventDefaultName(ev.param)
+    texts.push(custom ? `${ev.name}（${label}）` : label)
+  }
+  return { cmds, texts }
+}
+
+// 一条开奖：随包 / 缓存里有现成的配音就直接带上地址，没有的记下 vid，发出去以后再现念
+function revealItem(d: Drawn, cmd: Record<string, unknown>, reveal: SpecialRevealConfig): RevealItem {
+  const count = Math.max(1, Math.trunc(Number(cmd.count)) || d.count)
+  const auto = specialRevealText(d.ev.param, count)
+  const custom = !!d.ev.name && d.ev.name !== specialBoxEventDefaultName(d.ev.param)
+  // 视频文件不在了（挪走 / 删了）就照常用锣 + 大字 + 配音，别让这个事件哑掉
+  const video = d.ev.video && validMedia(d.ev.video) ? d.ev.video : ''
+  const line = reveal.voice && (!video || d.ev.voiceWithVideo) ? specialBoxEventVoice(d.ev, count) : ''
+  const cached = line ? specialVoiceCached(line, reveal.voiceName, reveal.rate) : ''
+  return {
+    text: custom ? d.ev.name : auto,
+    sub: custom ? auto : '',
+    line,
+    voice: cached ? voiceFileUrl(cached) : '',
+    vid: line && !cached ? voiceFileName(reveal.voiceName, reveal.rate, line) : '',
+    cmds: [cmd],
+    ...(video ? { video: mediaUrl(optimizedMedia(video)), videoVolume: d.ev.videoVolume ?? 100 } : {})
+  }
+}
+
+function revealToWindow(items: RevealItem[], rest: Record<string, unknown>[], announce: string, avatar: string): void {
+  if (!win || win.isDestroyed()) return
+  for (const it of items) for (const c of it.cmds) loaded.add(c.game as SpecialGameId)
+  for (const c of rest) loaded.add(c.game as SpecialGameId)
+  void runWhenReady(`window.__reveal && window.__reveal(${scriptJson(items)}, ${scriptJson(rest)}, ${scriptJson(announce)}, ${scriptJson(avatar)})`)
+}
+
+// 没现成配音的那几句现念，念好（或念不出来）告诉窗口；同一句只念一次
+function fillVoices(items: RevealItem[], reveal: SpecialRevealConfig): void {
+  const seen = new Set<string>()
+  for (const it of items) {
+    if (!it.vid || seen.has(it.vid)) continue
+    seen.add(it.vid)
+    void specialVoiceFile(it.line, reveal.voiceName, reveal.rate, 15_000).then((r) => {
+      if (r.error) console.warn('[special-gameplay] 开奖配音：', r.error)
+      void runWhenReady(`window.__revealVoice && window.__revealVoice(${scriptJson(it.vid)}, ${scriptJson(r.file ? voiceFileUrl(r.file) : '')})`)
+    })
+  }
+}
+
+// 抽 draws 次并下发。开奖画面开着：每抽一次一条，按顺序逐条播（同时间盲盒「连击逐项播放」），
+// 窗口里排着的超过「排队上限」，多出来的直接生效（同一个事件合并成一条）；关着：全部合并后直接生效。
+// 顶上照旧盖一条「某某的盲盒开出：…」。
 async function runBoxEvents(events: SpecialBoxEvent[], boxName: string, viewer: SpecialViewer | undefined, draws: number, force: boolean): Promise<{ ok: boolean; error?: string; opened?: string[] }> {
   if (!events.length) return { ok: false, error: '盲盒奖池是空的' }
   if (memoryLevel() === 'critical') return { ok: false, error: '内存告急，暂不生成新的特色整蛊' }
@@ -467,44 +735,35 @@ async function runBoxEvents(events: SpecialBoxEvent[], boxName: string, viewer: 
   if (!Number.isSafeInteger(n)) return { ok: false, error: '抽取次数超出可精确表示范围，请检查规则数值' }
   const opened = ensureOpen(force)
   if (!opened.ok) return opened
-  const tally = new Map<SpecialBoxEvent, number>()
+  const drawn: Drawn[] = []
   for (let i = 0; i < n; i++) {
-    const e = events.length === 1 ? events[0] : pickWeighted(events)
-    tally.set(e, (tally.get(e) || 0) + 1)
+    const d = drawOnce(events.length === 1 ? events[0] : pickWeighted(events))
+    if (d) drawn.push(d)
   }
-  const cmds: Record<string, unknown>[] = []
-  const texts: string[] = []
-  const pranks: string[] = []
-  for (const [ev, k] of tally) {
-    const p = parseSpecialParam(ev.param)
-    if (!p.id) continue
-    const meta = SPECIAL_GAME_MAP[p.id]
-    const cfg = specialConfig(p.id)
-    const op = meta.ops.find((o) => o.value === p.op) ?? meta.ops[0]
-    let label: string
-    if (op.count === false) {
-      cmds.push(buildCommand(meta, cfg, op.value, 1, p.fields, viewer, force))
-      label = specialActionText(ev.param)
-    } else if (MERGEABLE_OPS.has(op.value)) {
-      let total = 0
-      for (let j = 0; j < k; j++) total += resolveSpecialCount(p.count, meta.countDef)
-      if (!Number.isSafeInteger(total)) return { ok: false, error: '数量超出可精确表示范围，请检查规则数值' }
-      cmds.push(buildCommand(meta, cfg, op.value, total, p.fields, viewer, force))
-      label = specialActionText(joinSpecialParam({ ...p, count: String(total) }))
-    } else {
-      for (let j = 0; j < k; j++) cmds.push(buildCommand(meta, cfg, op.value, resolveSpecialCount(p.count, meta.countDef), p.fields, viewer, force))
-      label = specialActionText(ev.param) + (k > 1 ? ` ×${k}次` : '')
-    }
-    const custom = !!ev.name && ev.name !== specialBoxEventDefaultName(ev.param)
-    texts.push(custom ? `${ev.name}（${label}）` : label)
-    if (ev.prank) for (let j = 0; j < k; j++) pranks.push(ev.prank)
+  if (!drawn.length) return { ok: false, error: '奖池里的事件没有可执行的玩法' }
+  const all = tallyDraws(drawn, viewer, force)
+  if (all.error) return { ok: false, error: all.error }
+  const reveal = specialRevealConfig()
+  let shown: Drawn[] = []
+  let rest = drawn
+  if (reveal.enabled) {
+    const queued = reveal.maxQueue > 0 ? Number(await runWhenReady<number>('window.__revealPending ? window.__revealPending() : 0')) || 0 : 0
+    const room = reveal.maxQueue > 0 ? Math.max(0, reveal.maxQueue - queued) : drawn.length
+    shown = drawn.slice(0, room)
+    rest = drawn.slice(room)
   }
-  if (!cmds.length) return { ok: false, error: '奖池里的事件没有可执行的玩法' }
+  const restCmds = rest.length ? tallyDraws(rest, viewer, force).cmds : []
+  const items = shown.map((d) => revealItem(d, buildCommand(d.meta, specialConfig(d.meta.id), d.op.value, d.count, d.p.fields, viewer, force), reveal))
   const who = viewer?.name ? `${viewer.name}的` : ''
-  const announce = `🎁 ${who}「${boxName}」${n > 1 ? `×${n} ` : ''}开出：${texts.join('、')}`
-  applyToWindow(cmds, announce, viewer?.avatar ? mediaUrl(viewer.avatar) : '')
+  const announce = `🎁 ${who}「${boxName}」${n > 1 ? `×${n} ` : ''}开出：${all.texts.join('、')}`
+  const avatar = viewer?.avatar ? mediaUrl(viewer.avatar) : ''
+  if (items.length) {
+    revealToWindow(items, restCmds, announce, avatar)
+    fillVoices(items, reveal)
+  } else applyToWindow(restCmds, announce, avatar)
+  const pranks = drawn.filter((d) => !!d.ev.prank).map((d) => d.ev.prank)
   if (pranks.length) void runPranks(pranks)
-  return { ok: true, opened: texts }
+  return { ok: true, opened: all.texts }
 }
 
 // 事件附带的游戏整蛊：游戏没开 / 不是这款游戏时整蛊发不出去，画面整蛊照样执行（只记日志，不让盲盒整个失败）
@@ -536,6 +795,30 @@ export function testSpecialBoxEvent(id: string): Promise<{ ok: boolean; error?: 
   return runBoxEvents([ev], '测试', { name: '主播' }, 1, true)
 }
 
+/**
+ * 试听一句开奖配音（开奖设置、事件库里的「试听」）：在设置页里直接放，不用开直播窗口。
+ * 给事件（可以是还没存的草稿）就按它这次会念的那句；给 text 就念这一句。现念的最多等 12 秒。
+ */
+export async function specialVoicePreview(req: SpecialVoicePreviewRequest): Promise<SpecialVoicePreview> {
+  const reveal = normalizeReveal({ ...specialRevealConfig(), ...(req?.config || {}) })
+  const gong = reveal.gong ? gongFileFor(reveal) : ''
+  const base = { gongUrl: gong ? voicePreviewUrl(gong) : '', gapMs: reveal.gapMs, voiceVolume: reveal.voiceVolume, gongVolume: reveal.gongVolume }
+  let line = String(req?.text || '').trim()
+  let text = line
+  if (!line && req?.param) {
+    const p = parseSpecialParam(req.param)
+    if (!p.id) return { ok: false, error: '没有选择玩法', line: '', text: '', voiceUrl: '', ...base }
+    const meta = SPECIAL_GAME_MAP[p.id]
+    const op = meta.ops.find((o) => o.value === p.op) ?? meta.ops[0]
+    const count = op.count === false ? 1 : resolveSpecialCount(p.count, meta.countDef)
+    line = reveal.voice ? specialBoxEventVoice({ param: req.param, voice: req.voice, silent: req.silent }, count) : ''
+    text = specialRevealText(req.param, count)
+  }
+  if (!line) return { ok: true, line: '', text, voiceUrl: '', ...base }
+  const r = await specialVoiceFile(line, reveal.voiceName, reveal.rate, 12_000)
+  return { ok: !!r.file, ...(r.error ? { error: r.error } : {}), line, text, voiceUrl: voicePreviewUrl(r.file), ...base }
+}
+
 /** 「在直播窗口试一试」：不看自动开窗开关，没开就先开；不受内存保护限制（主播亲手点的）。 */
 export function testSpecialGame(id: SpecialGameId, action?: SpecialTestAction): { ok: boolean; error?: string } {
   const meta = SPECIAL_GAME_MAP[id]
@@ -552,6 +835,8 @@ export function testSpecialGame(id: SpecialGameId, action?: SpecialTestAction): 
 /** 全部清屏：窗口里用过的玩法统统清掉场上的东西（音乐球是停止），窗口留着。保护主播 / 特色整蛊页的「全部清屏」用。 */
 export function clearAllSpecial(): { ok: boolean; cleared: number } {
   if (!specialWindowOpen()) return { ok: true, cleared: 0 }
+  // 排着没播的开奖一起清掉（不再生效）
+  void runWhenReady('window.__revealClear && window.__revealClear()')
   const cmds = [...loaded].map((id) => {
     const meta = SPECIAL_GAME_MAP[id]
     const op = meta.ops.some((o) => o.value === 'clear') ? 'clear' : 'stop'
@@ -573,6 +858,8 @@ export function closeAllSpecial(): { ok: boolean; closed: number } {
  * - 合成一个窗口：窗口设置、盲盒事件库第一次落盘；以前每个玩法各写一份的页面文件删掉。
  */
 export async function migrateLegacySpecialTriggers(): Promise<number> {
+  // 盲盒事件配的开奖视频：启动后过一会儿在后台压小副本（原片常常是 4K 60 帧），开播前就换好
+  setTimeout(() => { try { prewarmMedia((store.boxEvents ?? []).map((e) => e.video || '').filter(Boolean)) } catch { /* 压不了就放原片 */ } }, 20_000)
   if (!store.chainSkinV2) {
     const chain = store.games.chain_challenge
     if (chain?.params && chain.params.visualStyle === 'default') chain.params = { ...chain.params, visualStyle: 'neon' }
@@ -585,6 +872,8 @@ export async function migrateLegacySpecialTriggers(): Promise<number> {
       try { fs.rmSync(path.join(app.getPath('userData'), `special-${meta.id}.html`), { force: true }) } catch { /* 删不掉不影响 */ }
     }
   }
+  const level = store.boxDefaults ?? 1
+  if (level < SPECIAL_BOX_DEFAULTS_LEVEL) await mergeDefaultBoxEvents(level).catch((e) => console.warn('[special-gameplay] 补默认盲盒事件失败', (e as Error).message))
   if (store.legacyMigrated) return 0
   const { addRule } = await import('./entertainment')
   let moved = 0

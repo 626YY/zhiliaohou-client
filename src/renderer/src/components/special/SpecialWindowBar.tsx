@@ -6,7 +6,7 @@ import { Btn, Input, Pill, Segmented, Select, Toggle } from '../ui'
 import { AdvancedFields } from '../../lib/configurationLevel'
 import { SPECIAL_WIDGET_ID, readAutoOpenIds, writeAutoOpenIds } from '../../lib/widgetLaunchers'
 import { useToast } from '../../stores/ui'
-import { SPECIAL_SCREEN_PRESETS, SPECIAL_WINDOW_TITLE, specialOrientation, specialSizeFor, type SpecialWindowConfig } from '@shared/specialGames'
+import { SPECIAL_FPS_OPTIONS, SPECIAL_SCREEN_PRESETS, SPECIAL_WINDOW_TITLE, specialOrientation, specialSizeFor, type SpecialWindowConfig } from '@shared/specialGames'
 
 export default function SpecialWindowBar({ win, onChange, compact = false }: { win: SpecialWindowConfig & { open: boolean }; onChange: () => void; compact?: boolean }) {
   const toast = useToast((s) => s.toast)
@@ -95,6 +95,13 @@ export default function SpecialWindowBar({ win, onChange, compact = false }: { w
             ×
             <Input type="number" aria-label="窗口高" value={size.h} min={160} max={2160} className="h-8 w-20 text-xs" onChange={(e) => setSize((s) => ({ ...s, h: e.target.value }))} onBlur={commitSize} onKeyDown={(e) => { if (e.key === 'Enter') commitSize() }} />
           </span>
+          <label className="flex items-center gap-2" title="画面动起来时每秒画几帧；直播推流一般 30 帧，帧数越高越吃电脑">
+            动画帧率
+            <Select aria-label="动画帧率" value={String(SPECIAL_FPS_OPTIONS.some((o) => o.value === win.fps) ? win.fps : 'custom')} className="h-8 w-52 text-xs" onChange={(e) => void configure({ fps: Number(e.target.value) })}>
+              {SPECIAL_FPS_OPTIONS.map((o) => <option key={o.value} value={String(o.value)}>{o.label}</option>)}
+              {!SPECIAL_FPS_OPTIONS.some((o) => o.value === win.fps) && <option value="custom" disabled>{win.fps} 帧</option>}
+            </Select>
+          </label>
         </AdvancedFields>
       </div>
     </div>

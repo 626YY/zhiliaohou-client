@@ -121,6 +121,8 @@ export interface SpecialGameMeta {
   tint: string
   /** 数量的量词（只 / 个 / 件 …） */
   unit: string
+  /** 盲盒开奖配音里怎么叫它（「锁链加5」的「锁链」）；没有 = 开出来不念（来电、音乐球这种没数量的） */
+  say?: string
   /** 数量的常用值（固定数量时的默认、试玩的默认） */
   countDef: number
   /** 新建联动时默认的随机范围（「a~b」，每次触发在范围里随机）；不给就用固定的 countDef */
@@ -156,8 +158,18 @@ export interface SpecialWindowConfig {
   background: 'green' | 'transparent'
   width: number
   height: number
+  /**
+   * 动画帧率上限，0 = 跟显示器。透明 / 绿幕窗口每画一帧都要整窗刷新（客户端主进程也跟着忙），
+   * 直播推流一般就 30 帧，默认画到 30 帧（2026-10-07 用户：「整蛊台内操作的时候有点点卡」）。
+   */
+  fps: number
 }
-export const DEFAULT_SPECIAL_WINDOW: SpecialWindowConfig = { autoOpen: true, background: 'green', width: 1280, height: 720 }
+export const DEFAULT_SPECIAL_WINDOW: SpecialWindowConfig = { autoOpen: true, background: 'green', width: 1280, height: 720, fps: 30 }
+export const SPECIAL_FPS_OPTIONS: { value: number; label: string }[] = [
+  { value: 30, label: '30 帧（和直播一样，省电脑）' },
+  { value: 60, label: '60 帧（更顺滑）' },
+  { value: 0, label: '跟显示器刷新率' }
+]
 
 /**
  * 图层顺序（下 → 上）。一会儿就自己挂断的来电 / 来视频放最上面（用户：「打视频那种要在最前，因为一会儿就没了」）；
@@ -177,6 +189,8 @@ export interface SpecialGameplayState {
   games: SpecialGameStateItem[]
   /** 直播窗口（全部玩法共用） */
   window: SpecialWindowConfig & { open: boolean }
+  /** 盲盒开奖画面与配音 */
+  reveal: SpecialRevealConfig
   /** 素材目录（卡片缩略图 / 预览用）；找不到素材时为空 */
   assetDir: string
 }
@@ -274,6 +288,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#14bcae',
     unit: '环',
+    say: '锁链',
     countDef: 1,
     countRange: '1~5',
     ops: [OP_ADD, OP_REDUCE, OP_MUL, OP_DIV, { value: 'clear', label: '直接解锁', count: false, hint: '锁链立刻断开' }],
@@ -312,6 +327,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#18bea9',
     unit: '只',
+    say: '鸭子',
     countDef: 5,
     countRange: '5~15',
     ops: [OP_ADD, OP_CLEAR, OP_RESET],
@@ -339,6 +355,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#e5cfb4',
     unit: '个',
+    say: '粑粑',
     countDef: 5,
     countRange: '5~15',
     ops: [OP_ADD, OP_CLEAR, OP_RESET],
@@ -369,6 +386,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#c4d7e0',
     unit: '件',
+    say: '垃圾',
     countDef: 5,
     countRange: '5~15',
     ops: [OP_ADD, OP_CLEAR, OP_RESET],
@@ -401,6 +419,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#6b4a24',
     unit: '颗',
+    say: '子弹',
     countDef: 5,
     countRange: '5~20',
     ops: [OP_ADD, OP_REDUCE, OP_CLEAR, OP_RESET],
@@ -426,6 +445,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#65a91f',
     unit: '条',
+    say: '毛毛虫',
     countDef: 5,
     countRange: '3~8',
     ops: [OP_ADD, OP_CLEAR, OP_RESET],
@@ -452,6 +472,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#20dd57',
     unit: '个',
+    say: '小新',
     countDef: 3,
     countRange: '2~5',
     ops: [OP_ADD, OP_CLEAR],
@@ -523,6 +544,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#244f49',
     unit: '点',
+    say: '符咒',
     countDef: 3,
     countRange: '2~6',
     ops: [OP_ADD, OP_REDUCE, OP_MUL, OP_DIV, { value: 'clear', label: '直接破解', count: false, hint: '符咒立刻全部碎掉' }],
@@ -546,6 +568,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#496152',
     unit: '只',
+    say: '蚊子',
     countDef: 10,
     countRange: '8~25',
     ops: [OP_ADD, OP_REDUCE, OP_CLEAR],
@@ -580,6 +603,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#6b2530',
     unit: '只',
+    say: '蚊子',
     countDef: 3,
     countRange: '2~5',
     ops: [OP_ADD, OP_REDUCE, OP_CLEAR],
@@ -617,6 +641,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#31505a',
     unit: '只',
+    say: '苍蝇',
     countDef: 3,
     countRange: '2~6',
     ops: [OP_ADD, OP_REDUCE, OP_CLEAR],
@@ -654,6 +679,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#183f36',
     unit: '个',
+    say: '水果',
     countDef: 5,
     countRange: '4~10',
     ops: [OP_ADD, OP_CLEAR],
@@ -677,6 +703,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#304a84',
     unit: '枚',
+    say: '金币',
     countDef: 5,
     countRange: '5~15',
     ops: [OP_ADD, OP_CLEAR],
@@ -699,6 +726,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     height: 720,
     tint: '#b87527',
     unit: '片',
+    say: '叶子',
     countDef: 5,
     countRange: '5~20',
     ops: [
@@ -782,6 +810,19 @@ export interface SpecialBoxEvent {
   weight: number
   /** 抽中时同时触发的游戏整蛊（参数 游戏id|整蛊id|显示名），空 = 不附加 */
   prank: string
+  /** 开奖配音念什么：空 = 按「玩法 + 操作 + 数量」自动念（锁链加5）；可以写 {数量} 代入这次开出的数量 */
+  voice?: string
+  /** 这个事件开出来不念（开奖画面照样出） */
+  silent?: boolean
+  /**
+   * 开奖视频（本地文件，照时间盲盒每个事件一段视频）：开到这个事件就在窗口里放它（抠掉绿幕底），
+   * 不敲锣、不出大字；空 = 锣 + 大字 + AI 配音。2026-10-07 用户：「抓鸭子用抓鸭子抓几只那个视频」
+   */
+  video?: string
+  /** 开奖视频音量 0~100（缺省 100） */
+  videoVolume?: number
+  /** 放开奖视频时也念 AI 配音（视频一般自带配音，缺省不念；念的话在视频放完后念） */
+  voiceWithVideo?: boolean
 }
 export const SPECIAL_BOX_ALL = '*'
 export const SPECIAL_BOX_DEFAULT_NAME = '特色盲盒'
@@ -796,12 +837,329 @@ export function specialBoxEventDefaultName(param: string): string {
   return specialActionText(param)
 }
 
-/** 第一次用时放进事件库：每个玩法一个默认事件（默认操作 + 随机数量），主播再增删改 */
-export function defaultSpecialBoxEvents(): SpecialBoxEvent[] {
-  return SPECIAL_GAMES.map((g) => {
-    const param = specialDefaultParam(g.id)
-    return { id: `sbe-default-${g.id}`, name: specialBoxEventDefaultName(param), param, enabled: true, weight: 1, prank: '' }
-  })
+// 默认事件库（照时间盲盒那一排「-12分」「时间×2」：每个事件一个固定数量，开出来念的就是它）。
+// 2026-10-06 用户：「多配点，多种类一些，类似于时间盲盒那种可选的」「直接给默认加上去」；
+// 2026-10-07：「有点少啊，加减的数字，参考时间盲盒呀，多来点」→ 加减照时间盲盒那排数配满（第 3 版）。
+// 配音随包带着（box_voice），不联网也能念。id 由 玩法-操作-数量-选项 决定，不能变（礼物奖池按 id 勾）。
+// [玩法, 操作, 数量, 选项]
+type BoxSpec = [SpecialGameId, string, number, string?]
+// 第 2 版（93 个）：每个有数量的玩法几档加 / 减 / 乘 / 除，再带几个大小、种类的变化
+const BOX_SPECS_V2: BoxSpec[] = [
+  ['chain_challenge', 'add', 1], ['chain_challenge', 'add', 3], ['chain_challenge', 'add', 5], ['chain_challenge', 'add', 10],
+  ['chain_challenge', 'reduce', 2], ['chain_challenge', 'reduce', 5],
+  ['chain_challenge', 'multiply', 2], ['chain_challenge', 'multiply', 3], ['chain_challenge', 'divide', 2], ['chain_challenge', 'divide', 3],
+  ['catch_duck', 'add', 3], ['catch_duck', 'add', 5], ['catch_duck', 'add', 10], ['catch_duck', 'add', 20], ['catch_duck', 'add', 50],
+  ['catch_duck', 'add', 5, 'size=big'], ['catch_duck', 'add', 10, 'size=small'],
+  ['throw_poop', 'add', 3], ['throw_poop', 'add', 5], ['throw_poop', 'add', 8], ['throw_poop', 'add', 10], ['throw_poop', 'add', 20],
+  ['throw_poop', 'add', 3, 'size=big'],
+  ['throw_trash', 'add', 3], ['throw_trash', 'add', 5], ['throw_trash', 'add', 10], ['throw_trash', 'add', 20],
+  ['throw_trash', 'add', 3, 'kind=old_shoe'], ['throw_trash', 'add', 5, 'kind=beer_can'], ['throw_trash', 'add', 5, 'kind=egg'],
+  ['catch_bullet', 'add', 5], ['catch_bullet', 'add', 10], ['catch_bullet', 'add', 20], ['catch_bullet', 'add', 50],
+  ['catch_bullet', 'reduce', 5], ['catch_bullet', 'reduce', 10],
+  ['caterpillar', 'add', 1], ['caterpillar', 'add', 3], ['caterpillar', 'add', 5], ['caterpillar', 'add', 10], ['caterpillar', 'add', 3, 'color=random'],
+  ['xiaoxin_hey', 'add', 1], ['xiaoxin_hey', 'add', 2], ['xiaoxin_hey', 'add', 3], ['xiaoxin_hey', 'add', 5], ['xiaoxin_hey', 'add', 10],
+  ['talisman_seal', 'add', 2], ['talisman_seal', 'add', 3], ['talisman_seal', 'add', 5], ['talisman_seal', 'add', 10],
+  ['talisman_seal', 'reduce', 2], ['talisman_seal', 'multiply', 2], ['talisman_seal', 'divide', 2],
+  ['mosquito', 'add', 5], ['mosquito', 'add', 10], ['mosquito', 'add', 20], ['mosquito', 'add', 50], ['mosquito', 'add', 100], ['mosquito', 'reduce', 10],
+  ['big_mosquito', 'add', 1, 'size=big'], ['big_mosquito', 'add', 2, 'size=big'], ['big_mosquito', 'add', 3, 'size=big'],
+  ['big_mosquito', 'add', 5, 'size=small'], ['big_mosquito', 'add', 10, 'size=small'], ['big_mosquito', 'reduce', 1],
+  ['gesture_fly', 'add', 1, 'size=big'], ['gesture_fly', 'add', 3], ['gesture_fly', 'add', 5], ['gesture_fly', 'add', 10], ['gesture_fly', 'reduce', 2],
+  ['fruit_slice', 'add', 3], ['fruit_slice', 'add', 5], ['fruit_slice', 'add', 10], ['fruit_slice', 'add', 20],
+  ['fruit_slice', 'add', 3, 'kind=watermelon'], ['fruit_slice', 'add', 3, 'kind=pineapple'], ['fruit_slice', 'add', 5, 'kind=banana'],
+  ['coin_bump', 'add', 5], ['coin_bump', 'add', 10], ['coin_bump', 'add', 20], ['coin_bump', 'add', 50], ['coin_bump', 'add', 100],
+  ['leaf_pickup', 'add', 5], ['leaf_pickup', 'add', 10], ['leaf_pickup', 'add', 20], ['leaf_pickup', 'add', 50],
+  ['leaf_pickup', 'reduce', 10], ['leaf_pickup', 'accelerate', 2], ['leaf_pickup', 'accelerate', 3], ['leaf_pickup', 'tornado', 20],
+  ['fan_call', 'show', 1], ['fan_video_call', 'show', 1], ['music_ball', 'start', 1]
+]
+// 第 3 版：照时间盲盒那排数——加 1~60 十七档、减 1~60 十六档、乘除 2 和 3（时间盲盒就是这些）。
+// 手势拍蚊子加的是大蚊子（拍三下那种），念「大蚊子加5」，和声控拍蚊子的「蚊子加5」分开。
+export const SPECIAL_BOX_ADD_COUNTS = [1, 2, 4, 5, 8, 9, 10, 12, 15, 18, 20, 25, 30, 35, 40, 50, 60]
+export const SPECIAL_BOX_REDUCE_COUNTS = [1, 2, 4, 5, 8, 9, 10, 12, 15, 18, 20, 25, 30, 35, 40, 60]
+const OP_COUNTS: Record<string, number[]> = {
+  add: SPECIAL_BOX_ADD_COUNTS,
+  reduce: SPECIAL_BOX_REDUCE_COUNTS,
+  multiply: [2, 3],
+  divide: [2, 3],
+  accelerate: [2, 3],
+  tornado: [10, 20, 30, 50]
+}
+function boxSpecsV3(): BoxSpec[] {
+  const out: BoxSpec[] = []
+  for (const g of SPECIAL_GAMES) {
+    if (!g.say) continue
+    for (const op of g.ops) {
+      if (op.count === false) continue
+      const fields = g.id === 'big_mosquito' && op.value === 'add' ? 'size=big' : undefined
+      for (const n of OP_COUNTS[op.value] ?? []) out.push([g.id, op.value, n, fields])
+    }
+  }
+  return out
+}
+/** 默认事件库的版本：老用户升级时只补这版新出的默认事件（自己删掉的不会再加回来） */
+export const SPECIAL_BOX_DEFAULTS_LEVEL = 3
+
+function specFields(raw?: string): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const pair of String(raw || '').split(';')) {
+    const at = pair.indexOf('=')
+    if (at > 0) out[pair.slice(0, at)] = pair.slice(at + 1)
+  }
+  return out
+}
+
+function boxEventFromSpec([id, op, n, raw]: BoxSpec): SpecialBoxEvent {
+  const fields = specFields(raw)
+  const param = joinSpecialParam({ id, op, count: String(n), fields })
+  const tail = Object.values(fields).join('-')
+  return { id: `sbe-v-${id}-${op}-${n}${tail ? `-${tail}` : ''}`, name: specialBoxEventDefaultName(param), param, enabled: true, weight: 1, prank: '' }
+}
+
+/**
+ * 默认事件库：照时间盲盒，每个事件一个固定数量（玩法、操作、数量、选项不变 id 就不变）。
+ * sinceLevel = 已经有到第几版：只回之后新出的（老用户升级补事件用）；不给 = 全部。
+ * 顺序：按玩法卡片顺序，同一玩法里先加后减再乘除、数量从小到大。
+ */
+export function defaultSpecialBoxEvents(sinceLevel = 0): SpecialBoxEvent[] {
+  const level = new Map<string, number>()
+  const events: SpecialBoxEvent[] = []
+  for (const [list, lv] of [[BOX_SPECS_V2, 2], [boxSpecsV3(), 3]] as [BoxSpec[], number][]) {
+    for (const spec of list) {
+      const ev = boxEventFromSpec(spec)
+      if (level.has(ev.id)) continue
+      level.set(ev.id, lv)
+      events.push(ev)
+    }
+  }
+  return sortSpecialBoxEvents(events.filter((e) => (level.get(e.id) ?? 0) > sinceLevel))
+}
+
+/** 排个顺序：玩法卡片顺序 → 操作（加、减、乘、除…）→ 数量从小到大 → 不带选项的在前；其余照原来的先后 */
+export function sortSpecialBoxEvents<T extends Pick<SpecialBoxEvent, 'param'>>(events: T[]): T[] {
+  const key = (e: T): number[] => {
+    const p = parseSpecialParam(e.param)
+    const meta = p.id ? SPECIAL_GAME_MAP[p.id] : undefined
+    const g = meta ? SPECIAL_GAMES.indexOf(meta) : SPECIAL_GAMES.length
+    const o = meta ? Math.max(0, meta.ops.findIndex((x) => x.value === p.op)) : 0
+    const n = parseInt(p.count, 10)
+    return [g, o, Number.isFinite(n) ? n : 0, Object.keys(p.fields).length]
+  }
+  return events
+    .map((e, i) => ({ e, i, k: key(e) }))
+    .sort((a, b) => a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.k[2] - b.k[2] || a.k[3] - b.k[3] || a.i - b.i)
+    .map((x) => x.e)
+}
+
+/** 0.3.64 那版的默认事件（每个玩法一个、数量随机）：判断「奖池是不是还是当初默认全选」用 */
+export const LEGACY_DEFAULT_BOX_EVENT_IDS: string[] = SPECIAL_GAMES.map((g) => `sbe-default-${g.id}`)
+
+// ================= 盲盒开奖：画面 + AI 配音 =================
+// 照时间盲盒那批视频（2026-10-06 用户：「类似于时间插件盲盒的那种 AI 语音」「前面有一个锣声，然后才是 AI 人声」）：
+// 抽中一个事件，窗口里敲一声锣、蹦出「锁链+5」，接着晓伊念「锁链加5」；连送多份逐条播（同时间盲盒连击逐项播放），
+// 每条开出的玩法在锣响那一刻生效。没有数量的（粉丝来电、音乐球）只出画面不念。
+export type SpecialRevealPosition = 'top' | 'center' | 'bottom' | 'top-left' | 'top-right'
+export interface SpecialRevealConfig {
+  /** 开奖画面：关掉 = 开出来直接生效（只有顶上那条「某某的盲盒开出：…」） */
+  enabled: boolean
+  /** AI 配音 */
+  voice: boolean
+  /** 配音的声音 */
+  voiceName: string
+  /** 语速（%，0 = 正常） */
+  rate: number
+  /** 配音音量 0~100 */
+  voiceVolume: number
+  /** 开场锣声 */
+  gong: boolean
+  /** 锣声音量 0~100 */
+  gongVolume: number
+  /** 自定义开场音效（空 = 内置的锣） */
+  gongPath: string
+  /** 锣响后多久开口（毫秒） */
+  gapMs: number
+  /** 念完后画面再留多久（毫秒） */
+  holdMs: number
+  /** 开奖画面的位置 */
+  position: SpecialRevealPosition
+  /** 开奖画面大小（%） */
+  scale: number
+  /** 画面里画那面锣 */
+  showGong: boolean
+  /** 排队上限：等着开奖的超过这么多，新开出的直接生效不再播开奖；0 = 不限 */
+  maxQueue: number
+  /** 礼物直接触发的特色整蛊（不经过盲盒）也播开奖 */
+  direct: boolean
+  /** 开奖视频大小（按比例放进窗口，占窗口的百分比） */
+  videoScale: number
+  /** 开奖视频抠底色：自动（从视频四个角量底色）/ 用下面指定的颜色 */
+  videoKeyAuto: boolean
+  videoKeyColor: string
+  /** 抠图相似度 / 边缘平滑 / 溢色抑制（0~100，和直播伴侣的色度键一个意思） */
+  videoSimilarity: number
+  videoSmoothness: number
+  videoSpill: number
+}
+export const DEFAULT_SPECIAL_REVEAL: SpecialRevealConfig = {
+  enabled: true,
+  voice: true,
+  voiceName: 'zh-CN-XiaoyiNeural',
+  rate: 0,
+  voiceVolume: 100,
+  gong: true,
+  gongVolume: 100,
+  gongPath: '',
+  gapMs: 565,
+  holdMs: 300,
+  position: 'top',
+  scale: 100,
+  showGong: true,
+  maxQueue: 20,
+  direct: false,
+  videoScale: 100,
+  videoKeyAuto: true,
+  videoKeyColor: '#00ff00',
+  videoSimilarity: 40,
+  videoSmoothness: 12,
+  videoSpill: 30
+}
+export const SPECIAL_VOICE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'zh-CN-XiaoyiNeural', label: '晓伊 · 萌系女声' },
+  { value: 'zh-CN-XiaoxiaoNeural', label: '晓晓 · 温柔女声' },
+  { value: 'zh-CN-YunxiaNeural', label: '云夏 · 可爱少年' },
+  { value: 'zh-CN-YunxiNeural', label: '云希 · 阳光男声' },
+  { value: 'zh-CN-YunjianNeural', label: '云健 · 激情男声' },
+  { value: 'zh-CN-YunyangNeural', label: '云扬 · 播音男声' },
+  { value: 'zh-CN-liaoning-XiaobeiNeural', label: '晓北 · 东北话' },
+  { value: 'zh-CN-shaanxi-XiaoniNeural', label: '晓妮 · 陕西话' },
+  { value: 'zh-HK-HiuGaaiNeural', label: '曉佳 · 粤语' },
+  { value: 'zh-TW-HsiaoChenNeural', label: '曉臻 · 台湾腔' }
+]
+export const SPECIAL_REVEAL_POSITIONS: { value: SpecialRevealPosition; label: string }[] = [
+  { value: 'top', label: '上方居中' },
+  { value: 'center', label: '画面正中' },
+  { value: 'bottom', label: '下方居中' },
+  { value: 'top-left', label: '左上角' },
+  { value: 'top-right', label: '右上角' }
+]
+
+/** 开奖设置的控件规格：设置页按它用通用控件摆，min/max 同时是主进程夹紧的上下限 */
+export const SPECIAL_REVEAL_PARAMS: SpecialParamSpec[] = [
+  { key: 'enabled', label: '开奖画面', type: 'toggle', def: true, hint: '抽中时窗口里敲一声锣、蹦出「锁链+5」这样的大字，一条一条开；关掉就开出来直接生效', group: 'look' },
+  { key: 'voice', label: 'AI 配音', type: 'toggle', def: true, hint: '锣响后念出开到的东西，比如「锁链加5」；粉丝来电、音乐球这种没有数量的不念', group: 'sound' },
+  { key: 'voiceName', label: '配音声音', type: 'select', def: DEFAULT_SPECIAL_REVEAL.voiceName, options: SPECIAL_VOICE_OPTIONS, hint: '晓伊不联网也能念；换别的声音，每句第一次念的时候要联网', group: 'sound' },
+  { key: 'rate', label: '语速', type: 'number', min: -50, max: 100, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.rate, hint: '0 是正常语速，往负调更慢', group: 'sound' },
+  { key: 'voiceVolume', label: '配音音量', type: 'number', min: 0, max: 100, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.voiceVolume, group: 'sound' },
+  { key: 'gong', label: '开场锣声', type: 'toggle', def: true, hint: '念之前先「咣」一声', group: 'sound' },
+  { key: 'gongVolume', label: '锣声音量', type: 'number', min: 0, max: 100, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.gongVolume, group: 'sound' },
+  { key: 'gongPath', label: '自定义开场音效', type: 'file', fileKind: 'audio', def: '', hint: '换成自己的音效，留空用内置的锣', advanced: true, group: 'media' },
+  { key: 'gapMs', label: '锣后停顿', type: 'number', min: 0, max: 3000, step: 5, unit: '毫秒', def: DEFAULT_SPECIAL_REVEAL.gapMs, hint: '锣响后过多久开始念', advanced: true, group: 'sound' },
+  { key: 'position', label: '画面位置', type: 'select', def: DEFAULT_SPECIAL_REVEAL.position, options: SPECIAL_REVEAL_POSITIONS, group: 'look' },
+  { key: 'scale', label: '画面大小', type: 'number', min: 30, max: 300, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.scale, group: 'look' },
+  { key: 'showGong', label: '画面里的锣', type: 'toggle', def: true, hint: '大字左边那面被敲响的锣；关掉只出大字', group: 'look' },
+  { key: 'holdMs', label: '念完后停留', type: 'number', min: 0, max: 10000, step: 100, unit: '毫秒', def: DEFAULT_SPECIAL_REVEAL.holdMs, hint: '念完以后大字再留多久', advanced: true, group: 'look' },
+  { key: 'maxQueue', label: '排队上限', type: 'number', min: 0, max: 200, step: 1, unit: '条', def: DEFAULT_SPECIAL_REVEAL.maxQueue, hint: '等着开奖的超过这么多条，新开出的直接生效、不再敲锣念；0 = 不限', advanced: true },
+  { key: 'direct', label: '直接触发的也播', type: 'toggle', def: false, hint: '礼物规则直接触发的特色整蛊（不经过盲盒）也敲锣、念一句', advanced: true },
+  { key: 'videoScale', label: '开奖视频大小', type: 'number', min: 20, max: 100, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.videoScale, hint: '事件配了开奖视频时，视频按比例放进窗口占多大', group: 'look' },
+  { key: 'videoKeyAuto', label: '开奖视频自动抠底色', type: 'toggle', def: true, hint: '从视频四个角量出绿幕底色再抠掉；关掉就用下面的颜色', advanced: true, group: 'look' },
+  { key: 'videoKeyColor', label: '开奖视频抠图颜色', type: 'color', def: DEFAULT_SPECIAL_REVEAL.videoKeyColor, hint: '关掉自动抠底色时用这个颜色', advanced: true, group: 'look' },
+  { key: 'videoSimilarity', label: '抠图相似度', type: 'number', min: 0, max: 100, step: 1, def: DEFAULT_SPECIAL_REVEAL.videoSimilarity, hint: '越大，跟底色越像的颜色越容易被抠掉', advanced: true, group: 'look' },
+  { key: 'videoSmoothness', label: '抠图边缘平滑', type: 'number', min: 0, max: 100, step: 1, def: DEFAULT_SPECIAL_REVEAL.videoSmoothness, hint: '抠除边界的过渡范围，太大边缘会发虚', advanced: true, group: 'look' },
+  { key: 'videoSpill', label: '抠图溢色抑制', type: 'number', min: 0, max: 100, step: 1, def: DEFAULT_SPECIAL_REVEAL.videoSpill, hint: '压掉边缘残留的绿边', advanced: true, group: 'look' }
+]
+
+/** 试听一句开奖配音（开奖设置、事件库里点「试听」）：给事件（可以是还没存的草稿），或者直接给一句话 */
+export interface SpecialVoicePreviewRequest {
+  /** 事件的动作参数 玩法|操作|数量|选项 */
+  param?: string
+  /** 事件自己写的台词（{数量} 换成这次的数量） */
+  voice?: string
+  silent?: boolean
+  /** 直接念这一句（不看事件） */
+  text?: string
+  /** 用还没存的开奖设置试听（刚换的声音、语速） */
+  config?: Partial<SpecialRevealConfig>
+}
+export interface SpecialVoicePreview {
+  ok: boolean
+  error?: string
+  /** 念的那句（空 = 这个事件不念） */
+  line: string
+  /** 开奖画面上的大字 */
+  text: string
+  voiceUrl: string
+  gongUrl: string
+  gapMs: number
+  voiceVolume: number
+  gongVolume: number
+}
+
+const OP_SAY: Record<string, string> = { add: '加', show: '加', reduce: '减', multiply: '乘以', divide: '除以' }
+
+// 配音 / 开奖大字里的名词：玩法的叫法，带上种类 / 颜色 / 大小（西瓜、彩色毛毛虫、大鸭子）
+function sayNoun(p: SpecialActionParam): string {
+  const meta = p.id ? SPECIAL_GAME_MAP[p.id] : undefined
+  if (!meta?.say) return ''
+  const kind = p.fields.kind
+  if (kind && kind !== 'random') {
+    const label = meta.fields?.find((f) => f.key === 'kind')?.options.find((o) => o.value === kind)?.label
+    if (label) return label
+  }
+  let noun = meta.say
+  const color = p.fields.color
+  if (color === 'random') noun = `彩色${noun}`
+  else if (color && color !== 'config') noun = `${CATERPILLAR_COLORS.find((c) => c.value === color)?.label ?? ''}${noun}`
+  if (p.fields.size === 'big') noun = `大${noun}`
+  else if (p.fields.size === 'small') noun = `小${noun}`
+  return noun
+}
+
+/** 开奖配音念的那句：「锁链加5」「锁链乘以3」「龙卷风卷走20片」；没有数量的（来电、音乐球、清空）返回空 = 不念 */
+export function specialVoiceLine(param: string, count: number): string {
+  const p = parseSpecialParam(param)
+  if (!p.id) return ''
+  const meta = SPECIAL_GAME_MAP[p.id]
+  const op = meta.ops.find((o) => o.value === p.op) ?? meta.ops[0]
+  if (op.count === false || !meta.say) return ''
+  const n = Math.max(1, Math.trunc(count) || 1)
+  if (op.value === 'accelerate') return `清扫速度乘以${n}`
+  if (op.value === 'tornado') return `龙卷风卷走${n}${meta.unit}`
+  const word = OP_SAY[op.value]
+  return word ? `${sayNoun(p)}${word}${n}` : ''
+}
+
+/** 开奖画面上蹦出来的大字：「锁链+5」「锁链×3」；没有数量的是「玩法 操作」 */
+export function specialRevealText(param: string, count: number): string {
+  const p = parseSpecialParam(param)
+  if (!p.id) return ''
+  const meta = SPECIAL_GAME_MAP[p.id]
+  const op = meta.ops.find((o) => o.value === p.op) ?? meta.ops[0]
+  const n = Math.max(1, Math.trunc(count) || 1)
+  if (op.count === false) return `${meta.name} ${op.label}`
+  if (op.value === 'accelerate') return `清扫×${n}`
+  if (op.value === 'tornado') return `龙卷风卷走${n}${meta.unit}`
+  if (!meta.say) return n > 1 ? `${meta.name}×${n}` : meta.name
+  return `${sayNoun(p)}${op.sign || '+'}${n}`
+}
+
+/** 这个事件开出来念什么：关了配音 = 空；自己写了台词用自己的（{数量} 换成这次开出的数量）；不然按玩法自动 */
+export function specialBoxEventVoice(ev: Pick<SpecialBoxEvent, 'param' | 'voice' | 'silent'>, count: number): string {
+  if (ev.silent) return ''
+  const custom = String(ev.voice || '').trim()
+  if (custom) return custom.replace(/\{数量\}/g, String(Math.max(1, Math.trunc(count) || 1)))
+  return specialVoiceLine(ev.param, count)
+}
+
+// 一看符号就懂的操作；别的（加速清扫、直接扫掉）短字里要带上操作名，不然只剩「×2」「−10片」看不出是什么
+const PLAIN_OP_LABELS = new Set(['增加', '减少', '乘以', '除以', '打来电话', '打来视频'])
+
+/** 奖池小格子上的短字：玩法名已经在分组标题上，这里只写「+5环」「×3」「加速清扫 ×2」「龙卷风20片」 */
+export function specialActionShort(raw: string | undefined): string {
+  const p = parseSpecialParam(raw)
+  if (!p.id) return specialActionText(raw)
+  const meta = SPECIAL_GAME_MAP[p.id]
+  const full = specialActionText(raw)
+  const rest = full.startsWith(`${meta.name} `) ? full.slice(meta.name.length + 1) : full
+  const op = meta.ops.find((o) => o.value === p.op) ?? meta.ops[0]
+  return op.sign && op.count !== false && !PLAIN_OP_LABELS.has(op.label) ? `${op.label} ${rest}` : rest
 }
 
 export interface SpecialBoxParam {

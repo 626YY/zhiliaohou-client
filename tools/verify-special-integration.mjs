@@ -6,7 +6,8 @@
 //   4. 详情页「添加联动」→ 存成礼物规则（动作 = 特色整蛊）
 //   5. 模拟送礼 → 规则触发 → 唯一的「特色整蛊」窗口自动打开，几个玩法在同一个窗口里各自动
 //   6. 礼物规则编辑器里「特色整蛊」单独一格 + 参数编辑；转盘等走的 entertainmentCommand 出口；整蛊遥控融合
-//   6c. 盲盒（照时间插件）：事件库、给礼物勾奖池、送礼按奖池抽、改勾选即存、删事件从奖池摘掉
+//   6c. 盲盒（照时间插件）：默认事件库（每个玩法几档固定数量）、给礼物勾奖池、送礼按奖池抽、逐条开奖（锣 + 大字 + 随包配音）、
+//       改勾选即存、删事件从奖池摘掉、开奖设置夹紧、设置页试听拿得到随包配音
 //   7. 全部清屏 / 关闭窗口；zlspecial 协议拒绝读素材目录外和非媒体文件
 // 用法：npx electron-vite build --outDir output/special-build && node tools/verify-special-integration.mjs [--out=output/special-build]
 import assert from 'node:assert/strict'
@@ -262,7 +263,10 @@ try {
 
   // ---- 6c. 特色整蛊盲盒（照时间插件）：事件库 → 给礼物勾奖池 → 送礼按奖池抽 ----
   const events = await api(() => window.api.specialBoxEvents())
-  assert.equal(events.length, 17, `第一次用应放进每个玩法一个默认事件：${events.length}`)
+  assert.ok(events.length >= 90 && events.every((e) => e.id.startsWith('sbe-v-')), `第一次用应放进默认事件库：${events.length}`)
+  const gamesInLib = new Set(events.map((e) => e.param.split('|')[0]))
+  assert.equal(gamesInLib.size, 17, `默认事件库应覆盖 17 个玩法：${[...gamesInLib]}`)
+  ok(`默认事件库 ${events.length} 个事件，覆盖 17 个玩法（固定数量，开出来念得出来）`)
   await api(() => { window.location.hash = '#/special' })
   await page.locator('[data-testid="special-boxes"]').waitFor({ timeout: 10_000 })
   await page.getByRole('button', { name: '添加盲盒礼物' }).click()
@@ -270,18 +274,22 @@ try {
   await boxDialog.waitFor()
   await api(() => document.querySelectorAll('[role="dialog"] input[list]').forEach((i) => i.removeAttribute('list')))
   await boxDialog.getByPlaceholder('如：小心心 / 人气票 / 玫瑰').fill('嘉年华')
-  await until(async () => (await boxDialog.locator('[role="checkbox"][aria-checked="true"]').count()) === 17, '奖池默认勾上全部事件')
+  await boxDialog.getByText(`抽奖事件 · 已选 ${events.length} 项`).waitFor({ timeout: 5000 })
+  // 全勾着的组默认收着（组头写「锁链特效 38/38」），点开再挑具体哪一档
+  assert.equal(await boxDialog.locator('[role="checkbox"]').count(), 0, '全选时各组应先收着')
   await boxDialog.getByRole('button', { name: '清空选择' }).click()
-  await boxDialog.getByRole('checkbox', { name: /抽奖事件 抓鸭子/ }).click()
-  await boxDialog.getByRole('checkbox', { name: /抽奖事件 锁链特效/ }).click()
+  await boxDialog.getByRole('button', { name: '展开 抓鸭子', exact: true }).click()
+  await boxDialog.getByRole('button', { name: '展开 锁链特效', exact: true }).click()
+  await boxDialog.getByRole('checkbox', { name: '抽奖事件 抓鸭子 +5只', exact: true }).click()
+  await boxDialog.getByRole('checkbox', { name: '抽奖事件 锁链特效 +5环', exact: true }).click()
   await boxDialog.getByLabel('盲盒名字').fill('嘉年华盲盒')
   await page.waitForTimeout(700)
   await capture('06c-box-modal')
   await boxDialog.getByRole('button', { name: '添加联动' }).click()
   await until(() => api(() => window.api.entertainmentRulesList().then((l) => l.some((r) => r.giftName === '嘉年华' && r.commandCmd === 'special-box'))), '盲盒礼物落盘')
   const boxRule = (await api(() => window.api.entertainmentRulesList())).find((r) => r.giftName === '嘉年华')
-  assert.equal(boxRule.commandParam, 'sbe-default-catch_duck,sbe-default-chain_challenge|嘉年华盲盒')
-  ok('添加盲盒礼物：嘉年华 → 奖池默认全勾，改成只勾「抓鸭子」「锁链」，名字「嘉年华盲盒」')
+  assert.equal(boxRule.commandParam, 'sbe-v-catch_duck-add-5,sbe-v-chain_challenge-add-5|嘉年华盲盒')
+  ok('添加盲盒礼物：嘉年华 → 奖池默认全勾，改成只勾「鸭子 +5」「锁链 +5」，名字「嘉年华盲盒」')
 
   await api(() => window.api.specialCloseAll())
   await until(async () => !(await windowOpen()), '先关掉窗口')
@@ -290,14 +298,38 @@ try {
   let announce = ''
   for (let i = 0; i < 40 && !announce.includes('开出'); i++) { announce = await bannerText(); if (!announce.includes('开出')) await page.waitForTimeout(150) }
   assert.ok(announce.includes('阿彪的「嘉年华盲盒」×3 开出'), `开盒提示不对：${announce}`)
+  // 逐条开奖：第一条正在开（锣 + 大字），配音是随包带的（不用联网现念）
+  let rv = null
+  for (let i = 0; i < 40 && !rv?.current; i++) { rv = (await inSpecialWindow('window.__revealState && window.__revealState()')).value; if (!rv?.current) await page.waitForTimeout(100) }
+  assert.ok(rv?.current && /^(鸭子|锁链)\+5$/.test(rv.current.text), `开奖画面不对：${JSON.stringify(rv)}`)
+  assert.equal(rv.current.voiced, true, `默认事件开奖应带随包配音：${JSON.stringify(rv)}`)
+  const firstText = rv.current.text
+  await until(async () => (await inSpecialWindow('window.__revealState().pending')).value === 0, '三条开奖逐条播完', 20_000)
   const got = await loadedGames()
   assert.ok(got.length >= 1 && got.every((g) => g === 'catch_duck' || g === 'chain_challenge'), `只该从奖池里的两个事件抽：${got}`)
-  ok(`模拟送「嘉年华×3 by 阿彪」→ 一次抽 3 份、只开出奖池里的（${got.join('、')}）：「${announce}」`)
+  ok(`模拟送「嘉年华×3 by 阿彪」→ 一次抽 3 份、逐条开奖（第一条「${firstText}」带配音），只开出奖池里的（${got.join('、')}）：「${announce}」`)
+
+  // 开奖设置：存得上、越界夹紧；设置页试听拿得到随包的锣和配音
+  const cfg1 = await api(() => window.api.specialRevealConfigure({ rate: -10, gapMs: 999999, position: 'nowhere' }))
+  assert.equal(cfg1.reveal.rate, -10)
+  assert.equal(cfg1.reveal.gapMs, 3000, `锣后停顿应夹到上限：${cfg1.reveal.gapMs}`)
+  assert.equal(cfg1.reveal.position, 'top', `认不出的位置回默认：${cfg1.reveal.position}`)
+  const live = (await inSpecialWindow('window.__revealConfig && (window.__revealConfig({}), true)')).value
+  assert.equal(live, true)
+  await api(() => window.api.specialRevealConfigure({ rate: 0, gapMs: 565 }))
+  const pv = await api(() => window.api.specialVoicePreview({ param: 'chain_challenge|add|5' }))
+  assert.ok(pv.ok && pv.line === '锁链加5' && pv.text === '锁链+5', `试听：${JSON.stringify(pv)}`)
+  assert.ok(pv.voiceUrl.startsWith('zlspecial://app/assets/box_voice/') && pv.gongUrl.endsWith('box_voice/gong.mp3'), `试听地址：${JSON.stringify(pv)}`)
+  const fetched = await api(async (u) => { const r = await fetch(u.v); const g = await fetch(u.g); return [r.status, (await r.arrayBuffer()).byteLength, g.status] }, { v: pv.voiceUrl, g: pv.gongUrl })
+  assert.ok(fetched[0] === 200 && fetched[1] > 2000 && fetched[2] === 200, `试听文件读不到：${fetched}`)
+  const silent = await api(() => window.api.specialVoicePreview({ param: 'fan_call|show|1' }))
+  assert.ok(silent.ok && silent.line === '' && silent.text === '粉丝来电', `没数量的不念：${JSON.stringify(silent)}`)
+  ok(`开奖设置：语速 -10% 存上、锣后停顿夹到 3000 毫秒、乱写的位置回默认；试听「${pv.line}」读的是随包配音（${fetched[1]} 字节），粉丝来电只敲锣不念`)
 
   const row = page.locator(`[data-box-rule="${boxRule.id}"]`)
   await row.waitFor({ timeout: 10_000 })
-  await row.getByRole('checkbox', { name: /抽奖事件 锁链特效/ }).click()
-  await until(() => api(() => window.api.entertainmentRulesList().then((l) => l.find((r) => r.giftName === '嘉年华')?.commandParam === 'sbe-default-catch_duck|嘉年华盲盒')), '盲盒礼物行里去勾即存')
+  await row.getByRole('checkbox', { name: '抽奖事件 锁链特效 +5环', exact: true }).click()
+  await until(() => api(() => window.api.entertainmentRulesList().then((l) => l.find((r) => r.giftName === '嘉年华')?.commandParam === 'sbe-v-catch_duck-add-5|嘉年华盲盒')), '盲盒礼物行里去勾即存')
   await row.getByRole('button', { name: '抽一次' }).click()
   let drawn = ''
   for (let i = 0; i < 40 && !drawn.includes('主播的「嘉年华盲盒」开出：抓鸭子'); i++) { drawn = await bannerText(); await page.waitForTimeout(150) }
@@ -305,15 +337,49 @@ try {
   await capture('06d-box-section')
   ok(`盲盒礼物行里直接去勾「锁链」→ 自动存进礼物规则；「抽一次」只开出鸭子：「${drawn}」`)
 
-  await page.getByRole('button', { name: '添加事件' }).click()
-  await until(() => api(() => window.api.specialBoxEvents().then((l) => l.length === 18)), '新事件落盘')
+  // 在「抓鸭子」这一组里点「加一档」：加在抓鸭子里，新的那条直接展开
+  await page.locator('[data-testid="special-box-events"] button[aria-expanded]').first().click()
+  await page.getByRole('button', { name: '在 抓鸭子 里加一档', exact: true }).click()
+  await until(() => api((n) => window.api.specialBoxEvents().then((l) => l.length === n), events.length + 1), '新事件落盘')
   const lib = page.locator('[data-testid="special-box-events"]')
-  const del = lib.locator('[data-box-event="sbe-default-catch_duck"]').getByRole('button', { name: /删除事件/ })
+  const del = lib.locator('[data-box-event="sbe-v-catch_duck-add-5"]').getByRole('button', { name: /删除事件/ })
   await del.click()
   await del.click()
-  await until(() => api(() => window.api.specialBoxEvents().then((l) => !l.some((e) => e.id === 'sbe-default-catch_duck'))), '删掉的事件落盘')
+  await until(() => api(() => window.api.specialBoxEvents().then((l) => !l.some((e) => e.id === 'sbe-v-catch_duck-add-5'))), '删掉的事件落盘')
   await until(() => api(() => window.api.entertainmentRulesList().then((l) => l.find((r) => r.giftName === '嘉年华')?.commandParam === '|嘉年华盲盒')), '删掉的事件从奖池里摘掉')
-  ok('事件库：添加事件即存；删掉「抓鸭子」事件后，嘉年华的奖池里也跟着摘掉')
+  const added = (await api(() => window.api.specialBoxEvents())).at(-1)
+  assert.ok(added.param.startsWith('catch_duck|'), `「加一档」应加在抓鸭子里：${added.param}`)
+  ok('事件库：在「抓鸭子」组里「加一档」就加在抓鸭子里、即存；删掉「抓鸭子 +5」后，嘉年华的奖池里也跟着摘掉')
+
+  // ---- 6c'. 导入开奖视频（照时间盲盒：一段视频一个事件）：文件名里的数就是数量 ----
+  {
+    const { execFileSync } = await import('node:child_process')
+    const vdir = path.join(output, 'duck-videos')
+    await fs.mkdir(vdir, { recursive: true })
+    const mk = (name) => {
+      const f = path.join(vdir, name)
+      execFileSync(path.join(root, 'ffmpeg', 'ffmpeg.exe'), ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x7FFF00:s=320x240:d=1:r=30', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', f])
+      return f
+    }
+    const f10 = mk('抓10只-创作淘宝店路师傅的特效铺.mp4')
+    const f11 = mk('抓11只-创作淘宝店路师傅的特效铺(2).mp4')
+    const imp = await api((files) => window.api.specialBoxImportVideos('catch_duck', files), [f10, f11])
+    assert.equal(imp.ok, true, imp.error)
+    assert.equal(imp.attached, 1, `「抓10只」应挂到已有的「鸭子 +10」：${JSON.stringify(imp)}`)
+    assert.equal(imp.added, 1, `「抓11只」应新建一档：${JSON.stringify(imp)}`)
+    const ten = imp.events.find((e) => e.id === 'sbe-v-catch_duck-add-10')
+    const eleven = imp.events.find((e) => e.video === f11)
+    assert.equal(ten.video, f10)
+    assert.ok(eleven && eleven.param === 'catch_duck|add|11' && eleven.name === '抓11只', `新建的事件不对：${JSON.stringify(eleven)}`)
+    const again = await api((files) => window.api.specialBoxImportVideos('catch_duck', files), [f10])
+    assert.equal(again.attached + again.added, 0, '同一段视频不该重复导入')
+    const tr = await api(() => window.api.specialBoxEventTest('sbe-v-catch_duck-add-10'))
+    assert.equal(tr.ok, true, tr.error)
+    let vst = null
+    for (let i = 0; i < 40 && !vst?.current?.video; i++) { vst = (await inSpecialWindow('window.__revealState && window.__revealState()')).value; if (!vst?.current?.video) await page.waitForTimeout(100) }
+    assert.ok(vst?.current?.video, `开到挂了视频的事件，窗口里应放视频：${JSON.stringify(vst)}`)
+    ok(`导入开奖视频：「抓10只」挂到已有的「鸭子 +10」、「抓11只」新建一档（名字取视频名），同一段不重复导；开到它时窗口里放视频`)
+  }
 
   // ---- 6d. 直播画面方向：窗口条上一键竖屏，开着的窗口跟着变 ----
   await page.getByRole('button', { name: '竖屏 9:16', exact: true }).first().click()
