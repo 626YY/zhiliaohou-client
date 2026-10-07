@@ -53,11 +53,23 @@ function describe(err: unknown): string {
   }
 }
 
-// 同一分钟内只弹一次提示，避免异常循环时弹窗刷屏
+// 出错时给主播的提示：优先发到主窗口里冒一条不挡操作的提示（直播中弹系统错误框会挡在游戏 / 直播伴侣前面抢焦点），
+// 主窗口还没有（启动早期）才弹系统框。由 index.ts 建好主窗口后登记，这里不反向 import 免得成环。
+let noticeSink: ((title: string, body: string) => boolean) | null = null
+export function registerCrashNotice(sink: (title: string, body: string) => boolean): void {
+  noticeSink = sink
+}
+
+// 同一分钟内只提示一次，避免异常循环时刷屏
 function showOnce(title: string, body: string): void {
   const now = Date.now()
   if (now - dialogShownAt < 60_000) return
   dialogShownAt = now
+  try {
+    if (noticeSink?.(title, body)) return
+  } catch {
+    /* 发不出去就退回系统框 */
+  }
   try {
     dialog.showErrorBox(title, body)
   } catch {
@@ -85,7 +97,8 @@ export function initCrashLog(): void {
   })
   app.on('render-process-gone', (_e, contents, details) => {
     logLine('render-process-gone', `${details.reason} exitCode=${details.exitCode} url=${(() => { try { return contents.getURL() } catch { return '' } })()}`)
-    if (details.reason !== 'clean-exit') showOnce('知了猴整蛊台页面崩溃', `界面进程意外退出（${details.reason}），已记录到日志。关掉再打开客户端即可恢复。\n\n日志位置：${ensureFile()}`)
+    // 页面进程没了会自动重新加载（exit-diag.ts autoRecoverPage，窗口不关、采集源不变），这里只告诉主播一声
+    if (details.reason !== 'clean-exit') showOnce('知了猴整蛊台页面崩溃', `有一个页面意外退出（${details.reason}），已自动重新加载，已记录到日志。\n\n日志位置：${ensureFile()}`)
   })
   app.on('child-process-gone', (_e, details) => {
     if (details.reason !== 'clean-exit') logLine('child-process-gone', `${details.type} ${details.reason} exitCode=${details.exitCode} name=${details.name || ''}`)

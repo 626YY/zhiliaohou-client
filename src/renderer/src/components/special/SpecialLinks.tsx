@@ -3,7 +3,7 @@
 // 在「礼物触发」里看到、改到的是同一份数据。
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Gift, Pencil, Plus, Trash2, ExternalLink } from 'lucide-react'
+import { Gift, Pencil, Plus, Trash2, ExternalLink, Zap } from 'lucide-react'
 import { Btn, Card, EmptyState, Field, Input, Segmented, Select, Toggle } from '../ui'
 import { Modal } from '../Modal'
 import EmojiText from '../EmojiText'
@@ -193,9 +193,22 @@ export default function SpecialLinks({
   onChanged: () => void
 }) {
   const navigate = useNavigate()
+  const toast = useToast((s) => s.toast)
   const links = useMemo(() => specialLinksOf(rules, id), [rules, id])
   const [editing, setEditing] = useState<EntertainmentRule | null | undefined>(undefined)
   const [confirmDelete, setConfirmDelete] = useState('')
+  const [firing, setFiring] = useState('')
+
+  // 「触发一次」：按这条联动现在的设置走一遍真礼物的路（敲锣、开奖、念，数量范围照样随机），窗口没开先打开
+  const fire = async (key: string, param: string) => {
+    setFiring(key)
+    try {
+      const r = await window.api.specialFire(param)
+      if (!r.ok) toast(r.error || '触发失败', 'error')
+    } finally {
+      setTimeout(() => setFiring((c) => (c === key ? '' : c)), 500)
+    }
+  }
 
   const toggle = async (rule: EntertainmentRule, on: boolean) => {
     await window.api.entertainmentRuleUpdate({ ...rule, enabled: on })
@@ -240,6 +253,16 @@ export default function SpecialLinks({
                 </div>
               </div>
               <Toggle value={rule.enabled !== false} onChange={(v) => void toggle(rule, v)} label="启用这条联动" />
+              <Btn
+                size="sm"
+                variant="secondary"
+                disabled={firing === `${rule.id}-${param}`}
+                onClick={() => void fire(`${rule.id}-${param}`, param)}
+                title="按这条联动的设置触发一次，发到直播窗口（没开会先打开）"
+                aria-label={`触发一次 ${triggerText(rule)}`}
+              >
+                <Zap size={13} />触发一次
+              </Btn>
               {primary ? (
                 <Btn size="sm" variant="ghost" title="编辑" aria-label="编辑联动" onClick={() => setEditing(rule)}><Pencil size={14} /></Btn>
               ) : (

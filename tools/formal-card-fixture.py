@@ -77,6 +77,30 @@ thread.start()
 
 def handle(cmd):
     op = cmd.get('op')
+    # ---- 免费模式回归（verify-free-always-on.mjs）用：开关免费模式 / 让登录失效 / 改密码 / 看平台记的直播间 ----
+    if op == 'free':
+        store.free = bool(cmd.get('on'))
+        return {'ok': True, 'free': store.free}
+    if op == 'kill_sessions':
+        with store.transaction() as c:
+            user = store.user(c, cmd.get('email'))
+            n = c.execute('DELETE FROM sessions WHERE user_id=?', (user['id'],)).rowcount
+        return {'ok': True, 'killed': n}
+    if op == 'set_password':
+        from werkzeug.security import generate_password_hash
+        with store.transaction() as c:
+            user = store.user(c, cmd.get('email'))
+            c.execute('UPDATE users SET password=? WHERE id=?', (generate_password_hash(cmd['password']), user['id']))
+        return {'ok': True}
+    if op == 'rooms':
+        from room_rules import RoomRules
+        with store.transaction(False) as c:
+            user = store.user(c, cmd.get('email'))
+            return {'ok': True, 'rooms': RoomRules(store).state(c, user['id'])['rooms']}
+    if op == 'machines':
+        with store.transaction(False) as c:
+            user = store.user(c, cmd.get('email'))
+            return {'ok': True, 'count': c.execute('SELECT COUNT(*) FROM client_machines WHERE user_id=?', (user['id'],)).fetchone()[0]}
     if op == 'bind':
         from room_rules import RoomRules
         with store.transaction() as c:
@@ -89,7 +113,7 @@ def handle(cmd):
         with store.transaction(False) as c:
             user = store.user(c, cmd.get('email'))
             rights = store.rights(c, user['id'])['rights']
-            hours = offline_lease.hours_value(store.setting(c, offline_lease.SETTING, ''))
+            hours = offline_lease.lease_hours(store, store.setting(c, offline_lease.SETTING, ''))
         digest = offline_lease.machine_hash(cmd['machine'])
         bundle = offline_lease.build_bundle(app.extensions['signing'], {'id': user['id'], 'email': user['email']}, rights, digest, hours, store.now())
         return {'ok': True, 'key': offline_lease.mirror_key(user['email'], digest), 'bundle': bundle}

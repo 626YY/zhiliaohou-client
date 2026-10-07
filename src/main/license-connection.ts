@@ -42,6 +42,30 @@ const OFFLINE_AUDIENCE = 'zhiliao-client-offline'
 const OFFLINE_FILE = 'card-offline-leases'
 const OFFLINE_MAX_SECONDS = 366 * 24 * 3600
 const RELOGIN_MIN_GAP_MS = Math.max(5000, Number(process.env.ZL_CARD_RELOGIN_MS) || 60_000)
+/** 免费模式下平台明确不认自动登录（改过密码 / 账号没了）：不再每分钟打扰平台，隔这么久再试 */
+const REJECTED_RELOGIN_GAP_MS = Math.max(RELOGIN_MIN_GAP_MS, 10 * 60_000)
+
+// ---- 免费模式（license-policy enforce=false，2026-10-07 用户：「就是免费软件来着，即使我们服务器挂了，软件也要可以正常使用的」
+//      「千万不要干扰直播」「不要有任何的掉授权行为」）----
+//   · 平台那边的任何拒绝 / 登录失效（401）都不关输出、不退出账号：401 时用内存里的密码静默重登再重试一次，重登不上就转本机登录；
+//   · 平台没法用（断网 / 超时 / 5xx / 应答坏了）时登录不要任何凭证，直接进软件（localLogin），之后每分钟试着真登录；
+//   · 只有主播自己点「退出 / 切换账号」才关输出（denied('user')）。
+export interface LicenseConnectionOptions {
+  /** 现在是不是免费模式（每次现读，开关改了立刻生效） */
+  free?: () => boolean
+  /** 本机账号表里这个邮箱的账号 id：平台连不上、这台电脑又没有登录记录时，用它当本次登录的账号 id */
+  localId?: (email: string) => string | undefined
+  /** 本机登录中重新联系上平台（自动登录成功）后调一次：把这段时间本机做的绑定补报上去 */
+  onReconnect?: () => void
+}
+/** denied 回调的来由：user = 主播自己退出 / 切换账号；platform = 平台拒绝或登录失效（免费模式下不关输出） */
+export type DeniedReason = 'user' | 'platform'
+
+/** 平台这次是「没法用」而不是「明确说不行」：网络错误 / 超时 / 应答坏了 / 5xx / 429 */
+export function platformUnavailable(error: unknown): boolean {
+  if (error instanceof PlatformError) return error.status >= 500 || error.status === 429
+  return isTransientError(error)
+}
 const MIRROR_BASE = (process.env.ZL_LEASE_MIRROR_URL || 'https://zhiliaohou.oss-cn-beijing.aliyuncs.com/').replace(/\/?$/, '/')
 
 interface OfflineClaims {
@@ -167,7 +191,9 @@ export class LicenseConnection {
   // 平台明确拒绝（PlatformError）/ 下一次 /me 不再下发 → 删掉，下次联系上平台会覆盖。用户 2026-09-13：「给永久卡的就不用问授权了，除非我发信号封了」。
   private offlineStore: OfflineStore | null = readJson<OfflineStore | null>(OFFLINE_FILE, null)
   /** 离线登录中：平台没联系上，靠本机凭证放行；每分钟试着用记住的密码重新登录，成功即切回在线 */
-  private offline: { password: string; since: number; lastRelogin: number; unverified: boolean } | null = null
+  private offline: { password: string; since: number; lastRelogin: number; unverified: boolean; rejected?: boolean } | null = null
+  /** 免费模式：本次登录用的密码（只在内存里，退出 / 换号即清）。平台登录失效时静默重登用 */
+  private secret = ''
   private reloginWork: Promise<boolean> | null = null
   private offlineGraceLoggedAt = 0
   private machineId = ''
@@ -187,8 +213,9 @@ export class LicenseConnection {
     baseUrl: string,
     publicKey: string,
     private browserSession: Session,
-    private denied: () => void,
-    private declaredMode?: CardIdentityMode
+    private denied: (reason: DeniedReason) => void,
+    private declaredMode?: CardIdentityMode,
+    private options: LicenseConnectionOptions = {}
   ) {
     this.origin = normalizeCardBaseUrl(baseUrl)
     const key = Buffer.from(publicKey, 'base64url')
@@ -207,6 +234,19 @@ export class LicenseConnection {
   /** 当前登录账号（同步读，给 session 查询用）。 */
   currentUser(): { id: string; email: string } | null {
     return this.user ? { ...this.user } : null
+  }
+
+  /** 是不是正靠本机登录在用（平台暂时联系不上 / 平台不认自动登录）；给界面提示用 */
+  usingLocalLogin(): boolean {
+    return !!this.offline
+  }
+
+  private free(): boolean {
+    try {
+      return this.options.free?.() === true
+    } catch {
+      return false
+    }
   }
 
   /** 最近一次读到的平台元信息（同步）；还没读过 / 读失败 → 保守值。 */
@@ -239,7 +279,7 @@ export class LicenseConnection {
     return this.origin + path
   }
 
-  private async request(path: string, body?: unknown, extraHeaders: Record<string, string> = {}): Promise<Record<string, any>> {
+  private async request(path: string, body?: unknown, extraHeaders: Record<string, string> = {}, retried = false): Promise<Record<string, any>> {
     // 离线登录中：没有平台会话，先试着重新登录（一分钟最多一次），没联系上就按瞬时错误抛，绝不带着空会话去打接口（会 401 → 关输出）
     if (this.offline && path !== '/api/v1/login' && !(await this.relogin())) throw new Error('平台暂时联系不上，稍后会自动重试')
     const epoch = this.epoch
@@ -266,6 +306,17 @@ export class LicenseConnection {
     if (response.status === 401) {
       if (ENTRY_PATHS.has(path)) {
         throw new PlatformError(typeof value.error === 'string' && value.error ? value.error : '账号或密码不正确', 401, typeof value.code === 'string' ? value.code : '')
+      }
+      if (this.free() && this.user) {
+        // 免费模式：平台登录失效只影响这一次「向平台上报」，绝不关输出、不退出账号。
+        // 用内存里的密码静默重登一次再重试；重登不上就转成本机登录（之后每分钟试一次），这次按网络问题报
+        this.csrf = ''
+        // 几个后台请求同时 401：共用同一份本机登录状态（换成新的会让正在进行的那次重登以为自己过期了）
+        if (!this.offline) this.offline = { password: this.secret, since: Date.now(), lastRelogin: 0, unverified: false }
+        if (!retried && this.secret && (await this.relogin().catch(() => false)) && epoch === this.epoch) {
+          return this.request(path, body, extraHeaders, true)
+        }
+        throw new Error('平台暂时联系不上，稍后会自动重试')
       }
       // 平台明确说会话失效 / 账号停用：本机离线凭证一并作废（下次在线登录会重新拿）
       this.dropOffline()
@@ -306,13 +357,14 @@ export class LicenseConnection {
     return parseRoomQuota(reply.room_quota)
   }
 
-  private invalidate(): void {
+  private invalidate(reason: DeniedReason = 'platform'): void {
     this.epoch++
     this.user = null
     this.csrf = ''
+    this.secret = ''
     this.offline = null
     this.pending.clear()
-    this.denied()
+    this.denied(reason)
   }
 
   private serialized<T>(run: () => Promise<T>): Promise<T> {
@@ -342,10 +394,16 @@ export class LicenseConnection {
 
   logout(): Promise<void> {
     const csrf = this.csrf
-    // 主动退出：本机离线凭证一并删掉（换号 / 借机器给别人用，旧账号的离线授权不能留在这台机器上）
-    this.dropOffline()
-    this.invalidate()
+    // 主动退出：本机离线凭证一并删掉（换号 / 借机器给别人用，旧账号的离线授权不能留在这台机器上）。
+    // 免费模式：凭证不代表任何权益，留着这台电脑的密码核对记录——服务器挂着时下次登录还能核对密码（防手误）
+    if (!this.free()) this.dropOffline()
+    this.invalidate('user')
     return this.serialized(() => this.clearSession(csrf))
+  }
+
+  /** 删掉本机账号记录时：这个邮箱在这台电脑上的登录记录 / 离线凭证一并删掉 */
+  forgetAccount(email: string): void {
+    if (this.offlineStore && this.offlineStore.emailHash === emailHashOf(email)) this.dropOffline()
   }
 
   /**
@@ -376,7 +434,7 @@ export class LicenseConnection {
       throw new Error('账号或密码格式不正确')
     }
     const csrf = this.csrf
-    this.invalidate()
+    this.invalidate('user')
     const epoch = this.epoch
     return this.serialized(async () => {
       try {
@@ -390,8 +448,17 @@ export class LicenseConnection {
         }
         this.csrf = reply.csrf
         this.user = { id: reply.user.id, email: reply.user.email }
+        this.secret = password
         // 在线登录成功：记下密码的 scrypt 核对值，平台连不上时离线登录靠它核对（不存密码本身）
         this.rememberVerifier(reply.user.id, reply.user.email, password)
+        if (this.free()) {
+          // 免费模式：登录成功就算进来了；紧接着读 /me（顺带拿离线凭证）没读到也不影响使用
+          try {
+            return await this.state()
+          } catch {
+            return this.withMeta({ ok: true, enabled: true, origin: this.origin, user: { ...this.user } }, this.metaSync())
+          }
+        }
         return await this.state()
       } catch (error) {
         let failure: unknown = error
@@ -404,11 +471,53 @@ export class LicenseConnection {
             failure = e   // 本机核对密码不对：当成明确拒绝报给主播，不再用原来的网络错误
           }
         }
-        if (epoch === this.epoch) this.invalidate()
+        // 免费模式：平台没法用（不是「密码不对」这类明确拒绝）→ 不要任何凭证，直接本机登录进软件，功能照常
+        if (epoch === this.epoch && failure === error && this.free() && path !== '/api/v1/reset-password' && platformUnavailable(error)) {
+          try {
+            return await this.localLogin(email, password, error)
+          } catch (e) {
+            failure = e
+          }
+        }
+        if (epoch === this.epoch) this.invalidate('user')
         await this.browserSession.clearStorageData()
         throw failure
       }
     })
+  }
+
+  /**
+   * 免费模式下平台没法用时的登录：不要任何凭证，直接进软件。这台电脑记过这个邮箱的密码核对值就核对一下（防手误），
+   * 没记过（这台电脑第一次登这个号）也放行。账号 id 用这台电脑上次登录记下的，没有就看本机账号表，都没有按邮箱算一个本机 id。
+   * 之后每分钟试着真登录一次，联系上就切回在线（上报直播间、通知等辅助功能恢复）。
+   */
+  private async localLogin(email: string, password: string, cause: unknown): Promise<CardSnapshot> {
+    const emailHash = emailHashOf(email)
+    const store = this.offlineStore
+    let id = ''
+    let verified = false
+    if (store && store.origin === this.origin && store.emailHash === emailHash && store.verifier) {
+      if (!this.checkVerifier(store.verifier, password)) {
+        throw new PlatformError('账号或密码不正确（服务器暂时连不上，按这台电脑上次登录的记录核对）', 401, 'invalid_login')
+      }
+      id = store.user
+      verified = true
+    }
+    if (!id) {
+      try {
+        id = this.options.localId?.(email) || ''
+      } catch {
+        id = ''
+      }
+    }
+    if (!id) id = 'local-' + emailHash.slice(0, 24)
+    this.user = { id, email }
+    this.csrf = ''
+    this.secret = password
+    this.offline = { password, since: Date.now(), lastRelogin: Date.now(), unverified: !verified }
+    const message = cause instanceof Error ? cause.message : String(cause)
+    logLine('card', `平台暂时联系不上（${message}），免费模式直接用本机登录：${email}${verified ? '' : '（这台电脑没有这个账号的登录记录，平台恢复后再核对）'}`)
+    return this.withMeta({ ok: true, enabled: true, origin: this.origin, user: { ...this.user }, offline: true }, this.metaSync())
   }
 
   private withMeta(snapshot: CardSnapshot, meta: PlatformMeta): CardSnapshot {
@@ -452,7 +561,7 @@ export class LicenseConnection {
       // 只有平台明确拒绝 / 会话失效才算失去授权；网络抖动、超时、5xx 读不到 /me 不能把正在输出的东西全关掉
       //（渲染层每分钟刷一次快照，以前这里一次超时就 denied → 整场直播的输出被关，隔壁主播 2026-09-13 就是这么断的）
       if (!isTransientError(error)) {
-        this.denied()
+        this.denied('platform')
         throw error
       }
       // 平台暂时联系不上：本机有验过签的凭证 → 给离线快照（界面照常显示权益 + 「离线授权中」提示），不抛错
@@ -675,7 +784,8 @@ export class LicenseConnection {
     const off = this.offline
     if (!off || !this.user) return Promise.resolve(true)
     if (this.reloginWork) return this.reloginWork
-    if (Date.now() - off.lastRelogin < RELOGIN_MIN_GAP_MS) return Promise.resolve(false)
+    if (Date.now() - off.lastRelogin < (off.rejected ? REJECTED_RELOGIN_GAP_MS : RELOGIN_MIN_GAP_MS)) return Promise.resolve(false)
+    if (!off.password) return Promise.resolve(false)
     off.lastRelogin = Date.now()
     const epoch = this.epoch
     const user = this.user
@@ -683,24 +793,52 @@ export class LicenseConnection {
       try {
         const reply = await this.request('/api/v1/login', { email: user.email, password: off.password, audience: 'client' })
         if (epoch !== this.epoch || this.offline !== off) return false
-        if (typeof reply.csrf !== 'string' || !reply.user || reply.user.id !== user.id) {
-          this.dropOffline()
-          this.invalidate()
-          throw new Error('登录状态已变化')
+        const valid = typeof reply.csrf === 'string' && !!reply.user && typeof reply.user.id === 'string'
+        if (!valid || reply.user.id !== user.id) {
+          if (this.free() && valid) {
+            // 免费模式：当时平台连不上、先用本机账号进的，平台恢复后账号 id 对不上——本次照旧用本机身份，平台会话只用来上报
+            logLine('card', '平台恢复后的账号编号和本机记录不同，本次继续用本机身份（重新打开客户端后以平台为准）')
+          } else if (this.free()) {
+            return false
+          } else {
+            this.dropOffline()
+            this.invalidate()
+            throw new Error('登录状态已变化')
+          }
         }
         this.csrf = reply.csrf
-        this.user = { id: reply.user.id, email: reply.user.email }
+        if (reply.user.id === user.id) this.user = { id: reply.user.id, email: reply.user.email }
+        this.secret = off.password
         this.offline = null
-        logLine('card', `重新联系上平台，已从离线凭证切回在线授权（离线了 ${Math.round((Date.now() - off.since) / 60000)} 分钟）`)
+        logLine('card', `重新联系上平台，已切回在线（离线了 ${Math.round((Date.now() - off.since) / 60000)} 分钟）`)
+        if (this.options.onReconnect) {
+          const hook = this.options.onReconnect
+          setImmediate(() => {
+            try {
+              hook()
+            } catch (e) {
+              logLine('card', '重新联系上平台后的补报没跑成：' + (e instanceof Error ? e.message : String(e)))
+            }
+          })
+        }
         return true
       } catch (error) {
         if (error instanceof PlatformError) {
+          if (this.free()) {
+            // 免费模式：平台不认这次自动登录（改过密码 / 账号没了 / 停用）也不关输出、不退出；本机继续正常用，隔一阵再试
+            if (!off.rejected) logLine('card', '平台没认这次自动登录（' + error.message + '），本机继续正常使用，稍后再试')
+            off.rejected = true
+            return false
+          }
           logLine('card', '平台恢复后拒绝了本账号（' + error.message + '），已关闭输出')
           this.dropOffline()
           if (epoch === this.epoch) this.invalidate()
           throw error
         }
-        if (!isTransientError(error)) throw error
+        if (!isTransientError(error)) {
+          if (this.free()) return false
+          throw error
+        }
         return false
       } finally {
         this.reloginWork = null
@@ -782,7 +920,7 @@ export class LicenseConnection {
         // 平台明确拒绝：这张离线凭证作废（封号 / 收回 / 到期的信号）
         if (error instanceof PlatformError) this.forgetLease(product)
         else if (this.offlineGrant(product, error)) return
-        if (product === CARD_PLATFORM_PRODUCT) this.denied()
+        if (product === CARD_PLATFORM_PRODUCT) this.denied('platform')
         throw error
       })
       this.pending.set(product, work)

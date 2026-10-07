@@ -103,7 +103,7 @@ ffmpeg/
 '''
 (dest/'.gitignore').write_text(ignore,encoding='utf-8')
 (dest/'.gitattributes').write_text('* text=auto\n*.png binary\n*.jpg binary\n*.ico binary\n*.ttf binary\n*.mp3 binary\n',encoding='utf-8')
-(dest/'CHANGELOG.md').write_text('# 更新记录\n\n## 0.3.65（2026-10-07）\n\n- 特色整蛊盲盒开奖：锣声 + 「锁链+5」大字 + AI 配音（微软 Edge 在线朗读语音），连送逐条开奖；「开奖画面与配音」设置可调声音、语速、音量、位置、大小等。\n- 默认盲盒事件扩到 392 个（加减照时间盲盒那排数，乘除 2 / 3），常用句子的配音事先生成随安装包分发；事件可试听、改台词。\n- 盲盒事件可挂开奖视频，直播窗口里 WebGL 抠绿（自动从四角取底色）；每个玩法可按文件名批量导入视频。\n- 奖池 / 事件库按玩法分组折叠；「特色整蛊」窗口动画帧率上限（默认 30 帧）。\n- 新增 `tools/verify-special-reveal.mjs`、`tools/verify-special-box-upgrade.mjs`、`tools/gen-special-voice.mjs`。\n\n## 0.3.64（2026-10-05）\n\n- 特色整蛊 17 个玩法合成一个窗口「特色整蛊」：每个玩法一层画布、用到才加载，点击按图层归属（点中谁算谁），来电 / 来视频在最上层，计数面板自动排开；6 个玩法同时运行时 CPU 约为分开窗口的四分之一。\n- 特色整蛊盲盒改成「事件库 + 每个礼物勾选奖池」（和时间盲盒一致），连送多份一次抽完。\n- 新增 `tools/verify-special-window.mjs`（合并窗口回归）与 `tools/bench-special-window.mjs`（分开窗口 / 合并窗口性能对比）。\n\n## 0.3.63（2026-10-05）\n\n- 新增「特色整蛊」：17 个叠在直播画面上的互动玩法，接入礼物触发、转盘、九宫格、时间盲盒、整蛊遥控与基础引导；可直接上手玩的预览舞台。\n- 特色整蛊盲盒、固定/随机数量、横屏/竖屏一键切换、锁链五套程序化新皮肤、窗口快捷开关、基础/高级分层。\n- 礼物触发新增「游戏整蛊」动作；连接器支持哔哩哔哩直播间。\n- 萌宠时间皮肤按设计稿重排。\n- 说明：特色整蛊的图片、音效和视频素材（`assets/special-games/`）不随源码分发。\n\n## 0.3.62（2026-09-20）\n\n- 首次公开客户端源码快照。\n- 新增八套萌宠时间皮肤，与实时礼物菜单整套结合。\n- 独立配件轻摆、菜单伸缩、长文字与计时格式适配。\n- 保留客户端、连接器和通用开发验收工具，补充许可与构建说明。\n',encoding='utf-8')
+(dest/'CHANGELOG.md').write_text('# 更新记录\n\n## 0.3.66（2026-10-07）\n\n- 免费模式：平台那边的拒绝 / 登录失效不再关闭输出、不退出账号（静默重登，连不上就转本机登录、之后自动连回）；只有主播自己退出 / 切换账号才关输出。\n- 服务器连不上时直接本机登录进入软件；注册收不到验证码时也能直接进入；恢复后自动连回并补报本机绑定的直播间。\n- 整蛊台 AI 语音播报：时间插件、转盘、九宫格、礼物触发、积分心愿、大哥进场、计数挑战、加班器出结果时念一句；每个模块页头一个开关（默认关），配了视频 / 声音的默认不念；设置页统一调声音、语速、音量，总开关同时管特色整蛊开奖配音。\n- 特色整蛊：礼物直接触发默认敲锣开奖（来电 / 来视频除外）；礼物联动每行「触发一次」；整蛊遥控页只放游戏整蛊。\n- 按键 / 鼠标 / 文本等 PowerShell 动作排队执行（限并发、超时结束），连刷礼物时不再瞬间冒出大量进程；出错提示改为主窗口内提示。\n- 新增 `tools/verify-free-always-on.mjs`、`tools/verify-announce.mjs`、`tools/test-ps-runner.mjs`。\n\n## 0.3.65（2026-10-07）\n\n- 特色整蛊盲盒开奖：锣声 + 「锁链+5」大字 + AI 配音（微软 Edge 在线朗读语音），连送逐条开奖；「开奖画面与配音」设置可调声音、语速、音量、位置、大小等。\n- 默认盲盒事件扩到 392 个（加减照时间盲盒那排数，乘除 2 / 3），常用句子的配音事先生成随安装包分发；事件可试听、改台词。\n- 盲盒事件可挂开奖视频，直播窗口里 WebGL 抠绿（自动从四角取底色）；每个玩法可按文件名批量导入视频。\n- 奖池 / 事件库按玩法分组折叠；「特色整蛊」窗口动画帧率上限（默认 30 帧）。\n- 新增 `tools/verify-special-reveal.mjs`、`tools/verify-special-box-upgrade.mjs`、`tools/gen-special-voice.mjs`。\n\n## 0.3.64（2026-10-05）\n\n- 特色整蛊 17 个玩法合成一个窗口「特色整蛊」：每个玩法一层画布、用到才加载，点击按图层归属（点中谁算谁），来电 / 来视频在最上层，计数面板自动排开；6 个玩法同时运行时 CPU 约为分开窗口的四分之一。\n- 特色整蛊盲盒改成「事件库 + 每个礼物勾选奖池」（和时间盲盒一致），连送多份一次抽完。\n- 新增 `tools/verify-special-window.mjs`（合并窗口回归）与 `tools/bench-special-window.mjs`（分开窗口 / 合并窗口性能对比）。\n\n## 0.3.63（2026-10-05）\n\n- 新增「特色整蛊」：17 个叠在直播画面上的互动玩法，接入礼物触发、转盘、九宫格、时间盲盒、整蛊遥控与基础引导；可直接上手玩的预览舞台。\n- 特色整蛊盲盒、固定/随机数量、横屏/竖屏一键切换、锁链五套程序化新皮肤、窗口快捷开关、基础/高级分层。\n- 礼物触发新增「游戏整蛊」动作；连接器支持哔哩哔哩直播间。\n- 萌宠时间皮肤按设计稿重排。\n- 说明：特色整蛊的图片、音效和视频素材（`assets/special-games/`）不随源码分发。\n\n## 0.3.62（2026-09-20）\n\n- 首次公开客户端源码快照。\n- 新增八套萌宠时间皮肤，与实时礼物菜单整套结合。\n- 独立配件轻摆、菜单伸缩、长文字与计时格式适配。\n- 保留客户端、连接器和通用开发验收工具，补充许可与构建说明。\n',encoding='utf-8')
 
 # 源码里删掉的文件，公开快照里也删掉：上面只会覆盖和新增，删掉的组件留在公开仓库里会引用已经不存在的接口、编译不过。
 # 只动 git 跟踪的文件（.git、node_modules 不碰），脚本自己生成的文件保留。
@@ -118,4 +118,16 @@ if removed:print('REMOVED',len(removed),'files no longer in source:',', '.join(r
 
 report={'source':str(root),'destination':str(dest),'version':version,'files':len(copied),'excluded':excluded,'removed':removed,'transformations':['Current source snapshot without private Git history','Committed Mod metadata only; no Mod/game binary archives','Platform gift images and game promotional images excluded','Production deployment tools excluded','Legacy extracted bitmap countdown frames replaced with independently authored SVG frames','Public build configuration excludes unavailable optional binaries and private publishing destination','Public keys retained; no signing private keys or account data included']}
 (root/'output/open-source-audit/export-report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+# 2026-10-07 用户要求：公开快照里不能出现写代码用的那个 AI 助手的名字（提交说明里也不要带它的署名）——出现就停下。
+# 只查进公开仓库的文件（复制过去的 + 脚本生成的）；导出目录里本地装的 node_modules 不进仓库，不查。
+# 这个脚本自己也在快照里，所以要查的词用字符码拼出来，不在文件里写出原词。
+NEEDLE=bytes([99,108,97,117,100,101])
+mentions=[]
+for rel in sorted(keep):
+    p=dest/rel
+    if not p.is_file():continue
+    try:
+        if NEEDLE in p.read_bytes().lower():mentions.append(rel)
+    except OSError:pass
+if mentions:raise RuntimeError('公开快照里出现了那个 AI 助手的名字，先改掉再导出：'+', '.join(mentions))
 print('SOURCE SNAPSHOT PREPARED',len(copied),'files;',len(excluded),'excluded')

@@ -100,6 +100,7 @@ import {
   type CardRoomCommitResult,
 } from '../shared/types'
 import type { SpecialBoxEvent, SpecialGameId, SpecialGameConfig, SpecialGameplayState, SpecialRevealConfig, SpecialTestAction, SpecialVoicePreview, SpecialVoicePreviewRequest, SpecialWindowConfig } from '../shared/specialGames'
+import type { AnnounceConfig, AnnouncePreviewRequest } from '../shared/announce'
 
 export interface ZLAPI {
   register: (
@@ -258,6 +259,13 @@ export interface ZLAPI {
   onConnectorLog: (cb: (line: ConnectorLogLine) => void) => () => void
   onConnectorEvent: (cb: (event: ConnectorEvent) => void) => () => void
   onEntertainmentSound: (cb: (event: EntertainmentSoundEvent) => void) => () => void
+  /** 整蛊台 AI 语音播报：主进程念好一句交给主窗口按顺序放 */
+  onAnnouncePlay: (cb: (item: SpecialVoicePreview) => void) => () => void
+  /** 主进程出错时给主播的一句提示（主窗口里冒提示，不弹系统框） */
+  onAppNotice: (cb: (notice: { level: 'error' | 'info'; text: string }) => void) => () => void
+  announceConfig: () => Promise<AnnounceConfig>
+  announceConfigure: (patch: Partial<AnnounceConfig>) => Promise<AnnounceConfig>
+  announcePreview: (req: AnnouncePreviewRequest) => Promise<SpecialVoicePreview>
 
   getSettings: () => Promise<SettingsResult>
   saveSettings: (patch: Partial<Settings>) => Promise<SettingsResult>
@@ -421,6 +429,8 @@ export interface ZLAPI {
   specialConfigure: (id: SpecialGameId, cfg: Partial<SpecialGameConfig>) => Promise<{ ok: boolean }>
   specialState: () => Promise<SpecialGameplayState>
   specialTest: (id: SpecialGameId, action?: SpecialTestAction) => Promise<{ ok: boolean; error?: string }>
+  /** 礼物联动的「触发一次」：按这条联动的动作参数（玩法|操作|数量|选项）走和真礼物一样的路（敲锣、开奖、念），窗口没开先开 */
+  specialFire: (param: string) => Promise<{ ok: boolean; error?: string }>
   specialStats: (id: SpecialGameId) => Promise<{ open: boolean; value?: number }>
   specialClearAll: () => Promise<{ ok: boolean; cleared: number }>
   specialBoxEvents: () => Promise<SpecialBoxEvent[]>
@@ -658,6 +668,19 @@ const api: ZLAPI = {
     ipcRenderer.on(Ipc.EntertainmentSound, listener)
     return () => ipcRenderer.removeListener(Ipc.EntertainmentSound, listener)
   },
+  onAnnouncePlay: (cb) => {
+    const listener = (_e: IpcRendererEvent, item: SpecialVoicePreview) => cb(item)
+    ipcRenderer.on(Ipc.AnnouncePlay, listener)
+    return () => ipcRenderer.removeListener(Ipc.AnnouncePlay, listener)
+  },
+  onAppNotice: (cb) => {
+    const listener = (_e: IpcRendererEvent, notice: { level: 'error' | 'info'; text: string }) => cb(notice)
+    ipcRenderer.on(Ipc.AppNotice, listener)
+    return () => ipcRenderer.removeListener(Ipc.AppNotice, listener)
+  },
+  announceConfig: () => ipcRenderer.invoke(Ipc.AnnounceConfig),
+  announceConfigure: (patch) => ipcRenderer.invoke(Ipc.AnnounceConfigure, patch),
+  announcePreview: (req) => ipcRenderer.invoke(Ipc.AnnouncePreview, req),
 
   getSettings: () => ipcRenderer.invoke(Ipc.SettingsGet),
   saveSettings: (patch) => ipcRenderer.invoke(Ipc.SettingsSet, patch),
@@ -860,6 +883,7 @@ const api: ZLAPI = {
   specialConfigure: (id, cfg) => ipcRenderer.invoke(Ipc.SpecialConfigure, id, cfg),
   specialState: () => ipcRenderer.invoke(Ipc.SpecialState),
   specialTest: (id, action) => ipcRenderer.invoke(Ipc.SpecialTest, id, action),
+  specialFire: (param) => ipcRenderer.invoke(Ipc.SpecialFire, param),
   specialStats: (id) => ipcRenderer.invoke(Ipc.SpecialStats, id),
   specialClearAll: () => ipcRenderer.invoke(Ipc.SpecialClearAll),
   specialBoxEvents: () => ipcRenderer.invoke(Ipc.SpecialBoxEvents),

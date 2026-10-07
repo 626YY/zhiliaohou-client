@@ -188,6 +188,7 @@ import {
   specialState,
   specialStats,
   testSpecialGame,
+  runSpecialAction,
   clearAllSpecial,
   closeAllSpecial,
   specialBoxEvents,
@@ -257,6 +258,7 @@ import { runSelfCheck } from './self-check'
 import { reportRendererError, openLogsDir, logLine } from './crash-log'
 import { markQuitReason } from './exit-diag'
 import { exportTransparentDatabase, importTransparentDatabase } from './transparent-db'
+import { announceConfig, configureAnnounce, announcePreview } from './announce'
 import {
   Ipc,
   type DanmakuForwardEvent,
@@ -1011,6 +1013,7 @@ export function registerIpc(): void {
   handle(Ipc.SpecialConfigure, (_e, id, cfg) => configureSpecialGame(id, cfg ?? {}))
   handle(Ipc.SpecialState, () => specialState())
   handle(Ipc.SpecialTest, (_e, id, action) => testSpecialGame(id, action ?? undefined))
+  handle(Ipc.SpecialFire, (_e, param) => runSpecialAction(String(param ?? ''), { name: '主播' }, 1, true))
   handle(Ipc.SpecialStats, (_e, id) => specialStats(id))
   handle(Ipc.SpecialClearAll, () => clearAllSpecial())
   handle(Ipc.SpecialBoxEvents, () => specialBoxEvents())
@@ -1019,6 +1022,10 @@ export function registerIpc(): void {
   handle(Ipc.SpecialBoxDraw, (_e, param) => drawSpecialBox(String(param ?? '')))
   handle(Ipc.SpecialRevealConfigure, (_e, cfg) => configureSpecialReveal(cfg ?? {}))
   handle(Ipc.SpecialVoicePreview, (_e, req) => specialVoicePreview(req ?? {}))
+  // 整蛊台 AI 语音播报（announce.ts）
+  handle(Ipc.AnnounceConfig, () => announceConfig())
+  handle(Ipc.AnnounceConfigure, (_e, patch) => configureAnnounce(patch ?? {}))
+  handle(Ipc.AnnouncePreview, (_e, req) => announcePreview(req ?? {}))
   handle(Ipc.SpecialBoxImportVideos, (_e, game, files) => importSpecialBoxVideos(game, Array.isArray(files) ? files : undefined))
   handle(Ipc.SpecialCloseAll, () => closeAllSpecial())
 

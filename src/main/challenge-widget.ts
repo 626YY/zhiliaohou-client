@@ -11,6 +11,8 @@ import type { CountChallengeConfig, CountChallengeGift } from '@shared/types'
 import { GIFT_ICON_URLS } from '../shared/giftIcons'
 import { giftNamesEqual } from './connector-events'
 import { COUNTDOWN_ART } from '../shared/countdownArt'
+import { announce } from './announce'
+import { spokenDuration } from '../shared/announce'
 
 // 原版「计数挑战」(插件配置计数) 和「加班器」(插件配置加班) 是两个独立插件，能同时挂在屏幕上。
 // 老实现共用一个 win：开加班器就把计数挑战顶掉，而且两边数值走同一个挂件互相打架。
@@ -493,7 +495,34 @@ export function handleChallengeGift(name: string, count = 1, image = ''): void {
       if (cfg.mode === 'counter') challengeAdjust(parseDelta(rule.delta), slot)
       else challengeApplyGift(rule.op || '加减', Number(rule.before) || 0, Number(rule.after) || 0, !!cfg.showRecord, slot)
     }
+    const spoken = spokenChallenge(rule, cfg.mode === 'counter', amount)
+    if (spoken) announce(slot === 'overtime' ? 'overtime' : 'challenge', slot === 'overtime' ? `加班${spoken}` : spoken)
   })
+}
+
+// AI 语音播报（announce.ts）：计数模式念总共加减了多少；计时模式念这一格的动作（区间随机的值在挂件页里才抽，念范围）。
+// 礼物行自己写了显示文字的（「+1分钟」）就念那句
+function spokenChallenge(rule: CountChallengeGift, counter: boolean, amount: number): string {
+  if (rule.text?.trim()) return amount > 1 ? `${rule.text.trim()}，${amount}次` : rule.text.trim()
+  if (counter) {
+    const total = parseDelta(rule.delta) * amount
+    return total > 0 ? `加${total}` : total < 0 ? `减${-total}` : ''
+  }
+  const a = Number(rule.before) || 0
+  const b = Number(rule.after) || 0
+  const op = rule.op || '加减'
+  const times = amount > 1 ? `，${amount}次` : ''
+  if (op === '清零') return '清零'
+  if (op === '乘以') return a ? `乘${a}${times}` : ''
+  if (op === '除以') return a ? `除以${a}${times}` : ''
+  if (op === '范围') return a === b ? `设为${spokenDuration(a)}` : `设为${spokenDuration(Math.min(a, b))}到${spokenDuration(Math.max(a, b))}`
+  // 加 / 减 / 加减：在 [前, 后] 里随机取；「加减」的正负跟着数值走
+  const sign = op === '减' || (op === '加减' && Math.max(a, b) <= 0) ? '减' : '加'
+  const lo = Math.min(Math.abs(a), Math.abs(b))
+  const hi = Math.max(Math.abs(a), Math.abs(b))
+  if (!hi) return ''
+  if (a === b) return `${sign}${spokenDuration(hi * amount)}`
+  return `${sign}${spokenDuration(lo)}到${spokenDuration(hi)}${times}`
 }
 export function challengeApplyGift(op: string, before: number, after: number, showRecord: boolean, slot?: ChallengeSlot): { ok: boolean } {
   const action = JSON.stringify(String(op || '加减'))

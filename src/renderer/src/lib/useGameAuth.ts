@@ -54,6 +54,8 @@ export function useGameAuth() {
   // 游戏是否可修改参数：未登录邮箱 → 放行；已登录 → games 含该游戏且未封禁
   const authorized = useCallback(
     (id: string): boolean => {
+      // 免费模式：三款游戏都直接能用，不看账号和权益
+      if(card?.enabled&&card.free)return true
       if(card?.enabled)return card.ok&&card.user?.id===accountId&&cardRightValid(card.rights?.find(r=>r.id==='platform:assistant'))&&cardRightValid(card.rights?.find(r=>r.id==='game:'+id))
       if (!auth) return true
       if (auth.banned) return false

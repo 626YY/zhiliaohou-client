@@ -14,6 +14,7 @@ import { logLine } from './crash-log'
 import { openVideoWidget } from './video-widget'
 import { openGreenScreen, closeGreenScreen, greenScreenState } from './green-screen'
 import { Ipc, type ConnectorEvent, type EntranceBannerStyle, type EntranceConfig, type EntranceRecent, type EntranceRule, type EntranceState } from '@shared/types'
+import { announce } from './announce'
 
 let win: BrowserWindow | null = null
 let config: EntranceConfig = normalizeConfig(readJson<Partial<EntranceConfig>>('entrance', {}))
@@ -295,6 +296,8 @@ function welcome(name: string, liveAvatar: string | undefined, rule: EntranceRul
   // 皮肤：规则专属优先，其次全局
   const style = rule.bannerStyle || config.bannerStyle
   welcomePreview = {name, text, avatar, style}
+  // AI 语音播报：念横幅那句（「欢迎大哥 小明」）；这条规则配了进场视频或音效的默认不念
+  announce('entrance', text.split('{name}').join(name), { hasOwnMedia: !!(rule.video || rule.sound) })
   const generation = ++welcomeGeneration
   logLine('entrance', `迎宾 ${name}（规则 ${rule.match === 'any' ? '任何人' : rule.match + ':' + rule.name}，皮肤 ${style}${rule.bannerStyle ? '·规则专属' : ''}，窗口${win && !win.isDestroyed() ? '已开' : '未开：横幅不会显示'}${source === 'test' ? '，测试' : ''}）`)
   if (win && !win.isDestroyed()) {

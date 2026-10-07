@@ -171,6 +171,25 @@ function freeQuota(user: string, rooms: string[] = localBoundRooms(user)): RoomQ
   return { capacity: FREE_QUOTA, changes_left: FREE_QUOTA, changes_used: 0, available: Math.max(1, FREE_QUOTA - rooms.length), rooms, bindings: rooms.map((room, i) => ({ slot: i + 1, room })), empty_slots: [], free: true }
 }
 
+/**
+ * 免检模式下把绑定 / 解绑顺手报给平台（2026-10-07 用户：「用咱们软件，我还是要知道他们绑了什么直播间吧」）：
+ * 后台账号页就能看到主播用哪些直播间。在后台按顺序报，报不上（服务器连不上 / 平台不收）只记日志，绝不影响本机绑定和使用。
+ */
+function reportRooms(user: string, ops: Array<{ action: 'bind' | 'unbind'; room: string }>): void {
+  if (!ops.length) return
+  void (async () => {
+    for (const op of ops) {
+      if (cardSession()?.id !== user) return
+      try {
+        await cardConnection().roomCommit(op.action, { room: op.room })
+      } catch (error) {
+        logLine('card', `免检模式：直播间${op.action === 'bind' ? '绑定' : '解绑'} ${op.room} 没报到平台（不影响使用）：` + message(error, String(error)))
+        return
+      }
+    }
+  })()
+}
+
 /** GET /api/v1/rooms → 名额；顺手把本机绑定列表同步成平台的。 */
 export async function cardRooms(): Promise<CardRoomsResult> {
   if (!cardModeEnabled()) return { ok: false, error: '本机未启用卡密平台' }
@@ -268,7 +287,8 @@ export async function cardRoomCommit(input: unknown): Promise<CardRoomCommitResu
     const next = (action === 'replace' ? localBoundRooms(s.id).filter((r) => r !== previous) : [...localBoundRooms(s.id)])
     if (!next.includes(room)) next.push(room)
     const boundRooms = setLocalBoundRooms(s.id, next)
-    logLine('card', `免检模式：${action === 'replace' ? `改绑 ${previous} → ${room}` : `绑定 ${room}`}（只记在本机，不问平台、不消耗名额）`)
+    logLine('card', `免检模式：${action === 'replace' ? `改绑 ${previous} → ${room}` : `绑定 ${room}`}（本机直接生效，不消耗名额；顺手报给平台）`)
+    reportRooms(s.id, [{ action: 'bind', room }, ...(action === 'replace' && previous !== room ? [{ action: 'unbind' as const, room: previous }] : [])])
     return { ok: true, boundRooms, quota: freeQuota(s.id, boundRooms) }
   }
   const proof = takeProof(v.proof, s.id)
@@ -307,7 +327,8 @@ export async function cardRoomUnbind(roomInput: string): Promise<BindRoomResult>
     const boundRooms = setLocalBoundRooms(s.id, localBoundRooms(s.id).filter((r) => r !== room))
     try { tokens().remove(s.id, room) } catch { /* 令牌文件坏了也不影响解绑 */ }
     stopConnectorIfUsing(room, '已解绑')
-    logLine('card', `免检模式：解绑 ${room}（只记在本机，不问平台）`)
+    logLine('card', `免检模式：解绑 ${room}（本机直接生效；顺手报给平台）`)
+    reportRooms(s.id, [{ action: 'unbind', room }])
     return { ok: true, boundRooms }
   }
   try {
@@ -470,16 +491,24 @@ registerCardRoomHooks({
     const s = cardSession()
     if (!s) return
     if (!licenseEnforced()) {
-      // 免检：登录不等平台。后台把平台上还记着的绑定并进本机列表（老用户换机 / 重装也能看到原来的直播间），
-      // 本机已有的一个不删；平台联系不上或拒绝就只用本机记录
+      // 免检：登录不等平台，本机列表就是绑定列表。后台对一次账：
+      //   · 本机一个都没有（换机 / 重装）→ 拿回平台上记着的；
+      //   · 本机有 → 以本机为准，平台缺的补报上去（后台看得到）。不再把平台多出来的并回本机：
+      //     平台那边还会记下心跳里正在连的直播间，并回来会让主播自己删掉的房间又冒出来。
+      // 平台联系不上或拒绝就只用本机记录。
       void (async () => {
         try {
           const quota = await cardConnection().rooms()
           if (cardSession()?.id !== s.id) return
-          const merged = [...new Set([...localBoundRooms(s.id), ...(Array.isArray(quota.rooms) ? quota.rooms : [])])]
-          setLocalBoundRooms(s.id, merged)
+          const local = localBoundRooms(s.id)
+          const remote = Array.isArray(quota.rooms) ? quota.rooms : []
+          if (!local.length) {
+            if (remote.length) setLocalBoundRooms(s.id, remote)
+            return
+          }
+          reportRooms(s.id, local.filter((r) => !remote.includes(r)).map((room) => ({ action: 'bind' as const, room })))
         } catch (error) {
-          logLine('card', '免检模式：平台绑定列表未并入（用本机记录）：' + message(error, String(error)))
+          logLine('card', '免检模式：平台绑定列表没对上账（用本机记录）：' + message(error, String(error)))
         }
       })()
       return

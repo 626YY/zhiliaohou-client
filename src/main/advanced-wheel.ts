@@ -6,6 +6,7 @@ import fs from 'fs'
 import path from 'path'
 import type { AdvancedWheelConfig, AdvancedWheelOption } from '@shared/types'
 import { runScript } from './entertainment'
+import { announce } from './announce'
 
 const COLORS = [
   '#E74C3C', '#E67E22', '#F1C40F', '#2ECC71',
@@ -235,7 +236,10 @@ export function openAdvancedWheel(config: AdvancedWheelConfig): { ok: boolean; e
         }
         if ((result.source === 1 || result.source === 2) && Number.isInteger(result.index)) {
           const current = activeConfigs.get(result.source)
-          const script = current?.options[result.index!]?.script || result.script || ''
+          const option = current?.options[result.index!]
+          // AI 语音播报：念「抽中XXX」；这个选项自己配了中奖音效的默认不念
+          if (option?.text?.trim()) announce('wheel', `抽中${option.text.trim()}`, { hasOwnMedia: !!option.sound })
+          const script = option?.script || result.script || ''
           if (script) runScript(script)
         }
       } catch {

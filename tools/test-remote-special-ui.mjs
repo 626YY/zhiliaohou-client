@@ -1,7 +1,7 @@
 // 特色整蛊 × 整蛊器 融合的界面回归：真实 React 页面 + 假 window.api，Edge 无头跑（不起客户端、不连服务器）。
 // 覆盖：
-//   整蛊遥控  ① 「特色整蛊」分组 17 个按钮，没开游戏也能点 → specialTest
-//             ② 礼物联动下拉里有「特色整蛊（画面）」，绑定 → 立即存成礼物触发规则；列表显示；解绑删规则
+//   整蛊遥控  ① 只管游戏：没有特色整蛊分组 / 盲盒按钮 / 「特色整蛊」字样（2026-10-07 用户要求分开）
+//             ② 礼物联动下拉只有游戏整蛊；整蛊台建的特色整蛊礼物规则不列在这里
 //             ③ 游戏整蛊的 GiftMap 绑定照旧（保存时写 config）
 //             ④ 模拟观众：没开游戏也能点，送礼走客户端事件（礼物触发 / 特色整蛊响应），游戏没开不发 bridge
 //   礼物触发  ⑤ 动作类型「特色整蛊」「游戏整蛊」各一格，保存出 special-play / game-prank
@@ -25,7 +25,7 @@ const source = `
   import { usePrankStore } from './src/renderer/src/stores/pranks';
   import { ConfigurationProvider, ExpandedConfiguration } from './src/renderer/src/lib/configurationLevel';
   import { DEFAULT_SPECIAL_WINDOW, defaultSpecialBoxEvents } from './src/shared/specialGames';
-  window.calls = []; window.rules = [];
+  window.calls = []; window.rules = window.__SEED_RULES || [];
   const log = (kind, ...args) => { window.calls.push({ kind, args }); };
   const impl = {
     gamesList: async () => [{ id: '4wheel-challenge', name: '轮椅模拟器', appid: '1', installed: true }],
@@ -76,12 +76,12 @@ const browser = await chromium.launch({ channel: 'msedge', headless: true })
 let passed = 0
 const ok = (m) => { passed++; console.log('PASS ' + m) }
 const calls = (page, kind) => page.evaluate((k) => window.calls.filter((c) => c.kind === k), kind)
-async function open(view) {
+async function open(view, seedRules = []) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 1400 } })
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await page.setContent('<html><head><meta charset="UTF-8"></head><body><div id="root"></div></body></html>')
-  await page.evaluate((v) => { window.__VIEW = v }, view)
+  await page.evaluate(({ v, seed }) => { window.__VIEW = v; window.__SEED_RULES = seed }, { v: view, seed: seedRules })
   if (css) await page.addStyleTag({ content: css })
   await page.addScriptTag({ content: bundle.outputFiles[0].text })
   return { page, errors }
@@ -89,41 +89,26 @@ async function open(view) {
 
 try {
   // ================= 整蛊遥控 =================
-  const { page, errors } = await open('remote')
+  // 预置一条整蛊台那边建的特色整蛊礼物规则：游戏的礼物联动里不该列出来
+  const { page, errors } = await open('remote', [{ id: 'sp1', name: '特色整蛊·锁链特效', group: '特色整蛊', giftName: '小心心', triggerType: 'gift', actionType: 'command', commandCmd: 'special-play', commandParam: 'chain_challenge|add|5', times: 1, repeat: 1, multiply: true, queueMode: 'instant', enabled: true }])
   await page.getByText('整蛊遥控', { exact: true }).waitFor({ timeout: 15_000 })
-  // ① 特色整蛊分组
-  const section = page.locator('section', { has: page.getByText('叠在直播画面上，不用进游戏也能点') })
-  await section.waitFor()
-  assert.equal(await section.getByRole('button').count(), 17 + 1 + 1, '特色整蛊分组应有 17 个玩法 + 盲盒抽一次 + 预览和设置')
-  await section.getByRole('button', { name: '🎁 盲盒抽一次' }).click()
-  await page.waitForTimeout(100)
-  assert.equal((await calls(page, 'specialBoxDraw'))[0]?.args?.[0], '*|特色盲盒')
-  ok('① 整蛊遥控「盲盒抽一次」：从事件库全部启用的事件里抽（→ specialBoxDraw *）')
-  const fan = section.getByRole('button', { name: '粉丝来电', exact: true })
-  assert.equal(await fan.isDisabled(), false, '没开游戏时特色整蛊按钮应能点')
-  await fan.click()
-  await page.waitForTimeout(100)
-  assert.deepEqual((await calls(page, 'specialTest'))[0]?.args?.[0], 'fan_call')
-  ok('① 整蛊遥控「特色整蛊」分组 17 个玩法，没开游戏也能点（→ specialTest fan_call）')
+  // ① 整蛊遥控只管游戏（2026-10-07 用户：「游戏是游戏的，整蛊台是整蛊台的，不应该混淆」）：
+  //    没有特色整蛊分组 / 盲盒抽一次按钮，礼物联动下拉里没有特色整蛊和盲盒，已有的特色整蛊礼物规则不列在这里
+  const body = await page.locator('body').innerText()
+  assert.ok(!/叠在直播画面上|盲盒抽一次|特色整蛊/.test(body), '整蛊遥控页不该出现特色整蛊：' + (body.match(/.{0,20}(叠在直播画面上|盲盒抽一次|特色整蛊).{0,20}/)?.[0] ?? ''))
+  assert.equal(await page.getByRole('button', { name: '粉丝来电', exact: true }).count(), 0, '不该有特色整蛊玩法按钮')
+  ok('① 整蛊遥控页没有特色整蛊分组、盲盒按钮和「特色整蛊」字样')
 
-  // ② 礼物联动绑特色整蛊
   const giftInput = page.getByPlaceholder('礼物名（如 保时捷）')
-  const prankSelect = page.locator('select').filter({ has: page.locator('option[value="special:throw_poop"]') }).first()
-  assert.ok(await prankSelect.locator('optgroup[label="特色整蛊（画面）"]').count(), '礼物联动下拉里应有「特色整蛊（画面）」分组')
-  await giftInput.fill('棒棒糖')
-  await prankSelect.selectOption('special:throw_poop')
-  await page.getByRole('button', { name: '绑定', exact: true }).click()
-  await page.getByRole('button', { name: '解绑 棒棒糖' }).waitFor({ timeout: 5000 })
-  assert.ok(await page.locator('div', { has: page.getByRole('button', { name: '解绑 棒棒糖' }) }).last().innerText().then((t) => t.includes('扔粑粑') && t.includes('特色整蛊')), '联动行应写着「扔粑粑 · 特色整蛊 ← 棒棒糖」')
-  const added = (await calls(page, 'ruleAdd'))[0]?.args?.[0]
-  assert.equal(added.giftName, '棒棒糖')
-  assert.equal(added.commandCmd, 'special-play')
-  assert.equal(added.commandParam, 'throw_poop|add|5~15', '新建默认是随机范围')
-  assert.equal(added.queueMode, 'instant')
-  assert.equal(added.group, '特色整蛊')
-  assert.equal((await calls(page, 'saveConfig')).length, 0, '特色整蛊绑定不该写进游戏的 GiftMap')
-  ok('② 礼物联动选「扔粑粑」绑棒棒糖 → 立即存成礼物触发规则（默认随机 5~15，不写游戏 GiftMap），列表显示')
-  await page.screenshot({ path: path.join(output, 'remote-linked.png'), fullPage: true })
+  const prankSelect = page.locator('select').filter({ has: page.locator('option[value="flip"]') }).first()
+  assert.equal(await prankSelect.locator('option[value="specialbox"], option[value^="special:"]').count(), 0, '礼物联动下拉里不该有特色整蛊 / 盲盒')
+  assert.equal(await prankSelect.locator('optgroup[label*="特色整蛊"]').count(), 0)
+  ok('② 礼物联动下拉里只有游戏整蛊（没有特色整蛊 / 盲盒）')
+
+  // 已有的特色整蛊礼物规则（在整蛊台那边建的，开页前就预置了）不出现在游戏的礼物联动列表里
+  await page.waitForTimeout(300)
+  assert.equal(await page.getByRole('button', { name: '解绑 小心心' }).count(), 0, '特色整蛊的礼物规则不该列在游戏礼物联动里')
+  ok('② 整蛊台里建的特色整蛊礼物规则不列在游戏的礼物联动里')
 
   // ③ 游戏整蛊的 GiftMap 照旧
   await giftInput.fill('跑车')
@@ -133,24 +118,9 @@ try {
   await page.waitForTimeout(150)
   const saved = (await calls(page, 'saveConfig')).at(-1)?.args?.[0]
   assert.deepEqual(saved?.GiftMap, { '保时捷': 'flip', '跑车': 'flip' })
-  ok('③ 游戏整蛊绑定照旧写 GiftMap（保时捷、跑车 → 翻车）')
-
-  // 绑盲盒：礼物联动下拉里的「特色整蛊盲盒」
-  await giftInput.fill('嘉年华')
-  await prankSelect.selectOption('specialbox')
-  await page.getByRole('button', { name: '绑定', exact: true }).click()
-  await page.getByRole('button', { name: '解绑 嘉年华' }).waitFor({ timeout: 5000 })
-  const boxRule = (await calls(page, 'ruleAdd')).at(-1)?.args?.[0]
-  assert.equal(boxRule.commandCmd, 'special-box')
-  const LIB = await page.evaluate(() => window.api.specialBoxEvents().then((l) => l.length))
-  assert.equal(boxRule.commandParam.split(',').length, LIB, `奖池应默认勾上事件库全部 ${LIB} 个：${boxRule.commandParam}`)
-  assert.ok(boxRule.commandParam.startsWith('sbe-v-chain_challenge-add-1,'))
-  ok(`② 礼物联动选「🎁 盲盒随机」绑嘉年华 → special-box 礼物规则，奖池默认勾上事件库全部 ${LIB} 个`)
-  // 解绑特色整蛊
-  await page.getByRole('button', { name: '解绑 棒棒糖' }).click()
-  await page.waitForTimeout(150)
-  assert.ok((await calls(page, 'ruleRemove')).length >= 1, '解绑应删掉那条礼物触发规则')
-  ok('② 解绑特色整蛊 → 删掉对应礼物触发规则')
+  assert.equal((await calls(page, 'ruleAdd')).length, 0, '游戏礼物联动不该建整蛊台的礼物规则')
+  ok('③ 游戏整蛊绑定照旧写 GiftMap（保时捷、跑车 → 翻车），不碰整蛊台的礼物规则')
+  await page.screenshot({ path: path.join(output, 'remote-linked.png'), fullPage: true })
 
   // ④ 模拟观众
   const simSection = page.locator('section', { has: page.locator('h3', { hasText: '模拟观众' }) })
@@ -165,7 +135,7 @@ try {
   await simSection.getByRole('button', { name: '关注', exact: true }).click()
   await page.waitForTimeout(100)
   assert.equal((await calls(page, 'simulate')).at(-1)?.args?.[0], '关注 by 模拟观众')
-  ok(`④ 模拟观众没开游戏也能点：「${giftLabel}」→ 客户端事件（礼物触发 / 特色整蛊响应），不发 bridge`)
+  ok(`④ 模拟观众没开游戏也能点：「${giftLabel}」→ 客户端事件（整蛊台的礼物触发响应），不发 bridge`)
   await page.screenshot({ path: path.join(output, 'remote.png'), fullPage: true })
   assert.deepEqual(errors, [], '整蛊遥控页面报错：' + errors.join(' | '))
   await page.close()

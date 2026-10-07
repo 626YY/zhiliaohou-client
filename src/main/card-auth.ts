@@ -14,7 +14,7 @@ import { session as electronSession, shell } from 'electron'
 import { randomUUID, createHash } from 'crypto'
 import { createCollection, readJson, writeJson } from './db'
 import { createCredStore, credGetUser, type CredStore } from './cred-store'
-import { LicenseConnection, CARD_PLATFORM_PRODUCT, CARD_PRODUCTS, PlatformError } from './license-connection'
+import { LicenseConnection, CARD_PLATFORM_PRODUCT, CARD_PRODUCTS, PlatformError, platformUnavailable, type DeniedReason } from './license-connection'
 import { loadCardProviderConfig, cardModeEnabled, type CardProviderConfig } from './card-provider'
 import { installServerCertPin } from './server-tls'
 import { logLine } from './crash-log'
@@ -148,7 +148,17 @@ function ensureConnection(): LicenseConnection {
     // 证书：同一套指纹校验装到这个分区（47.251.93.171 钉指纹，其它主机系统 CA），不关校验、不信任任意证书
     const partition = electronSession.fromPartition('card-license-' + randomUUID())
     installServerCertPin(partition)
-    connection = new LicenseConnection(config.origin, config.publicKey, partition, deny, config.identityMode)
+    const origin = config.origin
+    connection = new LicenseConnection(config.origin, config.publicKey, partition, deny, config.identityMode, {
+      free: () => !licenseEnforced(),
+      localId: (email) => cardUsers.find((u) => u.origin === origin && String(u.email ?? '').toLowerCase() === email.trim().toLowerCase())?.id,
+      // 免费模式：服务器挂着那段时间本机绑定的直播间，连回平台后补报（后台看得到）；通知 / 心跳也立刻跑一次
+      onReconnect: () => {
+        if (licenseEnforced()) return
+        void Promise.resolve(roomHooks.login?.()).catch((e) => logLine('card', '连回平台后对账直播间未完成：' + (e instanceof Error ? e.message : String(e))))
+        emitCardAccountChange()
+      }
+    })
     const credFile = 'creds-card-' + originKey(config.origin)
     creds = createCredStore(credFile)
     logLine('card', `卡密平台已接入：${config.origin}（配置来源 ${config.source}${config.official ? '，官方地址' : ''}）`)
@@ -251,7 +261,17 @@ export function closeAllCardOutputs(): void {
   quietly('obs', () => obsDisconnectNow())
 }
 
-function deny(): void {
+let freeDenyLoggedAt = 0
+function deny(reason: DeniedReason = 'platform'): void {
+  // 免费模式：平台那边的拒绝 / 登录失效一律不关输出（2026-10-07 用户：「千万不要干扰直播」「不要有任何的掉授权行为」）；
+  // 只有主播自己退出 / 切换账号（reason=user）才关
+  if (reason === 'platform' && !licenseEnforced()) {
+    if (Date.now() - freeDenyLoggedAt > 60_000) {
+      freeDenyLoggedAt = Date.now()
+      logLine('card', '平台那边登录失效或拒绝了一次请求（免费模式不影响使用，输出照常）')
+    }
+    return
+  }
   closeAllCardOutputs()
 }
 
@@ -527,9 +547,16 @@ export async function cardSendCode(email: unknown): Promise<EmailAuthResult> {
     await conn.sendCode(e)
     return { ok: true, email: e }
   } catch (err) {
+    // 免费模式 + 服务器连不上：收不到验证码也能进软件（注册页据此放开「验证码必填」，cardLogin 走本机登录）
+    if (!licenseEnforced() && platformUnavailable(err)) {
+      return { ok: false, error: SERVER_DOWN_REGISTER, code: 'platform_unavailable' }
+    }
     return errorResult(err, '验证码发送失败，请稍后重试')
   }
 }
+
+const SERVER_DOWN_REGISTER = '服务器暂时连不上，收不到验证码。不填验证码直接点「注册」也能进入软件，功能照常用'
+const SERVER_DOWN_LOGIN = '服务器暂时连不上，已直接进入软件，所有功能照常用'
 
 /**
  * 找回密码：邮箱验证码 + 新密码，平台核实后直接建立会话（和登录一样），这里顺手落本地记录。
@@ -572,12 +599,22 @@ export async function cardLogin(email: unknown, password: unknown, register: boo
   if (register && p.length < 6) return { ok: false, error: '密码至少 6 位' }
   try {
     const conn = ensureConnection()
+    let online = register
     if (register && !c) {
       // 正式平台注册必须带邮箱验证码；平台元信息读不到时也按需要验证码处理，不让人凭邮箱抢占旧账号
       const meta = await conn.meta()
-      if (meta.registrationRequiresCode || !meta.fromServer) return { ok: false, error: '请填写邮箱收到的验证码', code: 'code_required' }
+      // 免费模式 + 服务器连不上（拿不到验证码）：不注册了，直接用填的邮箱密码进软件（本机登录），服务器恢复后再补注册
+      if (!licenseEnforced() && !meta.fromServer) online = false
+      else if (meta.registrationRequiresCode || !meta.fromServer) return { ok: false, error: '请填写邮箱收到的验证码', code: 'code_required' }
     }
-    const snapshot = await conn.login(e, p, register, register ? c : '')
+    let snapshot: CardSnapshot
+    try {
+      snapshot = await conn.login(e, p, online, online ? c : '')
+    } catch (err) {
+      // 刚才以为服务器连不上、注册改走了直接进入，结果服务器其实在、这个邮箱还没注册：还是请主播填验证码注册
+      if (register && !online && err instanceof PlatformError && err.status === 401) return { ok: false, error: '请填写邮箱收到的验证码', code: 'code_required' }
+      throw err
+    }
     if (!snapshot.user) return { ok: false, error: '登录失败' }
     let local = upsertLocal(snapshot.user, register ? String(nickname ?? '') : '')
     // 直播间绑定列表以平台为准：登录后立刻同步一次（平台还没上这个接口就先用本机缓存）
@@ -586,19 +623,21 @@ export async function cardLogin(email: unknown, password: unknown, register: boo
       local = localUser(local.id) ?? local
     }
     prepareCardMod(snapshot)
-    if(getSettings().timeLogWindow&&snapshot.rights?.some(r=>r.id===CARD_PLATFORM_PRODUCT&&r.allowed)){
+    // 免费模式：本机登录时快照里没有平台权益，但一切功能本来就放开 → 照样按设置打开时间记录窗
+    if(getSettings().timeLogWindow&&(!licenseEnforced()||snapshot.rights?.some(r=>r.id===CARD_PLATFORM_PRODUCT&&r.allowed))){
       const epoch=cardEpoch(),id=local.id
       void cardRequireRecent(CARD_PLATFORM_PRODUCT).then(()=>{if(cardEpoch()===epoch&&cardSession()?.id===id)timeLogOpen()}).catch(()=>{})
     }
     // 登录成功：通知轮询 / 在线心跳 / 观众记录上传立刻跑一次（平台代调原邮箱服务，见 card-compat.ts）
     emitCardAccountChange()
-    return { ok: true, user: toSession(local) }
+    return { ok: true, user: toSession(local), ...(!licenseEnforced() && conn.usingLocalLogin() ? { notice: SERVER_DOWN_LOGIN } : {}) }
   } catch (err) {
     return errorResult(err, '登录失败')
   }
 }
 
 export async function cardLogout(): Promise<{ ok: boolean }> {
+  // 主播自己退出 / 切换账号：logout 走 denied('user')，免费模式下也照常关掉正在输出的东西
   if (connection) await connection.logout()
   else closeAllCardOutputs()
   return { ok: true }
@@ -665,6 +704,7 @@ export async function cardDeleteAccount(id: string): Promise<{ ok: boolean; erro
   if (!u) return { ok: false, error: '账号不存在' }
   cardUsers.remove(id)
   if (connection?.currentUser()?.id === id) await connection.logout()
+  connection?.forgetAccount(u.email)
   return { ok: true, email: u.email }
 }
 

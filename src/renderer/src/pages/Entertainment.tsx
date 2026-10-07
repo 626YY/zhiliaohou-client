@@ -4,6 +4,7 @@ import { ChevronLeft, Gift, Wand2, Image as ImageIcon, Disc3, LayoutGrid, Sparkl
 import { Btn, Input, Loading, PageHeader } from '../components/ui'
 import {FEATURE_GROUPS,FEATURE_GUIDES} from '../lib/featureGuides'
 import FeatureIntroduction from '../components/FeatureIntroduction'
+import { AnnounceGuide, AnnounceSwitch } from '../components/AnnounceControls'
 import {AssetLibraryEntry} from '../components/AssetLibrarySetup'
 const EntertainmentGiftRules = lazy(() => import('./EntertainmentGiftRules'))
 const EntertainmentTransparent = lazy(() => import('./EntertainmentTransparent'))
@@ -202,7 +203,9 @@ export default function Entertainment() {
           <ChevronLeft size={14} /> 返回功能列表
         </Btn>
         <span className="text-sm font-semibold text-[var(--text)]">{cur?.label}</span>
+        {cur && <AnnounceSwitch module={cur.id} />}
       </div>
+      {cur && <AnnounceGuide module={cur.id} />}
       {cur&&<FeatureIntroduction feature={cur.id} title={cur.label}/>}
       <div data-feature-content={active}><Suspense fallback={<Loading text="正在加载挂件编辑器…" />}>{render(active)}</Suspense></div>
     </div>

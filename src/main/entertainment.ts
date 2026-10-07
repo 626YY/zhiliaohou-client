@@ -27,7 +27,10 @@ import {
   type GreenScreenSlot,
   type MouseActionType
 } from '@shared/types'
-import { ruleActionLabel } from '../shared/entertainmentLabels'
+import { ruleActionLabel, actionLabel, SYSTEM_LABELS } from '../shared/entertainmentLabels'
+import { announce } from './announce'
+import { spokenDuration } from '../shared/announce'
+import { runPowerShell } from './ps-runner'
 import { parseSpecialParam, type SpecialViewer } from '../shared/specialGames'
 import { actionDelayMs, normalizeExtraActions, ruleActions, withActionDefaults } from '../shared/entertainmentActions'
 import { giftNamesEqual } from './connector-events'
@@ -456,9 +459,55 @@ function mergeableSpecialRule(rule: EntertainmentRule): boolean {
   return MERGEABLE_SPECIAL_OPS.has(parseSpecialParam(a.commandParam).op)
 }
 
+// ===== AI 语音播报（announce.ts）：一批（一次送礼）只念一句 =====
+// 特色整蛊 / 盲盒、转盘、时间盲盒自己会念，这里不重复；按键 / 脚本 / 鼠标这类技术动作只在主播给规则起了名字时念名字；
+// 会播视频 / 放音效的规则算「自己配了声音」（默认不念）。
+const MEDIA_COMMANDS = new Set(['video-play', 'video-play-wait', 'video-random', 'sound-random', 'video-gif', 'project-random'])
+const SELF_ANNOUNCING = new Set(['special-play', 'special-box', 'wheel-spin', 'nine-spin', 'blindbox-open'])
+function signedSpoken(param: string | undefined, unit: 'time' | 'plain'): string {
+  const text = String(param ?? '').trim()
+  if (!/^[-+]?\d+(\.\d+)?$/.test(text)) return ''
+  const n = Number(text)
+  if (!n) return ''
+  const body = unit === 'time' ? spokenDuration(Math.abs(n)) : String(Math.abs(n))
+  return `${n > 0 ? '加' : '减'}${body}`
+}
+function spokenAction(a: EntertainmentAction): string {
+  if (a.actionType === 'system' && a.systemCmd) return SYSTEM_LABELS[a.systemCmd] || ''
+  if (a.actionType !== 'command' || !a.commandCmd) return ''
+  const p = a.commandParam
+  switch (a.commandCmd) {
+    case 'game-prank': { const [, id = '', name = ''] = String(p || '').split('|'); return name || id }
+    case 'mobile': return actionLabel(a).replace(/^手游动作\s*/, '')
+    case 'key-lock': return '锁住键盘'
+    case 'key-unlock': return '解锁键盘'
+    case 'countdown-adjust': { const s = signedSpoken(p, 'time'); return s ? `倒计时${s}` : '' }
+    case 'countdown-clear': return '倒计时清零'
+    case 'count-adjust': { const s = signedSpoken(p, 'plain'); return s ? `计时${s}` : '' }
+    case 'count-clear': return '计时清零'
+    case 'count-mul': return p ? `计时乘${p}` : ''
+    case 'count-div': return p ? `计时除以${p}` : ''
+    case 'overtime-adjust': { const s = signedSpoken(p, 'plain'); return s ? `加班${s}` : '' }
+    case 'overtime-clear': return '加班清零'
+    case 'overtime-mul': return p ? `加班乘${p}` : ''
+    case 'overtime-div': return p ? `加班除以${p}` : ''
+    default: return ''
+  }
+}
+function announceRule(rule: EntertainmentRule, runs: number): void {
+  const actions = ruleActions(rule)
+  if (actions.some((a) => a.actionType === 'command' && SELF_ANNOUNCING.has(a.commandCmd || ''))) return
+  const media = actions.some((a) => a.actionType === 'sound' || (a.actionType === 'command' && MEDIA_COMMANDS.has(a.commandCmd || '')))
+  const named = String(rule.name || '').trim()
+  const useName = !!named && !/^特色整蛊|→/.test(named) && named !== String(rule.giftName || '').trim()
+  const text = useName ? named : actions.map(spokenAction).filter(Boolean).join('，')
+  if (text) announce('gift', runs > 1 ? `${text}，${runs}次` : text, { hasOwnMedia: media })
+}
+
 // 入队：priority 大的先执行；同优先级按先来后到（seq 递增）。
 function enqueueRuns(rule: EntertainmentRule, runs: number, event?: ConnectorEvent): void {
   if (runs <= 0) return
+  announceRule(rule, runs)
   if (!Number.isSafeInteger(runs) || !Number.isSafeInteger(execQueueLength() + runs)) {
     console.warn('[entertainment] 执行次数超出可精确表示范围，请检查规则数值')
     return
@@ -537,10 +586,8 @@ export function sendKeys(keySeq: string): { ok: boolean; error?: string } {
   try {
     const safe = keySeq.replace(/'/g, "''")
     const ps = `(New-Object -ComObject WScript.Shell).SendKeys('${safe}')`
-    spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], {
-      windowsHide: true,
-      stdio: 'ignore'
-    }).unref()
+    // 排队执行（ps-runner.ts）：连击时不再一口气冒出几十个 PowerShell
+    runPowerShell(ps)
     return { ok: true }
   } catch {
     return { ok: false, error: '发送按键失败' }
@@ -609,10 +656,7 @@ export function mouseAction(
         break
     }
     const ps = parts.join('; ')
-    spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], {
-      windowsHide: true,
-      stdio: 'ignore'
-    }).unref()
+    runPowerShell(ps)
     return { ok: true }
   } catch {
     return { ok: false, error: '鼠标模拟失败' }
@@ -636,11 +680,7 @@ export function sendText(
       sendKeys(esc)
     } else {
       clipboard.writeText(text)
-      const ps = `(New-Object -ComObject WScript.Shell).SendKeys('^v')`
-      spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], {
-        windowsHide: true,
-        stdio: 'ignore'
-      }).unref()
+      runPowerShell(`(New-Object -ComObject WScript.Shell).SendKeys('^v')`)
     }
     if (enterAfter) sendKeys('{ENTER}')
     return { ok: true }
@@ -835,12 +875,7 @@ export function systemAction(
       default:
         return { ok: false, error: '未知系统动作' }
     }
-    const runner = spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], {
-      windowsHide: true,
-      stdio: 'ignore'
-    })
-    runner.on('error', () => { /* spawn 失败是异步 error 事件，不挂监听会变成主进程未捕获异常 */ })
-    runner.unref()
+    runPowerShell(ps)
     return { ok: true }
   } catch {
     return { ok: false, error: '系统动作执行失败' }
@@ -977,7 +1012,8 @@ export function holdKey(keyName: string, ms: number): { ok: boolean; error?: str
   const hold = Math.max(10, Math.min(600_000, Math.trunc(ms) || 1000))
   try {
     const ps = `Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public class K{[DllImport("user32.dll")]public static extern void keybd_event(byte bVk,byte bScan,uint dwFlags,UIntPtr dwExtraInfo);}'; [K]::keybd_event(${vk},0,0,[UIntPtr]::Zero); Start-Sleep -Milliseconds ${hold}; [K]::keybd_event(${vk},0,2,[UIntPtr]::Zero)`
-    spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true, stdio: 'ignore' }).unref()
+    // 按住要跑很久，走单独的道（不占短动作的位置）；超时按 按住时长 + 30 秒算
+    runPowerShell(ps, { long: true, timeoutMs: hold + 30_000 })
     return { ok: true }
   } catch {
     return { ok: false, error: '按住按键失败' }
@@ -991,7 +1027,7 @@ export function releaseKey(keyName: string): { ok: boolean; error?: string } {
   if (!vk) return { ok: false, error: `不认识的键名：${keyName}` }
   try {
     const ps = `Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public class K2{[DllImport("user32.dll")]public static extern void keybd_event(byte bVk,byte bScan,uint dwFlags,UIntPtr dwExtraInfo);}'; [K2]::keybd_event(${vk},0,2,[UIntPtr]::Zero)`
-    spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true, stdio: 'ignore' }).unref()
+    runPowerShell(ps)
     return { ok: true }
   } catch { return { ok: false, error: '弹起按键失败' } }
 }

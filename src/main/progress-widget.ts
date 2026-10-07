@@ -14,6 +14,7 @@ import { readJson, writeJson } from './db'
 import { giftNamesEqual } from '../shared/giftName'
 import { findGiftImage, runScript } from './entertainment'
 import { Ipc, type ConnectorEvent, type ProgressConfig, type ProgressState } from '@shared/types'
+import { announce } from './announce'
 
 let win: BrowserWindow | null = null
 let config: ProgressConfig = normalizeConfig(readJson<Partial<ProgressConfig>>('progress', {}))
@@ -204,6 +205,8 @@ function afterScoreChange(): void {
     reached.push(milestone.score)
     if (milestone.sound) playSound(milestone.sound)
     if (milestone.script) runScript(milestone.script)
+    // AI 语音播报：念「达成：备注」；这一档配了达成音效的默认不念
+    announce('progress', `达成${milestone.note?.trim() ? '，' + milestone.note.trim() : milestone.score + '分'}`, { hasOwnMedia: !!milestone.sound })
   }
   persistScore()
   push()

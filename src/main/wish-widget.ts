@@ -13,6 +13,7 @@ import { readJson, writeJson } from './db'
 import { giftNamesEqual } from '../shared/giftName'
 import { findGiftImage, runScript } from './entertainment'
 import { Ipc, type ConnectorEvent, type WishConfig, type WishGroup, type WishItem, type WishWidgetState } from '@shared/types'
+import { announce } from './announce'
 
 let win: BrowserWindow | null = null
 let config: WishConfig = normalizeConfig(readJson<Partial<WishConfig>>('wish', {}))
@@ -291,6 +292,8 @@ export function handleWishGift(event: ConnectorEvent): void {
         wish.done = true
         if (wish.sound) playSound(wish.sound)
         if (wish.script) runScript(wish.script)
+        // AI 语音播报：念「心愿达成，小心心100个」；配了达成音效的默认不念
+        announce('progress', `心愿达成，${wish.gift}${wish.target}个`, { hasOwnMedia: !!wish.sound })
       }
     }
   }

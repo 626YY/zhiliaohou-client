@@ -22,6 +22,8 @@ import { readJson, writeJson } from './db'
 import { compactTimeLogHtml, timeLogMetrics } from './time-log-view'
 import { TIME_TICKER_CSS, TIME_TICKER_SCRIPT } from './time-ticker-view'
 import { emojiPageScript } from './emoji-assets'
+import { announce } from './announce'
+import { spokenDuration } from '../shared/announce'
 
 let win: BrowserWindow | null = null
 let config: TimeWidgetConfig | null = null
@@ -303,6 +305,8 @@ async function pumpTimeBoxes(): Promise<void> {
     job.applied = true
     lastBoxResult = { ...job.result }
     pushTicker(job.sender, job.avatar || '', job.result.after - job.result.before, job.gift)
+    const spoken = spokenBoxEvent(event, job.result.value, job.result.after - job.result.before)
+    if (spoken) announce('time', spoken, { hasOwnMedia: !!(event.video || event.sound) })
     const acted = await awaitBox(job, boxAction(event, () => currentBox(job), false), '附加事件执行')
     if (!acted.ok) throw new Error(acted.error || '附加事件执行失败')
     await waitBoxMedia(job, video)
@@ -1140,6 +1144,17 @@ function applyGiftRow(row: TimeWidgetGift): number {
   }
 }
 
+// AI 语音播报（announce.ts）：念这次时间实际变了多少；盲盒的乘除念「时间翻倍 / 减半」。配了视频或音效的默认不念
+function spokenTimeChange(delta: number, cleared: boolean): string {
+  if (cleared) return '时间清零'
+  return delta > 0 ? `加${spokenDuration(delta)}` : delta < 0 ? `减${spokenDuration(-delta)}` : ''
+}
+function spokenBoxEvent(event: TimeBlindBoxEvent, value: number, delta: number): string {
+  if (event.op === 'multiply') return value === 2 ? '时间翻倍' : `时间乘${value}`
+  if (event.op === 'divide') return value === 2 ? '时间减半' : `时间除以${value}`
+  return spokenTimeChange(delta, false)
+}
+
 function playGiftVideo(row: TimeWidgetGift): string | undefined {
   const video = String(row.video || '').trim()
   if (!video) return
@@ -1197,6 +1212,9 @@ export function handleTimeWidgetGift(name: string, count = 1, image = '', sender
   setRemaining(next, { name: gift, image: resolved })
   // 一个礼物事件只播放一次对应视频；连击数量仍按 amount 逐次结算数值。
   const videoError = row?.video ? playGiftVideo(row) : undefined
+  const cleared = row ? row.op === '清零' : (isAdd ? config.addOp : config.subOp) === '清零'
+  const spoken = spokenTimeChange(remaining - startRemaining, cleared)
+  if (spoken) announce('time', spoken, { hasOwnMedia: !!row?.video })
   // 记一笔：按结算后的真实总变化记（连击算整次，含夹到 0 的情况）
   pushGiftLog({ ts: Date.now(), name: gift, sender: String(sender || ''), delta: remaining - startRemaining, remaining, source: logSource, avatar, ...(videoError ? { error: videoError } : {}) })
   // 送礼滚动条：一条礼物记一条（连击按整次的时间变化）

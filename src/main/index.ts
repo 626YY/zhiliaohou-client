@@ -1,6 +1,6 @@
 import './app-setup'
 import { app, BrowserWindow, net, protocol, shell } from 'electron'
-import { initCrashLog, logLine } from './crash-log'
+import { initCrashLog, logLine, registerCrashNotice } from './crash-log'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
 import { initDb } from './db'
@@ -22,7 +22,7 @@ import { Ipc } from '@shared/types'
 import { registerConnectorRuntime } from './connector-runtime'
 import { initObsService } from './obs-service'
 import { closeAllOutputWindows, closeIdleOutputWindows, restoreCaptureOutputWindows } from './output-window'
-import { setMainWindow } from './main-window-ref'
+import { setMainWindow, getMainWindow } from './main-window-ref'
 import { cardModeEnabled, cardShutdown, startCardWatch, freeModeGameUse } from './card-auth'
 import { initExitDiag, markQuitReason, noteSessionEnd } from './exit-diag'
 import { licenseEnforced, logLicensePolicy, refreshLicensePolicyFromRemote } from './license-policy'
@@ -110,6 +110,13 @@ function createWindow(): BrowserWindow {
 
   mainWin = win
   setMainWindow(win)
+  // 出错提示发到主窗口里（不弹系统框、不抢直播中的前台）
+  registerCrashNotice((title, body) => {
+    const target = getMainWindow()
+    if (!target || target.webContents.isDestroyed() || target.webContents.isCrashed()) return false
+    target.webContents.send(Ipc.AppNotice, { level: 'error', text: `${title}：${body.split('\n\n')[0]}` })
+    return true
+  })
   // 主窗口关闭 = 整个程序退出的入口之一，必须留痕：前一行有 [window] 标题栏关闭 = 主播自己点的；没有 = Alt+F4 / 任务栏 / 别的程序关的
   win.on('close', () => logLine('window', '主窗口 close（接下来会收掉全部挂件并退出）'))
   win.on('session-end', noteSessionEnd)

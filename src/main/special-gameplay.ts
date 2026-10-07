@@ -20,6 +20,7 @@ import { GAME_CODE } from './special-games'
 import { buildSpecialPage, buildSpecialWindowPage, specialPageConfig } from './special-page'
 import { specialAssetBase, specialAssetDir } from './special-assets'
 import { specialGongFile, specialVoiceCached, specialVoiceFile, voiceFileUrl, voicePreviewUrl } from './special-voice'
+import { announceConfig } from './announce'
 import { voiceFileName } from './special-voice-name'
 import {
   DEFAULT_SPECIAL_REVEAL,
@@ -468,8 +469,9 @@ export function runSpecialAction(param: string, viewer?: SpecialViewer, times = 
   if (!Number.isSafeInteger(count)) return { ok: false, error: '数量超出可精确表示范围，请检查规则数值' }
   const cmd = buildCommand(meta, cfg, p.op, count, p.fields, viewer, force)
   const reveal = specialRevealConfig()
-  // 开奖设置里打开了「礼物直接触发的也播」：和盲盒开出来一样，锣 + 大字 + 配音，锣响时生效
-  if (reveal.enabled && reveal.direct) {
+  // 礼物直接触发的也和盲盒开出来一样：锣 + 大字 + 配音，锣响时生效（2026-10-07 用户：「肯定是默认念的，除了打电话」）。
+  // 来电 / 来视频自己会响铃，直接打进来；开奖画面整个关掉时也直接生效
+  if (reveal.enabled && !meta.ringsItself) {
     const op = meta.ops.find((o) => o.value === p.op) ?? meta.ops[0]
     const item = revealItem({ ev: { id: '', name: '', param, enabled: true, weight: 1, prank: '' }, meta, p, op, count }, cmd, reveal)
     revealToWindow([item], [], '', '')
@@ -692,7 +694,8 @@ function revealItem(d: Drawn, cmd: Record<string, unknown>, reveal: SpecialRevea
   const custom = !!d.ev.name && d.ev.name !== specialBoxEventDefaultName(d.ev.param)
   // 视频文件不在了（挪走 / 删了）就照常用锣 + 大字 + 配音，别让这个事件哑掉
   const video = d.ev.video && validMedia(d.ev.video) ? d.ev.video : ''
-  const line = reveal.voice && (!video || d.ev.voiceWithVideo) ? specialBoxEventVoice(d.ev, count) : ''
+  // 设置里「AI 语音播报」总开关关掉 = 整个整蛊台一句 AI 语音都不念（开奖照样敲锣、出大字）
+  const line = reveal.voice && announceConfig().enabled && (!video || d.ev.voiceWithVideo) ? specialBoxEventVoice(d.ev, count) : ''
   const cached = line ? specialVoiceCached(line, reveal.voiceName, reveal.rate) : ''
   return {
     text: custom ? d.ev.name : auto,

@@ -197,8 +197,12 @@ try {
   assert.equal(await windowOpen(), false, '送礼前特色整蛊窗口不该开着')
   await api(() => window.api.connectorSimulate('礼物: 小心心 ×2  by 阿彪'))
   await until(() => windowOpen(), '特色整蛊窗口自动打开')
+  // 礼物直接触发的也和盲盒一样敲锣、出大字、念（2026-10-07 用户：「肯定是默认念的，除了打电话」，不再有开关）
+  let directRv = null
+  for (let i = 0; i < 60 && !directRv?.current?.text; i++) { directRv = (await inSpecialWindow('window.__revealState && window.__revealState()')).value; if (!directRv?.current?.text) await page.waitForTimeout(100) }
+  assert.ok(/鸭/.test(directRv?.current?.text || ''), '礼物直接触发的抓鸭子应该敲锣出大字：' + JSON.stringify(directRv))
   await until(async () => (await inSpecialWindow("window.__alive && window.__alive('catch_duck')")).value === true, '窗口里的鸭子收到命令开始动')
-  ok(`模拟送礼「小心心×2 by 阿彪」→「特色整蛊」窗口自动打开，鸭子开始生成（横幅：${await bannerText() || '无'}）`)
+  ok(`模拟送礼「小心心×2 by 阿彪」→「特色整蛊」窗口自动打开，敲锣开出「${directRv.current.text}」，鸭子开始生成（横幅：${await bannerText() || '无'}）`)
   await api(() => window.api.connectorSimulate('礼物: 玫瑰 ×1  by 小美'))
   await until(async () => (await inSpecialWindow("window.__alive && window.__alive('chain_challenge')")).value === true, '迁移的玫瑰规则触发锁链')
   const specialWins = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed() && w.getTitle() !== '知了猴整蛊台').map((w) => w.getTitle()))
@@ -213,14 +217,31 @@ try {
   const labelShown = await api(() => document.body.innerText.includes('特色整蛊 抓鸭子 +3只 · 大鸭子'))
   assert.ok(labelShown, '礼物触发列表里应显示「特色整蛊 抓鸭子 +3只 · 大鸭子」')
   await capture('05-gift-rules')
+  await until(async () => { const s = (await inSpecialWindow('window.__revealState && window.__revealState()')).value; return !!s && !s.current && s.pending === 0 }, '前面的开奖播完', 20_000)
   const r1 = await api(() => window.api.entertainmentCommand('special-play', 'fan_call|show|1'))
   assert.equal(r1.ok, true, r1.error)
   await until(async () => (await loadedGames()).includes('fan_call'), '动作命令出口打开粉丝来电')
+  const callRv = (await inSpecialWindow('window.__revealState && window.__revealState()')).value
+  assert.ok(!callRv?.current && !callRv?.pending, '来电自己会响铃，不该敲锣开奖：' + JSON.stringify(callRv))
+  ok('粉丝来电直接打进来：不敲锣、不出开奖大字（来电自己会响铃）')
   const r2 = await api(() => window.api.entertainmentCommand('special-play', 'no_such|add|1'))
   assert.equal(r2.ok, false, '未知玩法应该报错')
   ok('动作命令出口（转盘/九宫格/时间盲盒共用）能触发特色整蛊，未知玩法会报错')
 
-  // ---- 6b. 和整蛊器融合：整蛊遥控里的特色整蛊分组 / 礼物联动 / 模拟观众；礼物触发的「游戏整蛊」动作 ----
+  // ---- 6a. 礼物联动「触发一次」：走真礼物同一条路（敲锣开奖 + 鸭子生成）----
+  await api(() => { window.location.hash = '#/special?tool=catch_duck' })
+  const fireBtn = page.getByRole('button', { name: /^触发一次/ }).first()
+  await fireBtn.waitFor({ timeout: 10_000 })
+  await until(async () => { const s = (await inSpecialWindow('window.__revealState && window.__revealState()')).value; return !!s && !s.current && s.pending === 0 }, '前面的开奖播完', 20_000)
+  await fireBtn.click()
+  let fireRv = null
+  for (let i = 0; i < 60 && !fireRv?.current?.text; i++) { fireRv = (await inSpecialWindow('window.__revealState && window.__revealState()')).value; if (!fireRv?.current?.text) await page.waitForTimeout(100) }
+  assert.ok(/鸭/.test(fireRv?.current?.text || ''), '「触发一次」应该和真礼物一样敲锣开奖：' + JSON.stringify(fireRv))
+  ok(`礼物联动「触发一次」→ 敲锣开出「${fireRv.current.text}」（和真礼物同一条路）`)
+  await capture('06a-link-fire')
+
+  // ---- 6b. 整蛊遥控只管游戏（2026-10-07 用户：「游戏是游戏的，整蛊台是整蛊台的，不应该混淆」）：
+  //      没有特色整蛊分组 / 盲盒 / 下拉选项；模拟观众送的礼物照样触发整蛊台的礼物规则（和真礼物一样）----
   await api(() => window.api.specialCloseAll())
   await until(async () => !(await windowOpen()), '先关掉特色整蛊窗口')
   await api(() => { window.location.hash = '#/remote' })
@@ -229,30 +250,19 @@ try {
   if (gated) {
     console.log('SKIP 整蛊遥控：测试账号没有游戏授权，看不到遥控页（只验礼物触发侧）')
   } else {
-    // 特色整蛊分组：不开游戏也能点
-    const specialBtn = page.getByRole('button', { name: '粉丝来电', exact: true })
-    await specialBtn.waitFor({ timeout: 10_000 })
-    assert.equal(await specialBtn.isDisabled(), false, '没开游戏时特色整蛊按钮也应能点')
-    await specialBtn.click()
-    await until(async () => (await windowOpen()) && (await loadedGames()).includes('fan_call'), '整蛊遥控点特色整蛊打开窗口')
-    ok('整蛊遥控「特色整蛊」分组：没开游戏也能一键触发')
-    // 礼物联动：选「特色整蛊（画面）」里的玩法 → 立即存成礼物触发规则
-    await api(() => document.querySelectorAll('input[list]').forEach((i) => i.removeAttribute('list')))
-    await page.getByPlaceholder('礼物名（如 保时捷）').fill('棒棒糖')
-    await page.locator('select').filter({ has: page.locator('option[value="special:throw_poop"]') }).first().selectOption('special:throw_poop')
-    await page.getByRole('button', { name: '绑定', exact: true }).click()
-    await until(() => api(() => window.api.entertainmentRulesList().then((l) => l.some((r) => r.giftName === '棒棒糖' && r.commandParam === 'throw_poop|add|5'))), '整蛊遥控绑特色整蛊落成礼物规则')
-    await page.getByText('扔粑粑', { exact: true }).first().waitFor({ timeout: 5000 })
-    ok('整蛊遥控礼物联动里绑「扔粑粑 ← 棒棒糖」→ 礼物触发规则，立即生效')
-    // 模拟观众：没开游戏也能点，客户端的礼物触发同时响应
-    const simBtn = page.getByRole('button', { name: /棒棒糖/ }).first()
-    if (await simBtn.count()) {
-      assert.equal(await simBtn.isDisabled(), false, '模拟观众在没开游戏时也应能点')
-      await simBtn.click()
-      await until(async () => (await loadedGames()).includes('throw_poop'), '模拟观众送棒棒糖触发扔粑粑')
-      ok('整蛊遥控「模拟观众」送棒棒糖 → 礼物触发规则 → 扔粑粑进了特色整蛊窗口')
+    const remoteText = await api(() => document.body.innerText)
+    assert.ok(!/特色整蛊|盲盒抽一次|叠在直播画面上/.test(remoteText), '整蛊遥控页不该出现特色整蛊')
+    assert.equal(await page.getByRole('button', { name: '粉丝来电', exact: true }).count(), 0, '不该有特色整蛊玩法按钮')
+    assert.equal(await page.locator('option[value="specialbox"], option[value^="special:"]').count(), 0, '礼物联动下拉不该有特色整蛊')
+    ok('整蛊遥控只管游戏：没有特色整蛊分组、盲盒按钮和下拉选项')
+    const sim = page.locator('section', { has: page.locator('h3', { hasText: '模拟观众' }) }).getByRole('button', { name: '小心心', exact: true })
+    if (await sim.count()) {
+      assert.equal(await sim.isDisabled(), false, '模拟观众在没开游戏时也应能点')
+      await sim.click()
+      await until(async () => (await windowOpen()) && (await loadedGames()).includes('catch_duck'), '模拟观众送小心心触发整蛊台的抓鸭子')
+      ok('整蛊遥控「模拟观众」送小心心 → 整蛊台的礼物触发（抓鸭子）照样响应')
     } else {
-      console.log('SKIP 模拟观众：预设礼物里没有棒棒糖按钮')
+      console.log('SKIP 模拟观众：预设礼物里没有小心心按钮')
     }
     await capture('06-remote')
   }

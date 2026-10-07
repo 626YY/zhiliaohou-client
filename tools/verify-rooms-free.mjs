@@ -1,9 +1,10 @@
 // 免检模式（license-policy enforce=false，0.3.60 随包默认）· 直播间绑定「没有任何封锁」验证：
 //   真实隐藏 Electron 构建（默认 out/，可用 ZL_ROOM_OUT_DIR 覆盖）+ 本测试私有的假卡密平台（复用 test-card-room-main 的夹具）。
 //   覆盖：cardRooms 回 free 名额且不问平台 / verify 不开扫码窗口 / 绑 6 个远超平台 1 个名额 / 改绑 5 次远超平台 3 次 /
-//         不带 proof 也能绑 / 解绑只改本机 / 旧入口 bindRoomWithLicense 直接绑上 / 房号格式仍校验 /
-//         老用户：平台上还记着的绑定登录后并入本机、本机已有的绑定不被平台覆盖 / 平台 rooms 接口挂了登录照常 /
-//         平台上没绑的房间也能启动连接器（只扫码取抖音登录态）/ 界面名额显示「不限」/ 全程平台零绑定写入。
+//         不带 proof 也能绑 / 解绑本机直接生效 / 旧入口 bindRoomWithLicense 直接绑上 / 房号格式仍校验 /
+//         老用户：本机一个都没有时拿回平台上记着的绑定、本机已有的绑定不被平台覆盖 / 平台 rooms 接口挂了登录照常 /
+//         平台上没绑的房间也能启动连接器（只扫码取抖音登录态）/ 界面名额显示「不限」/
+//         绑定 / 解绑顺手报给平台（后台看得到），平台不收也不影响本机。
 //   用法：npm run build && node tools/verify-rooms-free.mjs
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
@@ -344,8 +345,9 @@ try {
   check('旧入口 bindRoom 3001：直接绑上', old2.ok === true && old2.boundRooms.includes('3001'))
   check('界面收到 RoomsSynced 广播（列表实时刷新）', (await page.evaluate(() => window.__synced.length)) >= 5)
 
-  // ---- 平台零写入；本机绑定不被平台覆盖 ----
-  check('全程平台零绑定写入（bind / replace / unbind 都没发过）', roomsWrites() === 0 && u.binds === 0 && u.replaces === 0 && u.slots.length === 1 && u.slots[0].room === '5001')
+  // ---- 绑定 / 解绑顺手报给平台（2026-10-07 起：后台要看得到主播用哪些直播间）；平台不收也不影响本机；本机绑定不被平台覆盖 ----
+  await sleep(1500)
+  check('绑定 / 解绑顺手报给了平台；这个假平台只给 1 个名额、不收也不影响本机（平台仍只记着 5001）', roomsWrites() > 0 && u.replaces === 0 && u.slots.filter((x) => x.room !== null).length === 1 && u.slots[0].room === '5001')
   await api('logout')
   await api('emailLogin', A.email, A.password)
   await sleep(1500)

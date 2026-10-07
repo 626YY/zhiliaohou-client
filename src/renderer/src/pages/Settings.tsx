@@ -12,6 +12,7 @@ import { Modal } from '../components/Modal'
 import { Btn, Field, Input, Loading, PageHeader, Pill, Segmented, Toggle, Select } from '../components/ui'
 import SelfCheckCard from '../components/SelfCheckCard'
 import CaptureBackgroundToggle from '../components/CaptureBackgroundToggle'
+import { AnnounceSettings } from '../components/AnnounceControls'
 import { CardAccountAccess } from '../components/CardAccess'
 import RoomManager from '../components/RoomManager'
 import { useCardAccess } from '../lib/useCardAccess'
@@ -478,6 +479,8 @@ export default function Settings() {
             </p>
           </div>
         </section>
+
+        <AnnounceSettings />
 
         <section className="space-y-3">
           <h3 className="border-b border-[var(--line)] pb-2 text-sm font-semibold text-[var(--text)]">挂件窗口采集</h3>

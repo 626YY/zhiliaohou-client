@@ -1,6 +1,6 @@
 {
   "name": "zhiliao-client",
-  "version": "0.3.65",
+  "version": "0.3.66",
   "description": "知了猴整蛊台 - Steam 式 mod 库 + 游戏启动 + 参数调整 + 直播连接器",
   "main": "out/main/index.js",
   "author": "知了猴工作室",

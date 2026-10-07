@@ -13,6 +13,7 @@ import { findGiftImage } from './entertainment'
 import { runWithStageVideo, type StageVideoTake } from './stage-video'
 import { assetUrl, captureTitle, mediaUrl, scriptJson } from './capture-output'
 import { currentToolChain, runWithToolChain } from './tool-chain'
+import { announce } from './announce'
 
 /** 没配过的抽奖：内置音效、跑马灯跟着盘跑、空闲不出现在直播画面里、中心图跟着触发礼物走。 */
 function defaultTrigger(): LotteryTrigger {
@@ -191,6 +192,15 @@ async function finish(group: Group, id: string): Promise<void> {
   recordDraw(group, req, item)
   const event = {...state.last!,phase:'result' as const,queued:state.queue.length}
   notify(event)
+  // AI 语音播报：念「抽中XXX」；奖项自己配了语音 / 视频 / 音效的默认不念（免得和它撞在一起），
+  // 奖项会触发特色整蛊的不念（特色整蛊自己敲锣开奖念）
+  if (item?.name) {
+    const acts = [{ action: item.action, actionParam: item.actionParam }, ...(item.actions || [])]
+    const cmdOf = (a: { action?: string; actionParam?: string }) => (a.action === 'command' ? String(a.actionParam || '').split('|')[0] : '')
+    const special = acts.some((a) => /^special-(play|box)$/.test(cmdOf(a)))
+    const media = !!item.voice || acts.some((a) => a.action === 'stage-video' || a.action === 'video' || a.action === 'green-video' || /^(video-|sound-|project-random$)/.test(cmdOf(a)))
+    if (!special) announce(group === 'nine' ? 'nine' : 'wheel', `抽中${item.name}`, { hasOwnMedia: media })
+  }
   callWindows(group, `window.__complete(${scriptJson({...event,items:displayItems(event.items)})})`)
   // 先播「恭喜抽中…」的语音；默认等它播完再执行动作，免得语音和整蛊同时开始
   if (item.voice) {

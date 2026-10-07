@@ -46,6 +46,8 @@ export default function Login() {
   const requiresCode = !cardMode || card.requiresCode
   const [switching, setSwitching] = useState(false)
   const [switched, setSwitched] = useState(false)
+  // 免费模式下服务器连不上、发不了验证码：注册不再要求验证码（主进程直接用本机登录进软件）
+  const [codeOptional, setCodeOptional] = useState(false)
 
   // 安装包带了默认平台配置、但本机只有旧版本地账号：主播点这里才切到新账号系统（重启生效），不自动切
   const adoptDefault = async () => {
@@ -106,8 +108,12 @@ export default function Login() {
     try {
       const res = await window.api.emailSendCode(email)
       if (res.ok) {
+        setCodeOptional(false)
         toast('验证码已发送，10 分钟内有效', 'success')
         setCountdown(60)
+      } else if (res.code === 'platform_unavailable') {
+        setCodeOptional(true)
+        toast(res.error ?? '服务器暂时连不上，不填验证码直接注册也能进入软件', 'info')
       } else {
         toast(res.error ?? '验证码发送失败，请稍后重试', 'error')
       }
@@ -124,7 +130,7 @@ export default function Login() {
         toast('两次输入的密码不一致，请重新输入', 'error')
         return
       }
-      if (requiresCode && !code.trim()) {
+      if (requiresCode && !code.trim() && !(codeOptional && mode === 'register')) {
         toast('请填写邮箱收到的验证码', 'error')
         return
       }
@@ -213,6 +219,7 @@ export default function Login() {
         })
         await new Promise((r) => setTimeout(r, 600))
         setUser(res.user)
+        if (res.notice) toast(res.notice, 'info')
       } else {
         setLoggingIn(null)
         toast(res.error ?? '操作失败，请稍后重试。', 'error')

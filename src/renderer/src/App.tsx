@@ -32,6 +32,7 @@ const Special = lazy(() => import('./pages/Special'))
 import { PageErrorBoundary } from './components/PageErrorBoundary'
 import { openWidgets, readAutoOpenIds } from './lib/widgetLaunchers'
 import { modUpdateAvailable } from './lib/version'
+import { enqueueAnnounce } from './lib/announceAudio'
 
 function Splash() {
   return <AuthLoading />
@@ -101,8 +102,14 @@ export default function App() {
       audio.addEventListener('ended', () => audio.remove())
       void audio.play().catch(() => {})
     })
+    // 整蛊台 AI 语音播报：和礼物规则的音效一样由常驻根组件放（切页面不断），一句一句排队
+    const offAnnounce = window.api.onAnnouncePlay((item) => enqueueAnnounce(item))
+    // 主进程出错的提示：冒一条提示，不弹系统框挡在游戏 / 直播伴侣前面
+    const offNotice = window.api.onAppNotice((n) => useToast.getState().toast(n.text, n.level === 'error' ? 'error' : 'info'))
     return () => {
       off()
+      offAnnounce()
+      offNotice()
       for (const audio of active.values()) {
         audio.pause()
         audio.src = ''
@@ -138,6 +145,7 @@ export default function App() {
                 res = await window.api.emailLogin(cred.username, cred.password)
               }
               if (res.ok && res.user) u = res.user
+              if (res.ok && res.notice) toast(res.notice, 'info')
             }
           }
         } catch {

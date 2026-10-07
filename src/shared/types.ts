@@ -37,6 +37,8 @@ export interface AuthResult {
   ok: boolean
   user?: SessionUser
   error?: string
+  /** 登录成功后要告诉主播的一句话（如：服务器暂时连不上，已直接进入，功能照常用） */
+  notice?: string
 }
 
 // 登录页账号下拉用的本地账号摘要（不含密码哈希）
@@ -1939,6 +1941,11 @@ export const Ipc = {
   ConnectorEvent: 'connector:event',
   ConnectorSimulate: 'connector:simulate',
   EntertainmentSound: 'ent:sound',
+  AnnouncePlay: 'announce:play',
+  AppNotice: 'app:notice',
+  AnnounceConfig: 'announce:config',
+  AnnounceConfigure: 'announce:configure',
+  AnnouncePreview: 'announce:preview',
   SettingsGet: 'settings:get',
   SettingsSet: 'settings:set',
   NewsList: 'news:list',
@@ -2099,6 +2106,7 @@ export const Ipc = {
   SpecialConfigure: 'special:configure',
   SpecialState: 'special:state',
   SpecialTest: 'special:test',
+  SpecialFire: 'special:fire',
   SpecialStats: 'special:stats',
   SpecialClearAll: 'special:clear-all',
   SpecialBoxEvents: 'special:box-events',

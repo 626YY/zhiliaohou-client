@@ -123,6 +123,11 @@ export interface SpecialGameMeta {
   unit: string
   /** 盲盒开奖配音里怎么叫它（「锁链加5」的「锁链」）；没有 = 开出来不念（来电、音乐球这种没数量的） */
   say?: string
+  /**
+   * 自己会响铃 / 出声（来电、来视频）：礼物直接触发时不敲锣、不出开奖大字，直接打进来
+   * （2026-10-07 用户：「直接触发的肯定是默认念的，除了打电话」）
+   */
+  ringsItself?: boolean
   /** 数量的常用值（固定数量时的默认、试玩的默认） */
   countDef: number
   /** 新建联动时默认的随机范围（「a~b」，每次触发在范围里随机）；不给就用固定的 countDef */
@@ -494,6 +499,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     tint: '#5bc0ff',
     unit: '通',
     countDef: 1,
+    ringsItself: true,
     ops: [{ value: 'show', label: '打来电话', sign: '+' }, { value: 'clear', label: '挂断全部', count: false, hint: '收起当前来电并清空排队' }],
     params: [
       { key: 'durationSec', label: '来电时长', type: 'number', min: 3, max: 600, step: 1, unit: '秒', def: 10, hint: '没人接多久后自动挂断' },
@@ -519,6 +525,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     tint: '#20aa86',
     unit: '通',
     countDef: 1,
+    ringsItself: true,
     ops: [{ value: 'show', label: '打来视频', sign: '+' }, { value: 'clear', label: '挂断全部', count: false, hint: '收起当前来电并清空排队' }],
     params: [
       { key: 'durationSec', label: '来电时长', type: 'number', min: 3, max: 600, step: 1, unit: '秒', def: 10, hint: '没人接多久后自动挂断' },
@@ -986,8 +993,6 @@ export interface SpecialRevealConfig {
   showGong: boolean
   /** 排队上限：等着开奖的超过这么多，新开出的直接生效不再播开奖；0 = 不限 */
   maxQueue: number
-  /** 礼物直接触发的特色整蛊（不经过盲盒）也播开奖 */
-  direct: boolean
   /** 开奖视频大小（按比例放进窗口，占窗口的百分比） */
   videoScale: number
   /** 开奖视频抠底色：自动（从视频四个角量底色）/ 用下面指定的颜色 */
@@ -1013,7 +1018,6 @@ export const DEFAULT_SPECIAL_REVEAL: SpecialRevealConfig = {
   scale: 100,
   showGong: true,
   maxQueue: 20,
-  direct: false,
   videoScale: 100,
   videoKeyAuto: true,
   videoKeyColor: '#00ff00',
@@ -1044,7 +1048,7 @@ export const SPECIAL_REVEAL_POSITIONS: { value: SpecialRevealPosition; label: st
 /** 开奖设置的控件规格：设置页按它用通用控件摆，min/max 同时是主进程夹紧的上下限 */
 export const SPECIAL_REVEAL_PARAMS: SpecialParamSpec[] = [
   { key: 'enabled', label: '开奖画面', type: 'toggle', def: true, hint: '抽中时窗口里敲一声锣、蹦出「锁链+5」这样的大字，一条一条开；关掉就开出来直接生效', group: 'look' },
-  { key: 'voice', label: 'AI 配音', type: 'toggle', def: true, hint: '锣响后念出开到的东西，比如「锁链加5」；粉丝来电、音乐球这种没有数量的不念', group: 'sound' },
+  { key: 'voice', label: 'AI 配音', type: 'toggle', def: true, hint: '锣响后念出开到的东西，比如「锁链加5」；粉丝来电、音乐球这种没有数量的不念。设置里「AI 语音播报」总开关关掉时也不念', group: 'sound' },
   { key: 'voiceName', label: '配音声音', type: 'select', def: DEFAULT_SPECIAL_REVEAL.voiceName, options: SPECIAL_VOICE_OPTIONS, hint: '晓伊不联网也能念；换别的声音，每句第一次念的时候要联网', group: 'sound' },
   { key: 'rate', label: '语速', type: 'number', min: -50, max: 100, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.rate, hint: '0 是正常语速，往负调更慢', group: 'sound' },
   { key: 'voiceVolume', label: '配音音量', type: 'number', min: 0, max: 100, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.voiceVolume, group: 'sound' },
@@ -1057,7 +1061,6 @@ export const SPECIAL_REVEAL_PARAMS: SpecialParamSpec[] = [
   { key: 'showGong', label: '画面里的锣', type: 'toggle', def: true, hint: '大字左边那面被敲响的锣；关掉只出大字', group: 'look' },
   { key: 'holdMs', label: '念完后停留', type: 'number', min: 0, max: 10000, step: 100, unit: '毫秒', def: DEFAULT_SPECIAL_REVEAL.holdMs, hint: '念完以后大字再留多久', advanced: true, group: 'look' },
   { key: 'maxQueue', label: '排队上限', type: 'number', min: 0, max: 200, step: 1, unit: '条', def: DEFAULT_SPECIAL_REVEAL.maxQueue, hint: '等着开奖的超过这么多条，新开出的直接生效、不再敲锣念；0 = 不限', advanced: true },
-  { key: 'direct', label: '直接触发的也播', type: 'toggle', def: false, hint: '礼物规则直接触发的特色整蛊（不经过盲盒）也敲锣、念一句', advanced: true },
   { key: 'videoScale', label: '开奖视频大小', type: 'number', min: 20, max: 100, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.videoScale, hint: '事件配了开奖视频时，视频按比例放进窗口占多大', group: 'look' },
   { key: 'videoKeyAuto', label: '开奖视频自动抠底色', type: 'toggle', def: true, hint: '从视频四个角量出绿幕底色再抠掉；关掉就用下面的颜色', advanced: true, group: 'look' },
   { key: 'videoKeyColor', label: '开奖视频抠图颜色', type: 'color', def: DEFAULT_SPECIAL_REVEAL.videoKeyColor, hint: '关掉自动抠底色时用这个颜色', advanced: true, group: 'look' },
