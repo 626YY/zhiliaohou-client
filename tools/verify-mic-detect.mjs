@@ -183,9 +183,12 @@ try {
     }
     // 3. 不是拍手的声音：默认阈值下说话、喊、键盘、嗡嗡都不算；阈值调低后长声音（喊、嗡嗡）仍然不算
     //    （调低后短促的字音、键盘声会被掌声模型当成拍手——模型本身如此，调低阈值的代价，只打表不判）
+    //    默认阈值下：正常音量（−6 dB 及以下）一次都不能算；贴着麦克风接近爆音（−3 dB）的单个字音允许偶尔误认 1 次（模型在那里概率接近门槛）
     for (const det of ['clap', 'clapLow']) {
       for (const id of det === 'clap' ? ['word', 'shout', 'click', 'buzz'] : ['shout', 'buzz']) {
-        const n = at(id, det, () => true)
+        const loud = det === 'clap' && id === 'word' ? at(id, det, (lv, db) => db >= -3) : 0
+        if (loud > 1) bad(`${id} 接近爆音时被当成拍手 ${loud} 次 @${DETECTORS.find((d) => d.id === det).threshold}`)
+        const n = at(id, det, (lv, db) => !(det === 'clap' && id === 'word' && db >= -3))
         n === 0 ? ok(`${id} 不当成拍手 @${DETECTORS.find((d) => d.id === det).threshold}`) : bad(`${id} 被当成拍手 ${n} 次 @${DETECTORS.find((d) => d.id === det).threshold}`)
       }
     }

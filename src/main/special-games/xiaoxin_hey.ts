@@ -70,7 +70,14 @@ window.registerGame((function(){
       }
       slipperImg=ZL.img('xiaoxin/xiaoxin_slipper.png');
     },
-    resize:function(){},
+    // 改窗口大小（一键切竖屏）：场上的小新挪回画面里，别留在外面点不到、一直刷帧
+    resize:function(){
+      for(var i=0;i<boys.length;i++){
+        var b=boys[i];
+        b.x=ZL.clamp(b.x,b.w/2,Math.max(b.w/2,api.W-b.w/2));
+        b.y=ZL.clamp(b.y,b.h/2,Math.max(b.h/2,api.H-b.h/2));
+      }
+    },
     config:function(){},
     apply:function(cmd){
       var op=ZL.op(cmd,OPS);

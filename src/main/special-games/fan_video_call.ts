@@ -219,8 +219,8 @@ window.registerGame((function(){
       var n=Math.min(ZL.count(cmd,1), api.cap());
       var info={ name:ZL.who(cmd)||'神秘粉丝', avatar:String((cmd&&cmd.avatar)||'') };
       if(!queueCalls()){
-        // 不排队：新来电直接挤掉当前（一次来多通也只留一通）
-        current=null; stopRing(); stopVideo();
+        // 不排队：新来电直接挤掉当前（一次来多通也只留一通），以前排着的也清掉，不然之后还会接着响
+        queue=[]; current=null; stopRing(); stopVideo();
         showCall(makeCall(info));
         return;
       }
@@ -252,6 +252,12 @@ window.registerGame((function(){
       if(current.answered && !videoReady && nowMs-current.answeredAt>=WATCHDOG_MS){
         current.answeredAt=nowMs;
         videoFailed();
+      }
+      // 出画面以后的保底：视频时长 + 5 秒（真实时间）还没放完（卡住、不发结束事件）就挂断，别停在最后一帧
+      if(current.answered && videoReady && video){
+        if(!current.playReal) current.playReal=performance.now();
+        var lim=(isFinite(video.duration)&&video.duration>0)?(video.duration+5)*1000:120000;
+        if(performance.now()-current.playReal>lim){ dismissCurrent(true); return current!=null; }
       }
       return true;
     },

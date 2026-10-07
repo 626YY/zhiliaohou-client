@@ -1,6 +1,7 @@
 // 特色玩法「手势切水果」的页面内 Canvas 代码。
-// 水果从左右两侧下方抛入划抛物线；按住拖动（或快速挥动）鼠标划出刀光把水果切成两半，
-// 漏掉落地的水果会重新入队再抛，直到全部切完。操作：add（水果：10 种之一或 random 每个随机）/ clear。
+// 水果从左右两侧下方抛入划抛物线；按住拖动或快速挥动鼠标划出刀光把水果切成两半（「切水果方式」可改成只认按住拖动 / 划过就切），
+// 没切到、掉出画面的水果按「漏掉的再抛几次」再抛，抛够了就不再抛。操作：add（水果：10 种之一或 random 每个随机）/ clear。
+// ★2026-10-07 以前切开的水果没移出列表，飞出画面时也被当成漏掉重新入队——切多少都会抛回来，永远切不完（用户：「那个一直切不完啊」）。
 // 素材：fruit_slice/<10 种>.png + slice.mp3。
 // ★禁止在本字符串里使用反引号或 ${…}（主进程按模板串注入）。
 import { SHARED_JS } from './shared'
@@ -16,21 +17,29 @@ window.registerGame((function(){
   var fruits=[];           // {type,x,y,vx,vy,g,angle,spin,px,state:'whole',born}
   var halves=[];           // {type,x,y,vx,vy,angle,spin,px,side}
   var juice=[];            // {x,y,vx,vy,color,r,life}
-  var queue=[];            // 待抛出水果类型队列
+  var queue=[];            // 待抛出的水果 {type, tries}（tries = 已经漏掉重抛过几次）
   var spawnAt=0;
   var trail=[];            // 刀光轨迹 {x,y,t}
   var nowMs=0;
   var pressing=false, lastPt=null;
+  var hov=null;             // 没按住时上一次鼠标位置 {x,y,t}（算挥动速度）
+  var sliced=0, dropped=0;  // 切开的 / 漏够次数不再抛的（调试用）
   var MAXQ=1000000;        // 防爆夹紧：待抛队列上限（队列存的是水果种类，一项一个）
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
   function throwSpeed(){ return Math.max(20,Math.min(300,num(api.cfg.throwSpeed,100))); }
   function throwInterval(){ return Math.max(50,Math.min(2000,num(api.cfg.throwIntervalMs,150))); }
+  // 怎么算切：both = 按住拖动或快速挥动（默认）；drag = 只认按住拖动；hover = 鼠标划过就切
+  function sliceMode(){ var m=String(api.cfg.sliceMode||'both'); return (m==='drag'||m==='hover')?m:'both'; }
+  // 不按住时鼠标多快算挥了一刀（窗口短边百分比 / 秒）
+  function swipeSpeed(){ return Math.max(5,Math.min(300,num(api.cfg.swipeSpeed,30))); }
+  function missRetry(){ return Math.max(0,Math.min(99,Math.trunc(num(api.cfg.missRetry,1)))); }
   function fruitPx(){ return Math.max(24, Math.min(api.W,api.H)*Math.max(5,Math.min(40,num(api.cfg.fruitSize,18)))/100); }
 
   function speedScale(){ return Math.max(0.2,Math.min(3, throwSpeed()/100)); }
 
-  function spawnOne(type){
+  function spawnOne(item){
+    var type=item.type;
     var W=api.W,H=api.H;
     var fromLeft=Math.random()<0.5;
     var sx=fromLeft? -0.07*W : 1.07*W;
@@ -45,12 +54,13 @@ window.registerGame((function(){
     fruits.push({
       type:type, x:sx, y:sy, vx:vx, vy:vy, g:g,
       angle:(Math.random()*2-1)*0.44, spin:(Math.random()*2-1)*1.92,
-      px:fruitPx(), state:'whole'
+      px:fruitPx(), state:'whole', tries:item.tries||0
     });
   }
 
   function sliceFruit(f, mx, my){
     f.state='sliced';
+    sliced++;
     // 切割方向法线
     var len=Math.sqrt(mx*mx+my*my);
     var nx=len>1? -my/len : 1, ny=len>1? mx/len : 0;
@@ -89,23 +99,26 @@ window.registerGame((function(){
     }
   }
 
+  // 「还剩 N 个水果没切」：走计数面板排位（api.hud），几个玩法同时在场时上下排开（以前固定画在 12,12，会和别的面板叠住）
   function drawCue(ctx){
     var left=queue.length;
     for(var i=0;i<fruits.length;i++) if(fruits[i].state==='whole') left++;
-    if(left<=0) return;
-    var fs=Math.max(18,Math.min(32,api.W*0.025));
+    var hctx=api.hudCtx||ctx;
+    if(left<=0){ if(api.hud) api.hud(0); return; }
+    var fs=Math.max(18,Math.min(32,api.W*0.025)), bh=fs*2.1;
+    var top=api.hud?api.hud(bh):12;
     var text='还剩 '+left+' 个水果没切';
-    ctx.save();
-    ctx.font='700 '+fs+'px "Microsoft YaHei",sans-serif';
-    var tw=ctx.measureText(text).width;
-    ZL.roundRect(ctx,12,12,tw+fs*1.6,fs*2.1,fs);
-    ctx.fillStyle='rgba(20,22,28,0.66)'; ctx.fill();
-    ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,255,255,0.16)'; ctx.stroke();
-    ctx.textAlign='left'; ctx.textBaseline='middle';
-    ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,fs*0.14); ctx.strokeStyle='rgba(0,0,0,0.6)';
-    ctx.strokeText(text,12+fs*0.8,12+fs*1.08);
-    ctx.fillStyle='#fff'; ctx.fillText(text,12+fs*0.8,12+fs*1.08);
-    ctx.restore();
+    hctx.save();
+    hctx.font='700 '+fs+'px "Microsoft YaHei",sans-serif';
+    var tw=hctx.measureText(text).width;
+    ZL.roundRect(hctx,12,top,tw+fs*1.6,bh,fs);
+    hctx.fillStyle='rgba(20,22,28,0.66)'; hctx.fill();
+    hctx.lineWidth=1.5; hctx.strokeStyle='rgba(255,255,255,0.16)'; hctx.stroke();
+    hctx.textAlign='left'; hctx.textBaseline='middle';
+    hctx.lineJoin='round'; hctx.lineWidth=Math.max(2,fs*0.14); hctx.strokeStyle='rgba(0,0,0,0.6)';
+    hctx.strokeText(text,12+fs*0.8,top+bh/2);
+    hctx.fillStyle='#fff'; hctx.fillText(text,12+fs*0.8,top+bh/2);
+    hctx.restore();
   }
 
   return {
@@ -117,23 +130,37 @@ window.registerGame((function(){
     config:function(){},
     apply:function(cmd){
       var op=ZL.op(cmd,OPS);
-      if(op==='clear'){ fruits=[]; halves=[]; juice=[]; queue=[]; trail=[]; return; }
+      if(op==='clear'){ fruits=[]; halves=[]; juice=[]; queue=[]; trail=[]; hov=null; return; }
       var n=Math.min(ZL.count(cmd,5), api.cap());
       var kind=String((cmd&&cmd.kind)||'random');
       if(TYPES.indexOf(kind)<0) kind='random';
       n=Math.min(n, MAXQ-queue.length);
-      for(var i=0;i<n;i++) queue.push(kind==='random'?TYPES[Math.floor(Math.random()*TYPES.length)]:kind);
+      for(var i=0;i<n;i++) queue.push({ type:kind==='random'?TYPES[Math.floor(Math.random()*TYPES.length)]:kind, tries:0 });
       var name=ZL.who(cmd);
       if(name) api.banner(name+' 抛来 '+n+' 个水果');
     },
     pointer:function(type,x,y){
-      if(type==='down'){ pressing=true; lastPt={x:x,y:y}; }
-      else if(type==='up'){ pressing=false; lastPt=null; }
-      else if(type==='move'){
-        if(lastPt){ sliceAlong(lastPt.x,lastPt.y,x,y); }
-        if(pressing) lastPt={x:x,y:y};
-        // 刀光只在有水果可切时画：清屏 / 切完以后鼠标在窗口上晃，画面上不该再冒出白线
-        if(fruits.length>0||queue.length>0) trail.push({x:x,y:y,t:nowMs});
+      var mode=sliceMode();
+      if(type==='down'){ pressing=true; lastPt={x:x,y:y}; hov=null; return; }
+      if(type==='up'){ pressing=false; lastPt=null; return; }
+      if(type!=='move') return;
+      // 这一下从哪划过来：按住时从上一个按住点；没按住时看挥得够不够快（划过就切模式不看速度）
+      var from=null, t=performance.now();
+      if(pressing){ if(lastPt) from=lastPt; lastPt={x:x,y:y}; }
+      else if(mode!=='drag'&&hov&&t-hov.t<250){
+        var dt=Math.max(1,t-hov.t)/1000, dx=x-hov.x, dy=y-hov.y;
+        var spd=Math.sqrt(dx*dx+dy*dy)/Math.max(1,Math.min(api.W,api.H))*100/dt;
+        if(mode==='hover'||spd>=swipeSpeed()) from=hov;
+      }
+      hov=pressing?null:{x:x,y:y,t:t};
+      if(!from) return;
+      sliceAlong(from.x,from.y,x,y);
+      // 刀光只画真的在切的这一下，而且得有水果可切：清屏 / 切完以后鼠标在窗口上晃，画面上不该再冒出白线
+      if(fruits.length>0||queue.length>0){
+        var last=trail[trail.length-1];
+        if(!last||nowMs-last.t>60) trail.push({x:from.x,y:from.y,t:nowMs});
+        trail.push({x:x,y:y,t:nowMs});
+        ZL.kick();
       }
     },
     tick:function(dt){
@@ -152,14 +179,17 @@ window.registerGame((function(){
       var active=queue.length>0||trail.length>0;
       for(i=fruits.length-1;i>=0;i--){
         var f=fruits[i];
+        // 切开的整果交给两半去画，自己直接拿掉（以前留在列表里，飞出画面又被当成漏掉重抛）
+        if(f.state!=='whole'){ fruits.splice(i,1); continue; }
         active=true;
         f.vy+=f.g*d;
         f.x+=f.vx*d; f.y+=f.vy*d;
         f.angle+=f.spin*d;
         if(f.y>=api.H*1.3 || f.x<-api.W*0.35 || f.x>api.W*1.35){
-          // 漏掉落地：重新入队
+          // 没切到、掉出画面：按设置再抛几次，抛够了就不再抛（不然切不到的话永远抛不完）
           fruits.splice(i,1);
-          queue.push(f.type);
+          if((f.tries||0)<missRetry()) queue.push({ type:f.type, tries:(f.tries||0)+1 });
+          else dropped++;
         }
       }
       for(i=halves.length-1;i>=0;i--){
@@ -240,10 +270,10 @@ window.registerGame((function(){
     },
     // 只读调试钩子（离线验收用，生产不调用）
     debug:function(){
-      var kinds={};
-      for(var i=0;i<queue.length;i++) kinds[queue[i]]=1;
-      for(i=0;i<fruits.length;i++) kinds[fruits[i].type]=1;
-      return { queued:queue.length, flying:fruits.length, kinds:Object.keys(kinds) };
+      var kinds={}, whole=[];
+      for(var i=0;i<queue.length;i++) kinds[queue[i].type]=1;
+      for(i=0;i<fruits.length;i++){ kinds[fruits[i].type]=1; if(fruits[i].state==='whole') whole.push([fruits[i].x,fruits[i].y,fruits[i].px]); }
+      return { queued:queue.length, flying:fruits.length, whole:whole, sliced:sliced, dropped:dropped, kinds:Object.keys(kinds) };
     }
   };
 })());

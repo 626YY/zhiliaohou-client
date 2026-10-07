@@ -66,13 +66,16 @@ window.registerGame((function(){
   // 麦克风按设备名挑（ZL.getMic）；详情页预览里不开麦克风，只提示一行字。阈值、间隔改了下一次读数就生效。
   function setMicState(text,kind){ micState=text; micKind=kind||''; ZL.kick(); }
   function startMic(){
-    if(mic) return;
+    // 上次开麦失败（没插 / 被拒）的这次重试；新一轮开麦前先把上一轮的提示清掉，别闪旧报错
+    if(mic&&micKind!=='error') return;
+    if(mic){ mic.stop(); mic=null; }
+    micState=''; micKind='';
     micDevice=String(api.cfg.micDevice||'');
     mic=ZL.startShout({ threshold:threshold, cooldownMs:cooldown, deviceLabel:micDevice,
       onShout:function(){ onShout(); },
       onState:function(st){
-        if(st==='no-mic') setMicState('麦克风不可用','error');
-        else if(st==='preview') setMicState('预览不收音','preview');
+        if(st==='no-mic') setMicState('麦克风不可用，点一下画面破一点','error');
+        else if(st==='preview') setMicState('预览不收音，点一下画面破一点','preview');
         else setMicState('','');
       }
     });
@@ -292,6 +295,13 @@ window.registerGame((function(){
       ctx.restore();
     },
     // 只读调试钩子（离线验收用，生产不调用）
+    // 麦克风用不了（没插 / 被拒 / 详情页预览）时点画面一下算喊一声：不然满屏符咒只能等礼物或全部清屏
+    // 麦克风正常时不接点击，交给下层玩法
+    pointer:function(type){
+      if(type!=='down'||!sealed()||(micKind!=='error'&&micKind!=='preview')) return;
+      onShout();
+      return true;
+    },
     debug:function(){ return { phase:phase, remaining:remaining, maximum:maximum, micState:micState, micKind:micKind }; }
   };
 })());

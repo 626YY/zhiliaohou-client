@@ -1233,6 +1233,8 @@ window.registerGame((function(){
       ZL.kick();
     });
     window.addEventListener('keyup',function(e){ if(e.code==='Space'){ spaceHeld=false; spaceHoldMs=0; spaceRepeatMs=0; } });
+    // 按住空格时窗口失焦收不到松开：当成松开，不然会每 0.12 秒自动扣一环、新上的锁也被扣光
+    window.addEventListener('blur',function(){ spaceHeld=false; spaceHoldMs=0; spaceRepeatMs=0; });
   }
 
   return {

@@ -87,6 +87,7 @@ window.registerGame((function(){
     var call=current;
     call.answered=true;
     call.startedAt=nowMs;
+    call.answeredReal=performance.now();
     stopRing();
     var builtin=api.asset('fan_call/default_answer.mp3');
     var pick=ZL.pickPath(api.cfg.answerAudios);
@@ -97,8 +98,9 @@ window.registerGame((function(){
     au.onended=function(){ if(current===call) dismissCurrent(true); };
     au.onerror=function(){
       if(current!==call) return;
-      // 自定义语音放不了 → 换内置；内置也放不了就停在通话中，等主播挂断
+      // 自定义语音放不了 → 换内置；内置也放不了就直接挂断（以前会一直停在「正在通话」）
       if(url){ url=''; au.src=builtin; au.play().catch(function(){}); }
+      else dismissCurrent(true);
     };
     au.play().catch(function(){});
     call.answerAu=au;
@@ -185,7 +187,8 @@ window.registerGame((function(){
       var n=Math.min(ZL.count(cmd,1), api.cap());
       var info={ name:ZL.who(cmd)||'神秘粉丝', avatar:String((cmd&&cmd.avatar)||'') };
       if(!queueCalls()){
-        // 不排队：新来电直接挤掉当前（一次来多通也只留一通）
+        // 不排队：新来电直接挤掉当前（一次来多通也只留一通），以前排着的也清掉，不然之后还会接着响
+        queue=[];
         dismissCurrent(false);
         showCall(makeCall(info));
         return;
@@ -213,6 +216,11 @@ window.registerGame((function(){
       if(!current.answered && nowMs-current.startedAt>=durationSec()*1000){
         dismissCurrent(true);
         return current!=null;
+      }
+      // 接听后的保底：语音时长 + 3 秒（读不到时长就 20 秒，真实时间）还没放完就挂断，别一直停在通话中
+      if(current.answered){
+        var au=current.answerAu, lim=(au&&isFinite(au.duration)&&au.duration>0)?(au.duration+3)*1000:20000;
+        if(performance.now()-(current.answeredReal||performance.now())>lim){ dismissCurrent(true); return current!=null; }
       }
       return true;
     },

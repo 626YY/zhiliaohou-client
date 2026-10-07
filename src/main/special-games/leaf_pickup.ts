@@ -54,6 +54,9 @@ window.registerGame((function(){
     var tx=Math.random()*Math.max(1,api.W-size)+size/2;
     // 落点集中在下部 1/3，营造铺满底部
     var ty=api.H-size/2-Math.random()*api.H*0.30;
+    // 别落在右下角的垃圾桶上（桶画在叶子上面，会把叶子整片挡住看不见）
+    var bin=binRect();
+    if(tx+size*0.4>bin.x && ty+size*0.4>bin.y) tx=Math.max(size/2, bin.x-size*0.5-Math.random()*api.W*0.12);
     return {
       x:tx, y:-size, sx:tx, sy:-size, tx:tx, ty:ty, size:size,
       rot:Math.random()*6.28, sprite:Math.floor(Math.random()*8),
@@ -202,7 +205,17 @@ window.registerGame((function(){
       api=a; ZL.bind(a);
       for(var i=0;i<8;i++) sprites.push(ZL.img('leaf_pickup/leaf_sprite_0'+(i+1)+'.png'));
     },
-    resize:function(){},
+    // 改窗口大小（一键切竖屏）：场上的叶子挪回画面里，也别压在垃圾桶上
+    resize:function(){
+      var bin=binRect();
+      for(var i=0;i<leaves.length;i++){
+        var l=leaves[i], h=l.size/2;
+        l.tx=ZL.clamp(l.tx,h,Math.max(h,api.W-h));
+        l.ty=ZL.clamp(l.ty,h,Math.max(h,api.H-h));
+        if(l.tx+l.size*0.4>bin.x && l.ty+l.size*0.4>bin.y) l.tx=Math.max(h, bin.x-l.size*0.5);
+        if(l.phase==='settled'){ l.x=l.tx; l.y=l.ty; }
+      }
+    },
     config:function(){},
     apply:function(cmd){
       var op=ZL.op(cmd,OPS);

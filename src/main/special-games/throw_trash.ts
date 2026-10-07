@@ -57,7 +57,11 @@ window.registerGame((function(){
       if(d>=0){ best={x:x,y:y}; break; }
       if(d>bestD){ bestD=d; best={x:x,y:y}; }
     }
-    return best||{x:W/2,y:H/4};
+    if(best) return best;
+    // 随机位置全落在桶上（大垃圾 + 大桶时会这样）：贴在桶左右更宽的一侧，别放到桶后面被挡住看不见
+    var leftW=bin.x, rightW=W-(bin.x+bin.w);
+    var fx=leftW>=rightW? Math.max(size/2+m, leftW/2) : Math.min(W-size/2-m, bin.x+bin.w+rightW/2);
+    return { x:fx, y:size/2+Math.random()*Math.max(1,H*0.66-size) };
   }
 
   function makeItem(opt){
@@ -100,7 +104,10 @@ window.registerGame((function(){
   function drawStats(ctx){
     if(!statsShown()){ if(api.hud) api.hud(0); return; }
     var fs=Math.max(13,Math.min(20,api.W*0.016));
-    var lines=['已进桶：'+collected+' 件','尚未出现：'+pending.total+' 件'];
+    // 尚未出现 = 还在排队的 + 已经排进场、还没飞进来的
+    var waiting=pending.total;
+    for(var wi=0;wi<items.length;wi++) if(items[wi].phase==='wait') waiting++;
+    var lines=['已进桶：'+collected+' 件','尚未出现：'+waiting+' 件'];
     ctx.save();
     ctx.font='600 '+fs+'px "Microsoft YaHei",sans-serif';
     var w=0,i;
@@ -180,19 +187,30 @@ window.registerGame((function(){
 
   return {
     init:function(a){ api=a; ZL.bind(a); pending=ZL.queue(); collected=ZL.loadTotal('throw_trash'); },
-    resize:function(){},
+    // 改窗口大小（一键切竖屏）：场上的垃圾挪回画面里（桶按新尺寸自己算）
+    resize:function(){
+      for(var i=0;i<items.length;i++){
+        var it=items[i], h=it.size/2;
+        it.tx=ZL.clamp(it.tx,h,Math.max(h,api.W-h));
+        it.ty=ZL.clamp(it.ty,h,Math.max(h,api.H-h));
+        if(it.phase==='settled'){ it.x=it.tx; it.y=it.ty; }
+      }
+    },
     config:function(){},
     apply:function(cmd){
       var op=ZL.op(cmd,OPS);
-      if(op==='clear'){ items=[]; pending.clear(); dragIdx=-1; if(cmd&&cmd.wipe){ binA=0; binUsed=false; } return; }
+      // 发射排期一起清零：不然清空后下一波要按清空前排好的时间等
+      if(op==='clear'){ items=[]; pending.clear(); dragIdx=-1; nextLaunchAt=0; batchClock=0; if(cmd&&cmd.wipe){ binA=0; binUsed=false; } return; }
       if(op==='reset'){ collected=0; ZL.saveTotal('throw_trash',0); return; }
       binUsed=true;
       var n=Math.min(ZL.count(cmd,5), api.cap());
       var size=String((cmd&&cmd.size)||'random');
       var kind=String((cmd&&cmd.kind)||'random');
       if(TRASH.indexOf(kind)<0) kind='random';
+      var was=pending.total;
       pending.push(Math.min(n, 999999999-pending.total), { size:size, kind:kind }, sameOpt);
-      batchClock=0;
+      // 攒批：队列从空变成有东西才开始计时，之后再来礼物不清零（以前每来一次都清零，礼物间隔短于 1.2 秒、场上又没清空时，排队的一直不落）
+      if(was===0) batchClock=0;
       var name=ZL.who(cmd);
       if(name) api.banner(name+' 扔来 '+n+' 件垃圾');
     },
@@ -210,7 +228,8 @@ window.registerGame((function(){
       } else if(type==='move'){
         if(dragIdx>=0){
           var it2=items[dragIdx];
-          if(it2){ it2.x=x-dragDX; it2.y=y-dragDY; }
+          // 拖到窗口外也只停在边上（以前拖出去松手，垃圾就留在窗外拖不回来，桶也永远不消失）
+          if(it2){ it2.x=ZL.clamp(x-dragDX,it2.size/2,Math.max(it2.size/2,api.W-it2.size/2)); it2.y=ZL.clamp(y-dragDY,it2.size/2,Math.max(it2.size/2,api.H-it2.size/2)); }
         }
       } else if(type==='up'){
         if(dragIdx>=0){

@@ -158,16 +158,26 @@ window.registerGame((function(){
       for(var i=0;i<5;i++) frames.push(ZL.img('duck/duck_angle_'+(i+1)+'.png'));
       caught=ZL.loadTotal('catch_duck');
     },
-    resize:function(){},
+    // 改窗口大小（一键切竖屏）：场上的鸭子挪回画面里，别留在外面点不到、也收不了场
+    resize:function(){
+      for(var i=0;i<ducks.length;i++){
+        var d=ducks[i], h=d.size/2;
+        d.x=ZL.clamp(d.x,h,Math.max(h,api.W-h));
+        d.ty=ZL.clamp(d.ty,h,Math.max(h,api.H-h));
+        if(d.phase==='sit') d.y=d.ty;
+      }
+    },
     config:function(){},
     apply:function(cmd){
       var op=ZL.op(cmd,OPS);
-      if(op==='clear'){ ducks=[]; pending.clear(); prompts=[]; return; }
+      if(op==='clear'){ ducks=[]; pending.clear(); prompts=[]; batchClock=0; return; }
       if(op==='reset'){ caught=0; ZL.saveTotal('catch_duck',0); return; }
       var n=Math.min(ZL.count(cmd,5), api.cap());
       var size=String((cmd&&cmd.size)||'random');
+      var was=pending.total;
       pending.push(Math.min(n, 999999999-pending.total), { size:size }, sameOpt);
-      batchClock=0;
+      // 攒批：队列从空变成有东西才开始计时，之后再来礼物不清零（以前每来一次都清零，礼物间隔短于 1.2 秒、场上又没清空时，排队的一直不落）
+      if(was===0) batchClock=0;
       var name=ZL.who(cmd);
       if(name){
         prompts.push({ name:name, avatarImg:cmd.avatar?ZL.imgRaw(cmd.avatar):null, count:n, until:nowMs+1500 });

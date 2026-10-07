@@ -1,6 +1,7 @@
 // 特色玩法「顶金币」的页面内 Canvas 代码。
 // 马里奥式顶砖：点击悬空砖块 → 砖块上跳 0.2s、弹出一枚金币（空中 |cos(spin)| 翻面）落下堆叠；
-// 再点击金币收走。计数：已顶数量 / 剩余数量（顶部居中）。操作：add 充金币 / clear 清场。
+// 再点击金币收走；不点的落地停「落地金币停留」秒后自动收走（0 = 一直留着）。砖块顶空就缩小消失（2026-10-07 用户：「顶完了以后不消失」）。
+// 计数：已顶数量 / 剩余数量（顶部居中），按「计数面板」设置，默认场上有东西时才显示。操作：add 充金币 / clear 清场。
 // 素材：coin_bump/brick.png + coin.png + coin_bump.mp3；cfg.customCoinImage / customSound（顶出音效）可换本地文件（走 api.fileUrl）。
 // ★禁止在本字符串里使用反引号或 ${…}（主进程按模板串注入）。
 import { SHARED_JS } from './shared'
@@ -17,9 +18,16 @@ window.registerGame((function(){
   var coins=[];            // {x,y,vx,vy,r,spin,spinV,settled,alpha,pickAt}
   var bumpT=0;             // 砖块上跳动画剩余
   var appearT=0;           // 砖块出现（弹入）动画剩余
+  var brickOn=false;       // 砖块在场（砖里还有金币）
+  var outT=0, OUT_MS=260;  // 砖块顶空后缩走的动画剩余
+  var wakeTimer=0;         // 地上金币到点自动收走的闹钟（不用一直刷帧等）
   var nowMs=0;
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
+  // 地上的金币落地后停多久自动收走（秒，0 = 一直留着等主播点）
+  function staySec(){ return Math.max(0,Math.min(600,num(api.cfg.coinStaySec,8))); }
+  // 计数：场上有东西时显示（默认）/ 一直显示 / 不显示
+  function counterShown(){ var m=String(api.cfg.statsPanel||'active'); if(m==='off') return false; if(m==='always') return total>0||remaining>0; return remaining>0||coins.length>0; }
   function coinR(){ return Math.max(4, Math.min(api.W,api.H)*Math.max(1,Math.min(20,num(api.cfg.coinSize,5)))/200); }
 
   // 自定义金币图：路径变了才重新加载；加载失败（complete 但没像素）退回内置
@@ -58,7 +66,7 @@ window.registerGame((function(){
   }
 
   function drawCounter(ctx){
-    if(total<=0&&remaining<=0) return;
+    if(!counterShown()) return;
     var fs=Math.max(16,Math.min(32,api.W*0.024));
     var lines=['已顶数量：'+total,'剩余数量：'+remaining];
     ctx.save();
@@ -88,14 +96,22 @@ window.registerGame((function(){
       coinImg=ZL.img('coin_bump/coin.png');
       syncCustom();
     },
-    resize:function(){},
+    // 改窗口大小（一键切竖屏）：金币挪回画面里，落着的贴回新地面（砖块按新尺寸自己算）
+    resize:function(){
+      for(var i=0;i<coins.length;i++){
+        var c=coins[i];
+        c.x=ZL.clamp(c.x,c.r,Math.max(c.r,api.W-c.r));
+        if(c.settled||c.y>floorY(c.r)) c.y=floorY(c.r);
+      }
+    },
     config:function(){ syncCustom(); },
     apply:function(cmd){
       var op=ZL.op(cmd,OPS);
-      if(op==='clear'){ coins=[]; remaining=0; total=0; return; }
+      if(op==='clear'){ coins=[]; remaining=0; total=0; brickOn=false; outT=0; bumpT=0; appearT=0; if(wakeTimer){ clearTimeout(wakeTimer); wakeTimer=0; } return; }
       var n=Math.min(ZL.count(cmd,5), api.cap());
       remaining=Math.min(remaining+n, MAXN);
-      appearT=260;         // 砖块弹入
+      if(!brickOn||outT>0) appearT=260;   // 砖块弹入（正在缩走的也弹回来）
+      brickOn=true; outT=0;
       var name=ZL.who(cmd);
       if(name) api.banner(name+' 充进 '+n+' 枚金币，快顶砖块');
     },
@@ -113,14 +129,18 @@ window.registerGame((function(){
       }
       // 再判砖块（顶）
       var b=brickRect();
-      if(Math.abs(x-b.x)<=b.side*0.62 && Math.abs(y-b.y)<=b.side*0.62){ bump(); return true; }
+      // 砖块在场才接住点击：砖块顶空消失后屏幕中间这块不能再吞点击（不然锁链在这里点不开、下层的东西点不到）
+      if(brickOn&&remaining>0&&Math.abs(x-b.x)<=b.side*0.62 && Math.abs(y-b.y)<=b.side*0.62){ bump(); return true; }
     },
     tick:function(dt){
       var step=dt*api.speed();
       nowMs+=step;
       if(bumpT>0) bumpT-=step;
       if(appearT>0) appearT-=step;
-      var active=bumpT>0||appearT>0;
+      // 砖块顶空了（最后一下的上跳也播完了）就缩走
+      if(brickOn&&remaining<=0&&bumpT<=0&&appearT<=0){ brickOn=false; outT=OUT_MS; }
+      if(outT>0) outT-=step;
+      var active=bumpT>0||appearT>0||outT>0;
       var d=step/1000;
       var g=api.H*2.2;
       for(var i=0;i<coins.length;i++){
@@ -133,12 +153,25 @@ window.registerGame((function(){
         var fy=floorY(c.r);
         if(c.y>=fy){
           c.y=fy;
-          if(Math.abs(c.vy)>60){ c.vy=-c.vy*0.32; c.vx*=0.7; }
-          else { c.vy=0; c.vx*=0.8; if(Math.abs(c.vx)<8){ c.vx=0; c.settled=true; } }
+          // 弹不弹按「这一帧重力能带来的速度」放大门槛：竖屏（窗口高）+ 30 帧时每帧重力增量超过 60，
+          // 以前会在地上一直小跳、永远落不定（不收走、一直刷帧）
+          if(Math.abs(c.vy)>Math.max(60,g*d*2)){ c.vy=-c.vy*0.32; c.vx*=0.7; }
+          else { c.vy=0; c.vx*=0.8; if(Math.abs(c.vx)<8){ c.vx=0; c.settled=true; c.settledAt=performance.now(); } }
         }
         if(c.x<c.r){ c.x=c.r; c.vx=Math.abs(c.vx)*0.6; }
         if(c.x>api.W-c.r){ c.x=api.W-c.r; c.vx=-Math.abs(c.vx)*0.6; }
       }
+      // 落地停够了的金币淡出收走（真实时间算，画面停着也照样到点）；还没到点的定个闹钟叫醒
+      var stay=staySec()*1000, t=performance.now(), wait=Infinity;
+      for(var k=coins.length-1;k>=0;k--){
+        var cc=coins[k];
+        if(!cc.settled||stay<=0) continue;
+        var age=t-(cc.settledAt||t);
+        if(age>=stay){ cc.alpha=Math.max(0,1-(age-stay)/400); active=true; if(cc.alpha<=0) coins.splice(k,1); }
+        else wait=Math.min(wait,stay-age);
+      }
+      if(wakeTimer){ clearTimeout(wakeTimer); wakeTimer=0; }
+      if(!active&&wait<Infinity) wakeTimer=setTimeout(function(){ wakeTimer=0; ZL.kick(); }, wait+20);
       return active;
     },
     draw:function(ctx){
@@ -147,7 +180,8 @@ window.registerGame((function(){
       var offY=0, scale=1;
       if(bumpT>0){ var p=1-bumpT/200; offY=-Math.sin(p*Math.PI)*b.side*0.14; }
       if(appearT>0){ scale=ZL.easeOutBack(1-appearT/260); }
-      if(remaining>0||coins.length>0||bumpT>0||appearT>0){
+      if(outT>0&&!brickOn){ scale=Math.max(0,outT/OUT_MS); }
+      if(brickOn||outT>0||bumpT>0||appearT>0){
         ctx.save();
         ctx.translate(b.x,b.y+offY); ctx.scale(Math.max(0.01,scale),Math.max(0.01,scale));
         if(!ZL.drawImg(ctx,brickImg,0,0,b.side,b.side,0,1)){
@@ -164,7 +198,9 @@ window.registerGame((function(){
         ctx.translate(c.x,c.y);
         ctx.scale(stretch,1);
         var cwh=ZL.imgOk(cim)?ZL.fit(cim,c.r*2):[c.r*2,c.r*2];
-        if(!ZL.drawImg(ctx,cim,0,0,cwh[0],cwh[1],0,1)){
+        var ca=c.alpha==null?1:c.alpha;
+        if(!ZL.drawImg(ctx,cim,0,0,cwh[0],cwh[1],0,ca)){
+          ctx.globalAlpha*=ca;
           ctx.fillStyle='#ffd34d';
           ctx.beginPath(); ctx.arc(0,0,c.r,0,6.2832); ctx.fill();
         }
@@ -176,7 +212,7 @@ window.registerGame((function(){
     debug:function(){
       var b=brickRect(), hits=[];
       for(var i=0;i<coins.length;i++) hits.push([coins[i].x,coins[i].y,coins[i].r]);
-      return { remaining:remaining, total:total, coins:coins.length, brickAt:[b.x,b.y], hits:hits, custom:coinSprite()===customCoin&&!!customCoin };
+      return { remaining:remaining, total:total, coins:coins.length, brickAt:[b.x,b.y], hits:hits, brick:brickOn||outT>0, custom:coinSprite()===customCoin&&!!customCoin };
     }
   };
 })());

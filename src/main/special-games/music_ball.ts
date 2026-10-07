@@ -22,6 +22,7 @@ window.registerGame((function(){
   var audio=null, audioCustom=false;
   var source='';                   // builtin / analyzed / fallback（分析失败用内置节拍）
   var state='idle';                // idle / loading / countdown / playing / paused
+  var encore=0;                    // 播放中又点的歌：排队，这首放完接着放
   var pausedFrom='', countdownLeft=0, pauseAfterLoad=false;
   var countdownEnd=0;
   var loadToken=0, loadText='';
@@ -335,8 +336,11 @@ window.registerGame((function(){
     if(pausedFrom==='countdown'){ state='countdown'; countdownEnd=nowMs+countdownLeft; }
     else playNow();
   }
+  // 播放中又来点歌：queue = 排队接着放（默认）/ restart = 从头重新放 / ignore = 不理会
+  function whilePlaying(){ var m=String(api.cfg.whilePlaying||'queue'); return (m==='restart'||m==='ignore')?m:'queue'; }
   function stop(){
     loadToken++;
+    encore=0;
     state='idle'; pausedFrom=''; pauseAfterLoad=false;
     dropAudio();
     effects=[];
@@ -450,8 +454,14 @@ window.registerGame((function(){
       if(op==='stop'){ stop(); return; }
       if(op==='pause'){ pause(); return; }
       if(op==='resume'){ resume(); return; }
-      begin(false);
       var name=ZL.who(cmd);
+      if(state!=='idle'&&whilePlaying()!=='restart'){
+        if(whilePlaying()==='ignore') return;
+        encore=Math.min(encore+1,99);
+        if(name) api.banner(name+' 又点了一首音乐球，这首放完接着放');
+        return;
+      }
+      begin(false);
       if(name) api.banner(name+' 点了一首音乐球');
     },
     tick:function(dt){
@@ -480,6 +490,7 @@ window.registerGame((function(){
       // 播完：循环就从头再来，否则收工
       if(state==='playing'&&audio&&audio.ended){
         if(api.cfg.loop===true){ try{ audio.currentTime=0; }catch(e){} lastPos=-1e9; audio.play().catch(function(){}); }
+        else if(encore>0){ encore--; begin(false); return true; }   // 排队的接着放
         else { stop(); return false; }
       }
       return true;
@@ -574,7 +585,8 @@ window.registerGame((function(){
         }
       }
       // 提示文案
-      var cue='球到圈时喊';
+      // 这个玩法不收音，以前写「球到圈时喊」主播喊了没反应
+      var cue='跟着节拍，球到圈就炸';
       var cfs=24;
       ctx.save();
       ctx.font='700 '+cfs+'px "Microsoft YaHei",sans-serif';
@@ -603,7 +615,7 @@ window.registerGame((function(){
     debug:function(){
       var bursts=0, th=burstTh(), bands=[0,0,0,0];
       if(beats) for(var i=0;i<beats.length;i++){ if(beats[i].burst_score>=th) bursts++; bands[beats[i].pitch_band&3]++; }
-      return { state:state, pausedFrom:pausedFrom, source:source, beats:beats?beats.length:0, bursts:bursts, bands:bands, loudness:loudness?loudness.length:0,
+      return { state:state, encore:encore, pausedFrom:pausedFrom, source:source, beats:beats?beats.length:0, bursts:bursts, bands:bands, loudness:loudness?loudness.length:0,
         sample:beats&&beats.length?beats[Math.floor(beats.length/2)]:null, position:positionMs(), media:audio?[audio]:[] };
     }
   };

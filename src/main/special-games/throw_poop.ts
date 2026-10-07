@@ -99,7 +99,10 @@ window.registerGame((function(){
   function drawStats(ctx){
     if(!statsShown()){ if(api.hud) api.hud(0); return; }
     var fs=Math.max(13,Math.min(20,api.W*0.016));
-    var lines=['已抓粑粑：'+caught+' 个','尚未出现：'+pending.total+' 个'];
+    // 尚未出现 = 还在排队的 + 已经排进场、还没起飞的（以前只算排队的，面板显示 0 粑粑还在一个个飞进来）
+    var waiting=pending.total;
+    for(var wi=0;wi<items.length;wi++) if(items[wi].phase==='wait') waiting++;
+    var lines=['已抓粑粑：'+caught+' 个','尚未出现：'+waiting+' 个'];
     ctx.save();
     ctx.font='600 '+fs+'px "Microsoft YaHei",sans-serif';
     var w=0,i;
@@ -143,15 +146,26 @@ window.registerGame((function(){
       caught=ZL.loadTotal('throw_poop');
       syncCustom();
     },
-    resize:function(){},
+    // 改窗口大小（一键切竖屏）：场上的粑粑挪回画面里
+    resize:function(){
+      for(var i=0;i<items.length;i++){
+        var it=items[i], h=it.size/2;
+        it.tx=ZL.clamp(it.tx,h,Math.max(h,api.W-h));
+        it.ty=ZL.clamp(it.ty,h,Math.max(h,api.H-h));
+        if(it.phase==='landed'){ it.x=it.tx; it.y=it.ty; }
+      }
+    },
     config:function(){ syncCustom(); },
     apply:function(cmd){
       var op=ZL.op(cmd,OPS);
-      if(op==='clear'){ items=[]; pending.clear(); return; }
+      // 发射排期一起清零：不然清空后下一波要按清空前排好的时间等（排队多时能等半分钟以上）
+      if(op==='clear'){ items=[]; pending.clear(); nextLaunchAt=0; batchClock=0; return; }
       if(op==='reset'){ caught=0; ZL.saveTotal('throw_poop',0); return; }
       var n=Math.min(ZL.count(cmd,5), api.cap());
+      var was=pending.total;
       pending.push(Math.min(n, 999999999-pending.total), { size:String((cmd&&cmd.size)||'random') }, sameOpt);
-      batchClock=0;
+      // 攒批：队列从空变成有东西才开始计时，之后再来礼物不清零（以前每来一次都清零，礼物间隔短于 1.2 秒、场上又没清空时，排队的一直不落）
+      if(was===0) batchClock=0;
       var name=ZL.who(cmd);
       if(name) api.banner(name+' 扔来 '+n+' 个粑粑');
     },

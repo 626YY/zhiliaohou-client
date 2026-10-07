@@ -202,6 +202,8 @@ window.registerGame((function(){
         b.x=Math.max(0.025,Math.min(0.975,b.x));
         b.y=Math.max(0.035,Math.min(0.965,b.y));
       }
+      // 最后一只拿掉的这一帧就关麦克风、停嗡嗡声：返回 false 以后不会再 tick，等不到下一帧开头（以前打完麦克风一直开着）
+      if(bugs.length===0){ stopMic(); stopBuzz(); }
       return alive;
     },
     draw:function(ctx){
@@ -230,23 +232,25 @@ window.registerGame((function(){
         else { ctx.strokeStyle='#333'; ctx.lineWidth=2; ctx.beginPath(); ctx.ellipse(0,0,size*0.4,size*0.25,0,0,6.2832); ctx.stroke(); }
         ctx.restore();
       }
-      // 提示条（左上）
+      // 提示条（左上）：走计数面板排位，几个玩法同时在场时上下排开（以前固定画在 12,12，会和别的面板叠住）
       var total=aliveCount()+pending;
+      var hctx=api.hudCtx||ctx;
       if(total>0){
-        var fs=Math.max(15,Math.min(26,api.W*0.021));
-        var text=(micState?'点击灭蚊':'拍手或点击灭蚊')+'  剩余 '+total+' 只';
-        ctx.save();
-        ctx.font='700 '+fs+'px "Microsoft YaHei",sans-serif';
-        var tw=ctx.measureText(text).width;
-        ZL.roundRect(ctx,12,12,tw+fs*1.6,fs*2.1,fs);
-        ctx.fillStyle='rgba(20,22,28,0.66)'; ctx.fill();
-        ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,255,255,0.16)'; ctx.stroke();
-        ctx.textAlign='left'; ctx.textBaseline='middle';
-        ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,fs*0.14); ctx.strokeStyle='rgba(0,0,0,0.6)';
-        ctx.strokeText(text,12+fs*0.8,12+fs*1.08);
-        ctx.fillStyle='#fff'; ctx.fillText(text,12+fs*0.8,12+fs*1.08);
-        ctx.restore();
-      }
+        var cue=(micState?'点击灭蚊':'拍手或点击灭蚊')+'  剩余 '+total+' 只';
+        var fs2=Math.max(15,Math.min(26,api.W*0.021)), bh2=fs2*2.1;
+        var top2=api.hud?api.hud(bh2):12;
+        hctx.save();
+        hctx.font='700 '+fs2+'px "Microsoft YaHei",sans-serif';
+        var tw2=hctx.measureText(cue).width;
+        ZL.roundRect(hctx,12,top2,tw2+fs2*1.6,bh2,fs2);
+        hctx.fillStyle='rgba(20,22,28,0.66)'; hctx.fill();
+        hctx.lineWidth=1.5; hctx.strokeStyle='rgba(255,255,255,0.16)'; hctx.stroke();
+        hctx.textAlign='left'; hctx.textBaseline='middle';
+        hctx.lineJoin='round'; hctx.lineWidth=Math.max(2,fs2*0.14); hctx.strokeStyle='rgba(0,0,0,0.6)';
+        hctx.strokeText(cue,12+fs2*0.8,top2+bh2/2);
+        hctx.fillStyle='#fff'; hctx.fillText(cue,12+fs2*0.8,top2+bh2/2);
+        hctx.restore();
+      } else if(api.hud) api.hud(0);
       if(micState&&bugs.length>0){
         ctx.save();
         ctx.font='600 '+Math.max(13,api.W*0.013)+'px "Microsoft YaHei",sans-serif';

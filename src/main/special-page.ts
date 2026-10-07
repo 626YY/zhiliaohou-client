@@ -189,6 +189,9 @@ export const HARNESS_JS = `(function(){
   window.__kick=function(){ for(var i=0;i<list.length;i++) list[i].active=true; kick(); };
   // 测试钩子：手动推一帧（不依赖 rAF / 可见性），返回是否还有活动。离线截图测试用，生产不调用。
   window.__step=function(dt){ var a=false; for(var i=0;i<list.length;i++){ var s=list[i]; if(!s.g) continue; var r=false; try{ r=s.g.tick?!!s.g.tick(Number(dt)||16):false; }catch(e){} clearSlot(s); try{ if(s.g.draw)s.g.draw(s.ctx);}catch(e){} if(r) a=true; } return a; };
+  // 测试钩子：按真实渲染循环的规矩推一帧——只推醒着的玩法（停了帧的不再 tick，和 frame() 一样），返回还有没有醒着的。
+  // __step 会把所有玩法都推一遍，测不出「停帧以后该做的事没做」（比如打完最后一只没关麦克风）。生产不调用。
+  window.__frameStep=function(dt){ var any=false; for(var i=0;i<list.length;i++){ var s=list[i]; if(!s.active||!s.g) continue; var a=false; try{ a=s.g.tick?!!s.g.tick(Number(dt)||16):false; }catch(e){} clearSlot(s); try{ if(s.g.draw)s.g.draw(s.ctx);}catch(e){} s.active=a; if(a) any=true; } return any; };
   // 还有没有活动：给 id 只问那个玩法，不给问全部
   window.__alive=function(id){ for(var i=0;i<list.length;i++){ var s=list[i]; if(id&&s.id!==id) continue; try{ if(s.g&&s.g.tick&&s.g.tick(0)) return true; }catch(e){} } return false; };
   // 累计统计（有累计数的玩法实现 GAME.stats()，返回 {value:N}）

@@ -379,6 +379,49 @@ const SEMANTIC = {
     assert.deepEqual((await dbg()).kinds, ['watermelon'], '切水果：指定西瓜')
     await apply({ operation: 'add', count: 30, kind: 'random', ...who })
     assert.ok((await dbg()).kinds.length >= 3, '切水果：随机应有多种')
+    // —— 2026-10-07 用户「那个一直切不完啊」：切开的不能再抛回来、快速挥动（不按住）也能切、慢慢晃不算、漏掉的只再抛设定的次数 ——
+    await apply({ operation: 'clear' })
+    // 冻结页面自己的 rAF：水果在飞，测试等待时页面要是自己在画，挥的位置就扑空了（只靠 stepFast 推帧，状态确定）
+    await freezeRaf()
+    await config({ throwIntervalMs: 600, missRetry: 1, sliceMode: 'both', swipeSpeed: 30 })
+    const [W, H] = await page.evaluate(() => [innerWidth, innerHeight])
+    const inView = async () => {
+      for (let i = 0; i < 120; i++) {
+        await stepFast(1)
+        const d = await dbg()
+        const f = d.whole.find(([x, y]) => x > W * 0.15 && x < W * 0.85 && y > H * 0.1 && y < H * 0.8)
+        if (f) return f
+      }
+      throw new Error('切水果：等不到水果飞进画面')
+    }
+    await apply({ operation: 'add', count: 3, kind: 'apple', ...who })
+    let [fx, fy] = await inView()
+    // 慢慢晃过去：200 毫秒挪 20 像素，没到挥刀速度，不算切
+    await pointer('move', fx - 10, fy)
+    await page.waitForTimeout(200)
+    await pointer('move', fx + 10, fy)
+    assert.equal((await dbg()).sliced, 0, '切水果：不按住慢慢晃过去不该切到')
+    // 快速挥过去（不按住）：切开
+    await page.evaluate(({ fx, fy }) => { window.__GAME.pointer('move', fx - 90, fy - 20); window.__GAME.pointer('move', fx + 90, fy + 20) }, { fx, fy })
+    assert.equal((await dbg()).sliced, 1, '切水果：不按住快速挥过去应该切开')
+    // 剩下两个不切：各漏两次（原抛 + 再抛 1 次）后不再抛，整轮结束；切开的那个不会回来
+    let d
+    for (let i = 0; i < 200; i++) { await stepFast(10); d = await dbg(); if (d.queued === 0 && d.whole.length === 0 && d.dropped >= 2) break }
+    assert.ok(d.queued === 0 && d.whole.length === 0 && d.sliced === 1 && d.dropped === 2, `切水果：漏掉的只再抛 1 次、切开的不回来，整轮能结束：${JSON.stringify({ q: d.queued, w: d.whole.length, s: d.sliced, x: d.dropped })}`)
+    let idle = false
+    for (let i = 0; i < 100 && !idle; i++) idle = !(await stepFast(5))
+    assert.ok(idle, '切水果：都抛完了应该停帧')
+    // 只认按住拖动：快速挥过去不算，按住拖过去才切
+    await config({ sliceMode: 'drag' })
+    await apply({ operation: 'add', count: 1, kind: 'pear', ...who });
+    [fx, fy] = await inView()
+    const s0 = (await dbg()).sliced
+    await page.evaluate(({ fx, fy }) => { window.__GAME.pointer('move', fx - 90, fy); window.__GAME.pointer('move', fx + 90, fy) }, { fx, fy })
+    assert.equal((await dbg()).sliced, s0, '切水果：只认按住拖动时，不按住挥过去不该切')
+    await page.evaluate(({ fx, fy }) => { const g = window.__GAME; g.pointer('down', fx - 90, fy); g.pointer('move', fx, fy); g.pointer('move', fx + 90, fy); g.pointer('up', fx + 90, fy) }, { fx, fy })
+    assert.equal((await dbg()).sliced, s0 + 1, '切水果：按住拖过去应该切开')
+    await config({ sliceMode: 'both' })
+    await page.evaluate(() => { if (window.__origRAF) window.requestAnimationFrame = window.__origRAF })
   },
   async coin_bump() {
     await config({ customCoinImage: assetPath('fruit_slice/apple.png'), customSound: assetPath('fruit_slice/slice.mp3') })
@@ -444,9 +487,14 @@ const SEMANTIC = {
     assert.ok((await dbg()).position > p1, '音乐球：静音时时钟照走')
     await page.evaluate(() => window.__mute(false))
     await apply({ operation: 'pause' })
-    await apply({ operation: 'start' })   // 播放中再 start = 从头来
+    await apply({ operation: 'start' })   // 播放中（含暂停）又点歌：默认排队，这首放完接着放（2026-10-07 起，以前每次从头重放）
     d = await dbg()
-    assert.ok(d.state === 'loading' || d.state === 'countdown', '音乐球：start 重开')
+    assert.ok(d.state === 'paused' && d.encore === 1, `音乐球：播放中又点歌默认排队（${JSON.stringify([d.state, d.encore])}）`)
+    await config({ whilePlaying: 'restart' })
+    await apply({ operation: 'start' })   // 「从头重新放」
+    d = await dbg()
+    assert.ok(d.state === 'loading' || d.state === 'countdown', '音乐球：设成从头重新放时 start 重开')
+    await config({ whilePlaying: 'queue' })
     await apply({ operation: 'clear' })   // 旧值 clear = stop
     assert.equal((await dbg()).state, 'idle', '音乐球：clear 兼容为 stop')
     // 自定义音乐：节拍分析（拿内置歌当「用户选的歌」）

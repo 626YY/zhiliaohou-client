@@ -269,16 +269,16 @@ window.registerGame((function(){
     },
     pointer:function(type,x,y){
       var m=controlMode();
-      if(m!=='mouse'&&m!=='both') return;
-      var now=nowMs;
+      // 拍手声控模式：麦克风不可用 / 详情页预览（不收音）时鼠标照样能拍，不然打不完
+      if(m!=='mouse'&&m!=='both'&&micKind!=='error'&&micKind!=='preview') return;
+      // 挥拍测速按真实时间（以前用画面时钟：同一帧里的移动被跳过，刷新率越高越难挥中）
+      var now=performance.now();
       if(type==='move'){
-        if(hand.pt>0){
-          var dt=(now-hand.pt)/1000;
-          if(dt>0.001){
-            var dist=Math.sqrt((x-hand.px)*(x-hand.px)+(y-hand.py)*(y-hand.py));
-            var spd=dist/shortSide()*100/dt;   // %短边/秒
-            if(spd>=gestureSpeed()) swatAt(x/api.W, y/api.H);
-          }
+        if(hand.pt>0&&now-hand.pt<250){
+          var dt=Math.max(0.004,(now-hand.pt)/1000);
+          var dist=Math.sqrt((x-hand.px)*(x-hand.px)+(y-hand.py)*(y-hand.py));
+          var spd=dist/shortSide()*100/dt;   // %短边/秒
+          if(spd>=gestureSpeed()) swatAt(x/api.W, y/api.H);
         }
         hand.px=x; hand.py=y; hand.pt=now;
       } else if(type==='down'){
@@ -336,7 +336,8 @@ window.registerGame((function(){
           if(nowMs>=b.restUntil){ b.state='fly'; b.restUntil=nowMs+2500+Math.random()*5000; }
         }
       }
-      if(bugs.length===0) stopBuzz();
+      // 最后一只拿掉的这一帧就关麦克风、停嗡嗡声：返回 false 以后不会再 tick（以前打完麦克风一直开着）
+      if(bugs.length===0){ stopBuzz(); stopClap(); }
       return alive;
     },
     draw:function(ctx){
@@ -399,21 +400,25 @@ window.registerGame((function(){
           ctx.restore();
         }
       }
-      // 提示文字（左上）
+      // 提示文字（左上）：走计数面板排位，几个玩法同时在场时上下排开（以前固定画在 12,12，会和别的面板叠住）
+      var hctx=api.hudCtx||ctx;
       if(bugs.length>0||pending.total>0){
         var cue=cueText();
-        var fs2=Math.max(15,Math.min(32,api.W*0.025));
-        ctx.save();
-        ctx.font='700 '+fs2+'px "Microsoft YaHei",sans-serif';
-        var tw2=ctx.measureText(cue).width;
-        ZL.roundRect(ctx,12,12,tw2+fs2*1.6,fs2*2.1,fs2);
-        ctx.fillStyle='rgba(20,22,28,0.66)'; ctx.fill();
-        ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,255,255,0.16)'; ctx.stroke();
-        ctx.textAlign='left'; ctx.textBaseline='middle';
-        ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,fs2*0.14); ctx.strokeStyle='rgba(0,0,0,0.6)';
-        ctx.strokeText(cue,12+fs2*0.8,12+fs2*1.08);
-        ctx.fillStyle='#fff'; ctx.fillText(cue,12+fs2*0.8,12+fs2*1.08);
-        ctx.restore();
+        var fs2=Math.max(15,Math.min(32,api.W*0.025)), bh2=fs2*2.1;
+        var top2=api.hud?api.hud(bh2):12;
+        hctx.save();
+        hctx.font='700 '+fs2+'px "Microsoft YaHei",sans-serif';
+        var tw2=hctx.measureText(cue).width;
+        ZL.roundRect(hctx,12,top2,tw2+fs2*1.6,bh2,fs2);
+        hctx.fillStyle='rgba(20,22,28,0.66)'; hctx.fill();
+        hctx.lineWidth=1.5; hctx.strokeStyle='rgba(255,255,255,0.16)'; hctx.stroke();
+        hctx.textAlign='left'; hctx.textBaseline='middle';
+        hctx.lineJoin='round'; hctx.lineWidth=Math.max(2,fs2*0.14); hctx.strokeStyle='rgba(0,0,0,0.6)';
+        hctx.strokeText(cue,12+fs2*0.8,top2+bh2/2);
+        hctx.fillStyle='#fff'; hctx.fillText(cue,12+fs2*0.8,top2+bh2/2);
+        hctx.restore();
+      } else if(api.hud) api.hud(0);
+      if(bugs.length>0||pending.total>0){
         if(micState){
           ctx.save();
           ctx.font='600 '+Math.max(13,api.W*0.013)+'px "Microsoft YaHei",sans-serif';

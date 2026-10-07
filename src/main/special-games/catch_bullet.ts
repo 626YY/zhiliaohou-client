@@ -74,12 +74,23 @@ window.registerGame((function(){
     return ties[Math.floor(Math.random()*ties.length)];
   }
 
+  // 最矮那一列还放得下一颗（落定后整颗在画面里）才放新的；堆满了先留在队里，主播点掉一些再落
+  // （以前一直往上堆，720p 每列十来颗就堆出窗口顶，新来的停在画面上方看不见）
+  function hasRoom(){
+    var stacks=[], c, i, h=BASE_H*boxScale();
+    for(c=0;c<COLS;c++) stacks.push(0);
+    for(i=0;i<bullets.length;i++) stacks[bullets[i].column]+=bullets[i].h*0.32;   // 还在落的也算，马上就落到那一列
+    var best=1e9;
+    for(c=0;c<COLS;c++) if(stacks[c]<best) best=stacks[c];
+    return api.H-10-best-h>=0;
+  }
+
   function spawnOne(){
     var c=chooseColumn();
     var im=pickSprite();
     var wh=fitBox(im);
     bullets.push({
-      x:colX(c)+(Math.random()*2-1)*api.W/COLS*0.3, y:-wh[1],
+      x:colX(c)+(Math.random()*2-1)*api.W/COLS*0.3, y:-wh[1], colJit:(Math.random()*2-1)*0.3,
       w:wh[0], h:wh[1], img:im,
       vx:(Math.random()*2-1)*30, vy:Math.random()*40,
       angle:Math.random()*6.28, spin:(Math.random()*2-1)*2.4,
@@ -178,7 +189,20 @@ window.registerGame((function(){
       caught=ZL.loadTotal('catch_bullet');
       syncCustom();
     },
-    resize:function(){},
+    // 改窗口大小（一键切竖屏）：每列按新尺寸重新堆好，别把底下一排留在画面外点不到
+    resize:function(){
+      var byCol={}, i, j;
+      for(i=0;i<bullets.length;i++){
+        var b=bullets[i];
+        if(b.landed){ b.x=colX(b.column)+(b.colJit||0)*api.W/COLS; (byCol[b.column]=byCol[b.column]||[]).push(b); }
+        b.x=ZL.clamp(b.x,b.w*0.4,Math.max(b.w*0.4,api.W-b.w*0.4));
+      }
+      for(var c in byCol){
+        var list=byCol[c], stack=0;
+        list.sort(function(a,b){ return b.y-a.y; });
+        for(j=0;j<list.length;j++){ list[j].y=api.H-10-list[j].h/2-stack; stack+=list[j].h*0.32; }
+      }
+    },
     config:function(){ syncCustom(); },
     apply:function(cmd){
       var op=ZL.op(cmd,OPS);
@@ -193,7 +217,9 @@ window.registerGame((function(){
         var left=n-fromQueue, cols={};
         for(var i=bullets.length-1;i>=0&&left>0;i--){ removeAt(i,cols); left--; }
         reflow(cols);
-        if(name) prompt={ text:name+' 减少了 '+n+' 颗子弹', until:nowMs+3000 };
+        // 提示按实际减掉的数量（以前写的是请求数，场上没那么多也说减少了 n 颗）
+        var removed=n-left;
+        if(name&&removed>0) prompt={ text:name+' 减少了 '+removed+' 颗子弹', until:nowMs+3000 };
         return;
       }
       n=Math.min(n,api.cap());
@@ -222,11 +248,12 @@ window.registerGame((function(){
       if(pending>0 && spawnClock>=150){
         spawnClock=0;
         var room=Math.max(0, maxVisible()-bullets.length);
-        var batch=Math.min(pending, 6, room);
-        for(var s=0;s<batch;s++){ spawnOne(); }
-        pending-=batch;
+        var batch=Math.min(pending, 6, room), spawned=0;
+        for(var s=0;s<batch&&hasRoom();s++){ spawnOne(); spawned++; }
+        pending-=spawned;
       }
-      var active=pending>0 || (prompt!=null && nowMs<prompt.until);
+      // 堆满了在等主播点：不用一直刷帧，点掉一颗时会被叫醒
+      var active=(pending>0&&hasRoom()) || (prompt!=null && nowMs<prompt.until);
       var g=api.H*1.9;   // 像素重力
       for(var i=0;i<bullets.length;i++){
         var b=bullets[i];
