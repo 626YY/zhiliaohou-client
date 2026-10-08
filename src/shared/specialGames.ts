@@ -15,12 +15,13 @@
 
 export type SpecialGameId =
   | 'chain_challenge'
+  | 'tug_of_war'
+  | 'bomb_defuse'
   | 'catch_duck'
   | 'throw_poop'
   | 'throw_trash'
   | 'catch_bullet'
   | 'caterpillar'
-  | 'xiaoxin_hey'
   | 'fan_call'
   | 'fan_video_call'
   | 'talisman_seal'
@@ -30,7 +31,6 @@ export type SpecialGameId =
   | 'fruit_slice'
   | 'coin_bump'
   | 'leaf_pickup'
-  | 'music_ball'
 
 /** 一个可调项的规格：渲染层据此通用生成控件，主进程据此夹紧。 */
 export interface SpecialParamSpec {
@@ -46,6 +46,8 @@ export interface SpecialParamSpec {
   /** number：范围与步进（也是防爆夹紧的上下限） */
   min?: number
   max?: number
+  /** number：滑杆拉到头的值（常用范围）；手填可以超过，一直填到 max（防爆）。不给 = 滑杆到 max */
+  sliderMax?: number
   step?: number
   /** number：显示单位（纯 UI） */
   unit?: string
@@ -75,6 +77,10 @@ export interface SpecialOpSpec {
   count?: boolean
   /** 数量这一栏叫什么（乘除叫「倍数」） */
   countLabel?: string
+  /** 这个操作的数量单位（「减时 5 秒」的「秒」）；不给就用玩法的量词 */
+  unit?: string
+  /** 开奖配音里怎么念这个操作（「炸弹减时5秒」的「减时」）；不给按操作类型念「加 / 减 / 乘以 / 除以」 */
+  say?: string
   /** 一句话说明 */
   hint?: string
 }
@@ -121,7 +127,7 @@ export interface SpecialGameMeta {
   tint: string
   /** 数量的量词（只 / 个 / 件 …） */
   unit: string
-  /** 盲盒开奖配音里怎么叫它（「锁链加5」的「锁链」）；没有 = 开出来不念（来电、音乐球这种没数量的） */
+  /** 盲盒开奖配音里怎么叫它（「锁链加5」的「锁链」）；没有 = 开出来不念（来电这种没数量的） */
   say?: string
   /**
    * 自己会响铃 / 出声（来电、来视频）：礼物直接触发时不敲锣、不出开奖大字，直接打进来
@@ -140,6 +146,8 @@ export interface SpecialGameMeta {
   params: SpecialParamSpec[]
   /** 累计统计的名字（有累计数的玩法才有，如「累计抓到」） */
   statLabel?: string
+  /** 盲盒默认事件库里这个玩法每种操作开哪些数量；不给按通用档位（加 1~60、减 1~60、乘除 2 和 3） */
+  boxCounts?: Partial<Record<string, number[]>>
 }
 
 // 每个玩法自己的可调项：速度、在场上限、玩法专属参数。窗口的尺寸/底色/自动开窗是全部玩法共用的（SpecialWindowConfig）。
@@ -178,12 +186,13 @@ export const SPECIAL_FPS_OPTIONS: { value: number; label: string }[] = [
 
 /**
  * 图层顺序（下 → 上）。一会儿就自己挂断的来电 / 来视频放最上面（用户：「打视频那种要在最前，因为一会儿就没了」）；
- * 锁链、符咒是「封住屏幕」的，压在小东西上面；音乐球的轨道、地上的叶子铺在最底下。
+ * 锁链、符咒是「封住屏幕」的，压在小东西上面；地上的叶子铺在最底下。
+ * 拔河一局进行中点画面哪儿都算拉一下，放在会飞的虫子下面（虫子照样能拍）；炸弹的线要点得中，放在虫子上面。
  * 点击也按这个顺序从上往下找：最上面点中东西的那个玩法接住这一下。
  */
 export const SPECIAL_LAYER_ORDER: SpecialGameId[] = [
-  'music_ball', 'leaf_pickup', 'coin_bump', 'caterpillar', 'xiaoxin_hey', 'catch_duck', 'catch_bullet', 'fruit_slice',
-  'throw_trash', 'throw_poop', 'mosquito', 'big_mosquito', 'gesture_fly', 'talisman_seal', 'chain_challenge', 'fan_call', 'fan_video_call'
+  'leaf_pickup', 'coin_bump', 'caterpillar', 'catch_duck', 'catch_bullet', 'fruit_slice',
+  'throw_trash', 'throw_poop', 'tug_of_war', 'mosquito', 'big_mosquito', 'gesture_fly', 'bomb_defuse', 'talisman_seal', 'chain_challenge', 'fan_call', 'fan_video_call'
 ]
 
 export interface SpecialGameStateItem {
@@ -238,13 +247,19 @@ export const TRASH_KINDS: { value: string; label: string }[] = [
   { value: 'cola_plastic', label: '可乐塑料瓶' }, { value: 'cola_glass', label: '可乐玻璃瓶' }, { value: 'water_bottle', label: '矿泉水瓶' },
   { value: 'beer_can', label: '啤酒易拉罐' }, { value: 'old_shoe', label: '旧运动鞋' }, { value: 'snack_wrapper', label: '零食包装' },
   { value: 'food_package', label: '食品包装盒' }, { value: 'chocolate_bar', label: '巧克力块' }, { value: 'crackers', label: '剩余小饼干' },
-  { value: 'oreo_cookies', label: '夹心饼干' }, { value: 'burger', label: '剩余汉堡' }, { value: 'fish_burger', label: '鱼排汉堡' },
+  { value: 'sandwich_cookies', label: '夹心饼干' }, { value: 'burger', label: '剩余汉堡' }, { value: 'fish_burger', label: '鱼排汉堡' },
   { value: 'pizza', label: '剩余披萨' }, { value: 'fried_egg', label: '剩余煎蛋' }, { value: 'egg', label: '鸡蛋' },
   { value: 'broccoli_stem', label: '西兰花菜梗' }, { value: 'vegetable_scraps', label: '蔬菜边角料' }, { value: 'dried_banana', label: '香蕉片' },
   { value: 'bell_pepper', label: '彩椒' }, { value: 'avocado', label: '牛油果' }, { value: 'ginger_root', label: '姜块' },
   { value: 'tofu_piece', label: '豆腐块' }, { value: 'bread_slice', label: '剩余面包' }, { value: 'cookie', label: '曲奇饼' },
   { value: 'marshmallow', label: '棉花糖' }, { value: 'chocolate_candy', label: '巧克力糖' }, { value: 'jelly_candy', label: '软糖' },
-  { value: 'raffaello', label: '椰蓉糖' }, { value: 'kinder_bueno', label: '巧克力零食' }, { value: 'assorted_candies', label: '剩余糖果' }
+  { value: 'coconut_ball', label: '椰蓉糖' }, { value: 'wafer_bar', label: '巧克力零食' }, { value: 'assorted_candies', label: '剩余糖果' }
+]
+
+// 炸弹 4 种：外观不同；超级炸弹多两根线、时间长一半、炸得更狠
+export const BOMB_KINDS: { value: string; label: string }[] = [
+  { value: 'random', label: '随机' }, { value: 'dynamite', label: '定时炸弹' }, { value: 'cartoon', label: '卡通炸弹' },
+  { value: 'gift', label: '礼物炸弹' }, { value: 'mega', label: '超级炸弹' }
 ]
 
 // 水果 10 种（id 与素材文件名一致）
@@ -314,13 +329,11 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
         key: 'visualStyle', label: '锁链皮肤', type: 'select', def: 'neon', group: 'look', hint: '锁链、中间的锁、计数牌和冲击光整套换风格',
         options: [
           { value: 'neon', label: '霓虹' }, { value: 'candy', label: '甜心' }, { value: 'rosegold', label: '玫瑰金' },
-          { value: 'laser', label: '赛博光束' }, { value: 'ice', label: '冰晶' },
-          { value: 'default', label: '经典金属' }, { value: 'style_1', label: '经典青蓝' }, { value: 'style_2', label: '经典紫' }
+          { value: 'laser', label: '赛博光束' }, { value: 'ice', label: '冰晶' }
         ],
         optionImages: {
           neon: '_thumbs/chain-neon.png', candy: '_thumbs/chain-candy.png', rosegold: '_thumbs/chain-rosegold.png',
-          laser: '_thumbs/chain-laser.png', ice: '_thumbs/chain-ice.png', default: '_thumbs/chain-default.png',
-          style_1: '_thumbs/chain-style_1.png', style_2: '_thumbs/chain-style_2.png'
+          laser: '_thumbs/chain-laser.png', ice: '_thumbs/chain-ice.png'
         }
       },
       { key: 'skinMotion', label: '皮肤动态光效', type: 'toggle', def: true, hint: '霓虹闪烁、光束电流、冰晶闪光这类小动画；关掉更省电脑', advanced: true, group: 'look' },
@@ -330,6 +343,96 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
       { key: 'unlockMode', label: '解锁方式', type: 'select', def: 'mouse', options: [ { value: 'mouse', label: '点击绿幕' }, { value: 'space', label: '按空格键' }, { value: 'both', label: '点击或空格' } ], hint: '主播怎么解锁' },
       { key: 'showUnlockHint', label: '显示解锁提示', type: 'toggle', def: true, hint: '计数牌上方显示「点击绿幕解锁」', group: 'look' },
       volumeParam(80, '上锁/断裂/点击音效的音量')
+    ]
+  },
+  {
+    id: 'tug_of_war',
+    name: '礼物拔河',
+    emoji: '💪',
+    desc: '观众送礼拉绳，主播狂点往回拽，输了被砸一脸',
+    how: '观众每送一份礼物，就把绳结往观众那边拉一截；主播狂点画面（或按空格）往回拽。绳结先到哪边的终点线哪边赢，时间到了看绳结在谁那边。观众赢了，主播被砸一脸奶油、鸡蛋或番茄，要按住鼠标来回擦干净；主播赢了满屏彩带。',
+    category: 'click',
+    interactive: true,
+    width: 1280,
+    height: 720,
+    tint: '#b8323f',
+    unit: '下',
+    say: '拔河',
+    countDef: 3,
+    countRange: '1~5',
+    ops: [
+      { value: 'add', label: '观众拉', sign: '+', hint: '把绳结往观众那边拉这么多下；没在比就开一局' },
+      { value: 'reduce', label: '帮主播拉', sign: '−', hint: '替主播往回拉这么多下' },
+      { value: 'clear', label: '结束这局', count: false, hint: '这一局直接结束，糊在屏幕上的也清掉' }
+    ],
+    boxCounts: { add: [1, 2, 3, 5, 8, 10, 15, 20], reduce: [1, 2, 3, 5] },
+    params: [
+      { key: 'roundSec', label: '一局时长', type: 'number', min: 5, max: 1000000, sliderMax: 300, step: 5, unit: '秒', def: 30, hint: '时间到了看绳结在谁那边' },
+      { key: 'giftPull', label: '礼物拉力', type: 'number', min: 1, max: 1000000, sliderMax: 100, step: 1, unit: '%', def: 8, hint: '观众每拉一下，绳结往观众那边走多少（走满 100% 到终点线）' },
+      { key: 'clickPull', label: '主播拉力', type: 'number', min: 0.2, max: 1000000, sliderMax: 20, step: 0.1, unit: '%', def: 1.5, hint: '主播点一下，绳结往回走多少' },
+      { key: 'spacePull', label: '空格也能拉', type: 'toggle', def: true, hint: '直播窗口在前台时，按一下空格也算拉一下' },
+      {
+        key: 'penalty', label: '输了砸什么', type: 'select', def: 'random', hint: '观众赢了往屏幕上砸的东西',
+        options: [{ value: 'random', label: '随机' }, { value: 'cake', label: '奶油蛋糕' }, { value: 'egg', label: '鸡蛋' }, { value: 'tomato', label: '番茄' }]
+      },
+      { key: 'penaltyCount', label: '砸几个', type: 'number', min: 1, max: 1000000, sliderMax: 50, step: 1, unit: '个', def: 3, hint: '观众赢了一共砸过来几个' },
+      { key: 'splatSize', label: '一片多大', type: 'number', min: 8, max: 400, sliderMax: 90, step: 1, unit: '%', def: 36, hint: '砸开的一片占画面短边多少', group: 'look' },
+      { key: 'brushSize', label: '擦的范围', type: 'number', min: 2, max: 1000, sliderMax: 40, step: 1, unit: '%', def: 12, hint: '按住鼠标擦一下能擦掉多大一片（占画面短边）' },
+      { key: 'cleanPercent', label: '擦掉多少算干净', type: 'number', min: 50, max: 100, step: 1, unit: '%', def: 82, hint: '一片擦掉这么多，剩下的自己消失' },
+      { key: 'autoClearSec', label: '自己消失', type: 'number', min: 0, max: 1000000, sliderMax: 600, step: 5, unit: '秒', def: 0, hint: '砸上去多久后自己消失；0 = 一直留到主播擦干净' },
+      { key: 'drips', label: '往下流', type: 'toggle', def: true, hint: '砸开后汁慢慢往下流', group: 'look' },
+      { key: 'ropeY', label: '绳子高度', type: 'number', min: 40, max: 95, step: 1, unit: '%', def: 80, hint: '拔河绳在画面上的位置（从上往下）', group: 'look' },
+      { key: 'showNames', label: '显示拉绳的观众', type: 'toggle', def: true, hint: '观众队旁边显示最近拉绳的人的头像和昵称', group: 'look' },
+      { key: 'winEffect', label: '主播赢了放彩带', type: 'toggle', def: true, hint: '主播赢了满屏飘彩带', group: 'look' },
+      STATS_PANEL_PARAM,
+      volumeParam(90, '哨声、拉绳、输赢、砸开和擦干净的音量')
+    ]
+  },
+  {
+    id: 'bomb_defuse',
+    name: '拆炸弹',
+    emoji: '💣',
+    desc: '送礼扔定时炸弹，主播剪对线才能拆，炸了满屏黑灰',
+    how: '观众送礼往屏幕上扔一颗炸弹（定时炸弹、卡通炸弹、礼物炸弹、超级炸弹），底下挂着几根不同颜色的线，只有一根能拆。主播点一根线就剪一根，剪下去先停一下、心跳两声再揭晓：拆除线拆弹成功；加速线让倒计时变快；雷管线当场爆炸；哑线虚惊一场。观众还能送礼给炸弹减时。时间到了就爆炸，随机抽一条惩罚，炸出满屏黑灰，按住鼠标来回擦干净。',
+    category: 'click',
+    interactive: true,
+    width: 1280,
+    height: 720,
+    tint: '#3a3f4b',
+    unit: '颗',
+    say: '炸弹',
+    countDef: 1,
+    countRange: '1~2',
+    ops: [
+      { value: 'add', label: '扔炸弹', sign: '+', hint: '扔这么多颗炸弹，一颗拆完下一颗' },
+      { value: 'hasten', label: '减时', sign: '−', unit: '秒', say: '减时', countLabel: '秒数', hint: '正在拆的炸弹倒计时少这么多秒' },
+      { value: 'reduce', label: '帮拆', sign: '−', hint: '直接替主播拆掉这么多颗' },
+      { value: 'clear', label: '全部拆除', count: false, hint: '炸弹和黑灰全部清掉' }
+    ],
+    fields: [{ key: 'kind', label: '炸弹种类', def: 'random', options: BOMB_KINDS }],
+    boxCounts: { add: [1, 2, 3], hasten: [3, 5, 10], reduce: [1] },
+    params: [
+      { key: 'timerSec', label: '倒计时', type: 'number', min: 3, max: 1000000, sliderMax: 120, step: 1, unit: '秒', def: 15, hint: '每颗炸弹多少秒后爆炸' },
+      { key: 'wireCount', label: '几根线', type: 'number', min: 2, max: 24, sliderMax: 12, step: 1, unit: '根', def: 4, hint: '炸弹上挂几根线，只有一根是对的' },
+      { key: 'roleSpeed', label: '加速线比例', type: 'number', min: 0, max: 1000000, sliderMax: 100, step: 5, def: 40, hint: '错线里「加速线」占多少：剪到它倒计时加速（几种错线按比例随机分，全填 0 就都是加速线）' },
+      { key: 'roleBoom', label: '雷管线比例', type: 'number', min: 0, max: 1000000, sliderMax: 100, step: 5, def: 30, hint: '错线里「雷管线」占多少：剪到它当场爆炸' },
+      { key: 'roleDud', label: '哑线比例', type: 'number', min: 0, max: 1000000, sliderMax: 100, step: 5, def: 30, hint: '错线里「哑线」占多少：剪了什么也没发生，虚惊一场' },
+      { key: 'roleMinus', label: '扣时线比例', type: 'number', min: 0, max: 1000000, sliderMax: 100, step: 5, def: 0, hint: '错线里「扣时线」占多少：剪到它倒计时扣几秒' },
+      { key: 'suspenseMs', label: '剪下去停一下', type: 'number', min: 0, max: 10000000, sliderMax: 3000, step: 100, unit: '毫秒', def: 800, hint: '剪下去先停住、心跳两声再揭晓对错；0 = 立刻揭晓' },
+      { key: 'punishList', label: '爆炸惩罚', type: 'text', def: '唱一首歌、学猫叫三声、做十个深蹲、给大家比个心、用方言说一句话', hint: '炸了随机抽一条亮出来，用「、」隔开；清空 = 不抽惩罚' },
+      { key: 'speedup', label: '加速倍数', type: 'number', min: 1.1, max: 10000, sliderMax: 8, step: 0.1, unit: '倍', def: 2, hint: '剪到加速线，倒计时快这么多倍（剪到几根叠几次）', advanced: true },
+      { key: 'wrongMinus', label: '扣几秒', type: 'number', min: 1, max: 1000000, sliderMax: 60, step: 1, unit: '秒', def: 5, hint: '剪到扣时线扣掉的秒数', advanced: true },
+      { key: 'sootCount', label: '溅几块黑灰', type: 'number', min: 0, max: 1000000, sliderMax: 30, step: 1, unit: '块', def: 4, hint: '爆炸时除了炸弹那一大块，满屏再溅几块' },
+      { key: 'sootFadeSec', label: '黑灰自己散', type: 'number', min: 0, max: 1000000, sliderMax: 600, step: 5, unit: '秒', def: 0, hint: '炸完多久黑灰自己散掉；0 = 一直留到主播擦干净' },
+      { key: 'brushSize', label: '擦的范围', type: 'number', min: 2, max: 1000, sliderMax: 40, step: 1, unit: '%', def: 12, hint: '按住鼠标擦一下能擦掉多大一片（占画面短边）' },
+      { key: 'cleanPercent', label: '擦掉多少算干净', type: 'number', min: 50, max: 100, step: 1, unit: '%', def: 82, hint: '一块擦掉这么多，剩下的自己消失' },
+      { key: 'bombSize', label: '炸弹大小', type: 'number', min: 15, max: 400, sliderMax: 90, step: 1, unit: '%', def: 42, hint: '炸弹占画面短边多少', group: 'look' },
+      { key: 'showName', label: '显示谁扔的', type: 'toggle', def: true, hint: '炸弹上方挂着扔炸弹的人的昵称', group: 'look' },
+      { key: 'showOdds', label: '显示几选一', type: 'toggle', def: true, hint: '炸弹下方写「4 根线 · 只有 1 根能拆」', group: 'look' },
+      { key: 'winEffect', label: '拆弹成功放彩带', type: 'toggle', def: true, hint: '剪对了满屏飘彩带', group: 'look' },
+      { key: 'beep', label: '倒计时滴声', type: 'toggle', def: true, hint: '倒计时滴滴响，越到最后越急，最后一秒连成一串长鸣', group: 'sound' },
+      STATS_PANEL_PARAM,
+      volumeParam(90, '放炸弹、滴声、剪线、爆炸和擦干净的音量')
     ]
   },
   {
@@ -476,27 +579,6 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
       { key: 'speedPercent', label: '爬行速度', type: 'number', min: 30, max: 200, step: 10, unit: '%', def: 100, hint: '毛毛虫爬动的快慢' },
       { key: 'autoDropSeconds', label: '自动掉落', type: 'number', min: 0, max: 600, step: 5, unit: '秒', def: 30, hint: '0 = 不自动掉落；否则到时自己掉出屏幕', advanced: true },
       maxVisibleParam(100, 1000, '条', '毛毛虫')
-    ]
-  },
-  {
-    id: 'xiaoxin_hey',
-    name: '小新哎嘿',
-    emoji: '啪',
-    desc: '小新探头喊哎嘿，点击用拖鞋拍走',
-    how: '观众送礼让小新从画面里探头喊「哎嘿」，主播点他一下，拖鞋啪地把他拍走。',
-    category: 'click',
-    interactive: true,
-    width: 1280,
-    height: 720,
-    tint: '#20dd57',
-    unit: '个',
-    say: '小新',
-    countDef: 3,
-    countRange: '2~5',
-    ops: [OP_ADD, OP_CLEAR],
-    params: [
-      { key: 'maxVisible', label: '同屏上限', type: 'number', min: 1, max: 100, step: 1, unit: '个', def: 12, hint: '同时在场的小新数上限，多余的排队' },
-      volumeParam(100, '语音与拍打声的音量')
     ]
   },
   {
@@ -776,38 +858,6 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
       { key: 'randomSizeMax', label: '随机最大', type: 'number', min: 3, max: 100, step: 1, unit: '%', def: 50, hint: '随机大小的上限', advanced: true, group: 'look' },
       BIN_SHOW_PARAM
     ]
-  },
-  {
-    id: 'music_ball',
-    name: '音乐球',
-    emoji: '♫',
-    desc: '彩球踩着节拍滚向判定圈，到圈自动爆发',
-    how: '观众送礼点一首歌，彩球踩着节拍从右边滚向判定圈，到圈炸开，重拍时放大招，跟着音乐一起嗨。',
-    category: 'show',
-    interactive: false,
-    width: 1280,
-    height: 720,
-    tint: '#5637a8',
-    unit: '局',
-    countDef: 1,
-    ops: [
-      { value: 'start', label: '开始一局', count: false, hint: '从头播放（正在播会重新开始）' },
-      { value: 'pause', label: '暂停', count: false },
-      { value: 'resume', label: '继续', count: false },
-      { value: 'stop', label: '停止', count: false }
-    ],
-    params: [
-      { key: 'whilePlaying', label: '播放中又点歌', type: 'select', def: 'queue', options: [{ value: 'queue', label: '排队，这首放完接着放' }, { value: 'restart', label: '从头重新放' }, { value: 'ignore', label: '不理会' }], hint: '一首歌还没放完又有人送礼点歌时怎么办' },
-      { key: 'musicPath', label: '自定义音乐', type: 'file', fileKind: 'audio', def: '', hint: '换成自己的歌，节拍会自动分析；留空用内置音乐', group: 'media' },
-      { key: 'beatSensitivity', label: '节拍灵敏度', type: 'number', min: 0, max: 100, step: 1, def: 65, hint: '自定义音乐分析节拍时，越高球越密', advanced: true },
-      { key: 'volume', label: '音乐音量', type: 'number', min: 0, max: 100, step: 5, unit: '%', def: 90, hint: '背景音乐的音量', group: 'sound' },
-      { key: 'travelMs', label: '球滚动提前量', type: 'number', min: 800, max: 5000, step: 100, unit: '毫秒', def: 2200, hint: '球从右边缘滚到判定圈的时间' },
-      { key: 'ballSize', label: '球大小', type: 'number', min: 20, max: 160, step: 2, unit: 'px', def: 44, hint: '彩球的基准直径', group: 'look' },
-      { key: 'burstSensitivity', label: '爆发灵敏度', type: 'number', min: 0, max: 100, step: 1, def: 68, hint: '越高越多节拍放大招' },
-      { key: 'countdownSec', label: '倒计时', type: 'number', min: 0, max: 30, step: 1, unit: '秒', def: 3, hint: '开始前的倒计时，0 = 直接播放' },
-      { key: 'loop', label: '循环播放', type: 'toggle', def: false, hint: '音乐播完自动再来一局' },
-      { key: 'syncOffsetMs', label: '同步偏移', type: 'number', min: -2000, max: 2000, step: 10, unit: '毫秒', def: 0, hint: '音画对不齐时微调（正值 = 画面提前）', advanced: true }
-    ]
   }
 ]
 
@@ -888,7 +938,6 @@ const BOX_SPECS_V2: BoxSpec[] = [
   ['catch_bullet', 'add', 5], ['catch_bullet', 'add', 10], ['catch_bullet', 'add', 20], ['catch_bullet', 'add', 50],
   ['catch_bullet', 'reduce', 5], ['catch_bullet', 'reduce', 10],
   ['caterpillar', 'add', 1], ['caterpillar', 'add', 3], ['caterpillar', 'add', 5], ['caterpillar', 'add', 10], ['caterpillar', 'add', 3, 'color=random'],
-  ['xiaoxin_hey', 'add', 1], ['xiaoxin_hey', 'add', 2], ['xiaoxin_hey', 'add', 3], ['xiaoxin_hey', 'add', 5], ['xiaoxin_hey', 'add', 10],
   ['talisman_seal', 'add', 2], ['talisman_seal', 'add', 3], ['talisman_seal', 'add', 5], ['talisman_seal', 'add', 10],
   ['talisman_seal', 'reduce', 2], ['talisman_seal', 'multiply', 2], ['talisman_seal', 'divide', 2],
   ['mosquito', 'add', 5], ['mosquito', 'add', 10], ['mosquito', 'add', 20], ['mosquito', 'add', 50], ['mosquito', 'add', 100], ['mosquito', 'reduce', 10],
@@ -900,7 +949,7 @@ const BOX_SPECS_V2: BoxSpec[] = [
   ['coin_bump', 'add', 5], ['coin_bump', 'add', 10], ['coin_bump', 'add', 20], ['coin_bump', 'add', 50], ['coin_bump', 'add', 100],
   ['leaf_pickup', 'add', 5], ['leaf_pickup', 'add', 10], ['leaf_pickup', 'add', 20], ['leaf_pickup', 'add', 50],
   ['leaf_pickup', 'reduce', 10], ['leaf_pickup', 'accelerate', 2], ['leaf_pickup', 'accelerate', 3], ['leaf_pickup', 'tornado', 20],
-  ['fan_call', 'show', 1], ['fan_video_call', 'show', 1], ['music_ball', 'start', 1]
+  ['fan_call', 'show', 1], ['fan_video_call', 'show', 1]
 ]
 // 第 3 版：照时间盲盒那排数——加 1~60 十七档、减 1~60 十六档、乘除 2 和 3（时间盲盒就是这些）。
 // 手势拍蚊子加的是大蚊子（拍三下那种），念「大蚊子加5」，和声控拍蚊子的「蚊子加5」分开。
@@ -914,10 +963,12 @@ const OP_COUNTS: Record<string, number[]> = {
   accelerate: [2, 3],
   tornado: [10, 20, 30, 50]
 }
+// 第 4 版新出的玩法：第 3 版不算它们（老用户已经是第 3 版，升级时要按第 4 版补上）
+const BOX_V4_GAMES = new Set<string>(['tug_of_war', 'bomb_defuse'])
 function boxSpecsV3(): BoxSpec[] {
   const out: BoxSpec[] = []
   for (const g of SPECIAL_GAMES) {
-    if (!g.say) continue
+    if (!g.say || BOX_V4_GAMES.has(g.id)) continue
     for (const op of g.ops) {
       if (op.count === false) continue
       const fields = g.id === 'big_mosquito' && op.value === 'add' ? 'size=big' : undefined
@@ -926,8 +977,19 @@ function boxSpecsV3(): BoxSpec[] {
   }
   return out
 }
+function boxSpecsV4(): BoxSpec[] {
+  const out: BoxSpec[] = []
+  for (const g of SPECIAL_GAMES) {
+    if (!g.say || !BOX_V4_GAMES.has(g.id)) continue
+    for (const op of g.ops) {
+      if (op.count === false) continue
+      for (const n of g.boxCounts?.[op.value] ?? OP_COUNTS[op.value] ?? []) out.push([g.id, op.value, n, undefined])
+    }
+  }
+  return out
+}
 /** 默认事件库的版本：老用户升级时只补这版新出的默认事件（自己删掉的不会再加回来） */
-export const SPECIAL_BOX_DEFAULTS_LEVEL = 3
+export const SPECIAL_BOX_DEFAULTS_LEVEL = 4
 
 function specFields(raw?: string): Record<string, string> {
   const out: Record<string, string> = {}
@@ -953,7 +1015,7 @@ function boxEventFromSpec([id, op, n, raw]: BoxSpec): SpecialBoxEvent {
 export function defaultSpecialBoxEvents(sinceLevel = 0): SpecialBoxEvent[] {
   const level = new Map<string, number>()
   const events: SpecialBoxEvent[] = []
-  for (const [list, lv] of [[BOX_SPECS_V2, 2], [boxSpecsV3(), 3]] as [BoxSpec[], number][]) {
+  for (const [list, lv] of [[BOX_SPECS_V2, 2], [boxSpecsV3(), 3], [boxSpecsV4(), 4]] as [BoxSpec[], number][]) {
     for (const spec of list) {
       const ev = boxEventFromSpec(spec)
       if (level.has(ev.id)) continue
@@ -981,12 +1043,19 @@ export function sortSpecialBoxEvents<T extends Pick<SpecialBoxEvent, 'param'>>(e
 }
 
 /** 0.3.64 那版的默认事件（每个玩法一个、数量随机）：判断「奖池是不是还是当初默认全选」用 */
-export const LEGACY_DEFAULT_BOX_EVENT_IDS: string[] = SPECIAL_GAMES.map((g) => `sbe-default-${g.id}`)
+export const LEGACY_DEFAULT_BOX_EVENT_IDS: string[] = [
+  // 当时的 17 个玩法（后来下线的小新哎嘿、音乐球也在内：老用户库里可能还存着它们的 id）
+  'chain_challenge', 'catch_duck', 'throw_poop', 'throw_trash', 'catch_bullet', 'caterpillar', 'xiaoxin_hey', 'fan_call', 'fan_video_call',
+  'talisman_seal', 'mosquito', 'big_mosquito', 'gesture_fly', 'fruit_slice', 'coin_bump', 'leaf_pickup', 'music_ball'
+].map((id) => `sbe-default-${id}`)
+
+/** 下线了的玩法（2026-10-08）：老规则里还引用着它们的，显示「已下线」，触发时什么也不做 */
+export const RETIRED_SPECIAL_GAMES: Record<string, string> = { xiaoxin_hey: '小新哎嘿', music_ball: '音乐球' }
 
 // ================= 盲盒开奖：画面 + AI 配音 =================
 // 照时间盲盒那批视频（2026-10-06 用户：「类似于时间插件盲盒的那种 AI 语音」「前面有一个锣声，然后才是 AI 人声」）：
 // 抽中一个事件，窗口里敲一声锣、蹦出「锁链+5」，接着晓伊念「锁链加5」；连送多份逐条播（同时间盲盒连击逐项播放），
-// 每条开出的玩法在锣响那一刻生效。没有数量的（粉丝来电、音乐球）只出画面不念。
+// 每条开出的玩法在锣响那一刻生效。没有数量的（粉丝来电、粉丝来视频）只出画面不念。
 export type SpecialRevealPosition = 'top' | 'center' | 'bottom' | 'top-left' | 'top-right'
 export interface SpecialRevealConfig {
   /** 开奖画面：关掉 = 开出来直接生效（只有顶上那条「某某的盲盒开出：…」） */
@@ -1072,7 +1141,7 @@ export const SPECIAL_REVEAL_POSITIONS: { value: SpecialRevealPosition; label: st
 /** 开奖设置的控件规格：设置页按它用通用控件摆，min/max 同时是主进程夹紧的上下限 */
 export const SPECIAL_REVEAL_PARAMS: SpecialParamSpec[] = [
   { key: 'enabled', label: '开奖画面', type: 'toggle', def: true, hint: '抽中时窗口里敲一声锣、蹦出「锁链+5」这样的大字，一条一条开；关掉就开出来直接生效', group: 'look' },
-  { key: 'voice', label: 'AI 配音', type: 'toggle', def: true, hint: '锣响后念出开到的东西，比如「锁链加5」；粉丝来电、音乐球这种没有数量的不念。设置里「AI 语音播报」总开关关掉时也不念', group: 'sound' },
+  { key: 'voice', label: 'AI 配音', type: 'toggle', def: true, hint: '锣响后念出开到的东西，比如「锁链加5」；粉丝来电这种没有数量的不念。设置里「AI 语音播报」总开关关掉时也不念', group: 'sound' },
   { key: 'voiceName', label: '配音声音', type: 'select', def: DEFAULT_SPECIAL_REVEAL.voiceName, options: SPECIAL_VOICE_OPTIONS, hint: '晓伊不联网也能念；换别的声音，每句第一次念的时候要联网', group: 'sound' },
   { key: 'rate', label: '语速', type: 'number', min: -50, max: 100, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.rate, hint: '0 是正常语速，往负调更慢', group: 'sound' },
   { key: 'voiceVolume', label: '配音音量', type: 'number', min: 0, max: 100, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.voiceVolume, group: 'sound' },
@@ -1139,7 +1208,7 @@ function sayNoun(p: SpecialActionParam): string {
   return noun
 }
 
-/** 开奖配音念的那句：「锁链加5」「锁链乘以3」「龙卷风卷走20片」；没有数量的（来电、音乐球、清空）返回空 = 不念 */
+/** 开奖配音念的那句：「锁链加5」「锁链乘以3」「龙卷风卷走20片」；没有数量的（来电、清空）返回空 = 不念 */
 export function specialVoiceLine(param: string, count: number): string {
   const p = parseSpecialParam(param)
   if (!p.id) return ''
@@ -1149,8 +1218,8 @@ export function specialVoiceLine(param: string, count: number): string {
   const n = Math.max(1, Math.trunc(count) || 1)
   if (op.value === 'accelerate') return `清扫速度乘以${n}`
   if (op.value === 'tornado') return `龙卷风卷走${n}${meta.unit}`
-  const word = OP_SAY[op.value]
-  return word ? `${sayNoun(p)}${word}${n}` : ''
+  const word = op.say ?? OP_SAY[op.value]
+  return word ? `${sayNoun(p)}${word}${n}${op.unit ?? ''}` : ''
 }
 
 /** 开奖画面上蹦出来的大字：「锁链+5」「锁链×3」；没有数量的是「玩法 操作」 */
@@ -1164,7 +1233,7 @@ export function specialRevealText(param: string, count: number): string {
   if (op.value === 'accelerate') return `清扫×${n}`
   if (op.value === 'tornado') return `龙卷风卷走${n}${meta.unit}`
   if (!meta.say) return n > 1 ? `${meta.name}×${n}` : meta.name
-  return `${sayNoun(p)}${op.sign || '+'}${n}`
+  return `${sayNoun(p)}${op.sign || '+'}${n}${op.unit ?? ''}`
 }
 
 /** 这个事件开出来念什么：关了配音 = 空；自己写了台词用自己的（{数量} 换成这次开出的数量）；不然按玩法自动 */
@@ -1240,7 +1309,7 @@ export function specialSizeFor(orientation: SpecialOrientation, w: number, h: nu
 }
 
 // ================= 动作参数：`玩法|操作|数量|选项` =================
-// 例：catch_duck|add|5|size=big      throw_trash|add|3~8|size=small;kind=burger      music_ball|start
+// 例：catch_duck|add|5|size=big      throw_trash|add|3~8|size=small;kind=burger      fan_call|show
 // 数量可以写范围「3~8」（也认「3,8」），执行时在范围里随机取整数；选项是 key=value 用 ; 隔开。
 
 export interface SpecialActionParam {
@@ -1250,6 +1319,9 @@ export interface SpecialActionParam {
   count: string
   fields: Record<string, string>
 }
+
+// 改过名的选项值（2026-10-08 垃圾素材换成原创图，去掉品牌名）：老规则 / 盲盒里存的旧值照样认
+const LEGACY_FIELD_VALUES: Record<string, string> = { oreo_cookies: 'sandwich_cookies', raffaello: 'coconut_ball', kinder_bueno: 'wafer_bar' }
 
 export function parseSpecialParam(raw: string | undefined): SpecialActionParam {
   const parts = String(raw || '').split('|').map((s) => s.trim())
@@ -1261,7 +1333,8 @@ export function parseSpecialParam(raw: string | undefined): SpecialActionParam {
     const at = pair.indexOf('=')
     if (at <= 0) continue
     const key = pair.slice(0, at).trim()
-    const value = pair.slice(at + 1).trim()
+    const given = pair.slice(at + 1).trim()
+    const value = LEGACY_FIELD_VALUES[given] ?? given
     const spec = meta?.fields?.find((f) => f.key === key)
     if (spec && spec.options.some((o) => o.value === value)) fields[key] = value
   }
@@ -1302,17 +1375,20 @@ export function resolveSpecialCount(raw: string | number | undefined, def: numbe
   return Number.isSafeInteger(n) && n >= 1 ? n : Math.max(1, Math.trunc(def) || 1)
 }
 
-/** 动作的中文短描述：「抓鸭子 +5只 · 大鸭子」「锁链特效 ×2」「音乐球 开始一局」 */
+/** 动作的中文短描述：「抓鸭子 +5只 · 大鸭子」「锁链特效 ×2」「粉丝来电」 */
 export function specialActionText(raw: string | undefined): string {
   const p = parseSpecialParam(raw)
-  if (!p.id) return '特色整蛊（未选玩法）'
+  if (!p.id) {
+    const retired = RETIRED_SPECIAL_GAMES[String(raw || '').split('|')[0].trim()]
+    return retired ? `特色整蛊（${retired}已下线）` : '特色整蛊（未选玩法）'
+  }
   const meta = SPECIAL_GAME_MAP[p.id]
   const op = meta.ops.find((o) => o.value === p.op) ?? meta.ops[0]
   let text = meta.name
   if (op.count === false) text += ` ${op.label}`
   else {
     const count = p.count.trim() || String(meta.countDef)
-    const unit = op.countLabel === '倍数' ? '' : meta.unit
+    const unit = op.unit ?? (op.countLabel === '倍数' ? '' : meta.unit)
     text += op.sign ? ` ${op.sign}${count}${unit}` : ` ${op.label}${count}${unit}`
   }
   for (const f of meta.fields ?? []) {

@@ -10,7 +10,8 @@ window.registerGame((function(){
   var ZL=window.__ZL;
   var api=null;
   var OPS=['add','clear','reset'];
-  var TRASH=['cola_plastic','cola_glass','water_bottle','beer_can','old_shoe','snack_wrapper','food_package','chocolate_bar','crackers','oreo_cookies','burger','fish_burger','pizza','fried_egg','egg','broccoli_stem','vegetable_scraps','dried_banana','bell_pepper','avocado','ginger_root','tofu_piece','bread_slice','cookie','marshmallow','chocolate_candy','jelly_candy','raffaello','kinder_bueno','assorted_candies'];
+  var TRASH=['cola_plastic','cola_glass','water_bottle','beer_can','old_shoe','snack_wrapper','food_package','chocolate_bar','crackers','sandwich_cookies','burger','fish_burger','pizza','fried_egg','egg','broccoli_stem','vegetable_scraps','dried_banana','bell_pepper','avocado','ginger_root','tofu_piece','bread_slice','cookie','marshmallow','chocolate_candy','jelly_candy','coconut_ball','wafer_bar','assorted_candies'];
+  var LEGACY={oreo_cookies:'sandwich_cookies',raffaello:'coconut_ball',kinder_bueno:'wafer_bar'};
   var items=[];            // {id,img,size,x,y,angle,phase,sx,sy,tx,ty,vx,vy,g,travel,started,bounceT,sounded}
   var pending=null;        // 待生成队列（按批合并，opt={size,kind}）
   var nextLaunchAt=0, batchClock=0;
@@ -206,6 +207,7 @@ window.registerGame((function(){
       var n=Math.min(ZL.count(cmd,5), api.cap());
       var size=String((cmd&&cmd.size)||'random');
       var kind=String((cmd&&cmd.kind)||'random');
+      kind=LEGACY[kind]||kind;   // 改过名的老种类（去掉了品牌名）
       if(TRASH.indexOf(kind)<0) kind='random';
       var was=pending.total;
       pending.push(Math.min(n, 999999999-pending.total), { size:size, kind:kind }, sameOpt);

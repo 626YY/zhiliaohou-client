@@ -26,6 +26,7 @@ import type { UpdateStatusPayload } from '@shared/types'
 import { PopLayer } from './ui'
 import BuyModal from './BuyModal'
 import { Avatar } from './Avatar'
+import { useGames, isGameOnlyPath } from '../stores/games'
 
 const items = [
   { to: '/', label: '游戏库', icon: LayoutGrid },
@@ -53,6 +54,9 @@ export default function Sidebar() {
   const [buyOpen, setBuyOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [buyContact, setBuyContact] = useState('')
+  // 没有可用的游戏整蛊时不放游戏专用的几页
+  const games = useGames()
+  const shown = items.filter((it) => !(games.known && !games.hasGames && isGameOnlyPath(it.to)))
 
   // 后台填了购买授权联系方式才显示「购买授权」入口；空则完全不显示
   useEffect(() => {
@@ -110,7 +114,7 @@ export default function Sidebar() {
       <div className="drag-region h-10 shrink-0" />
 
       <nav className="flex-1 space-y-0.5 px-2 pt-2">
-        {items.map(({ to, label, icon: Icon }) => (
+        {shown.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

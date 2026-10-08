@@ -11,7 +11,7 @@ window.registerGame((function(){
   var api=null;
   var OPS=['add','clear','reset'];
   // 五帧裁剪矩形（512×512 原图取鸭子本体）
-  var CROPS=[[52,16,420,468],[44,24,428,460],[40,16,436,468],[44,12,428,476],[48,28,424,444]];
+  var CROPS=[[40,20,431,472],[42,20,427,472],[40,20,431,472],[42,20,427,472],[40,24,432,465]];
   var frames=[];
   var ducks=[];            // {x,y,size,frame,phase:'wait'|'drop'|'sit',started,t0,ty}
   var pending=null;        // 待落队列（按批合并，opt={size}）

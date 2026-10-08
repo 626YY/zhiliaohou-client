@@ -1,4 +1,4 @@
-// 特色整蛊卡片缩略图：没有单张主图的玩法（毛毛虫、粉丝来电、粉丝来视频、音乐球）
+// 特色整蛊卡片缩略图：没有单张主图的玩法（毛毛虫、粉丝来电、粉丝来视频、礼物拔河、拆炸弹）
 // 用真实玩法代码离屏渲染一帧，按画布内容裁边，存到 assets/special-games/_thumbs/<id>.png（跟素材一起打包，不进 git）。
 // 不启动客户端、不接触用户配置；窗口离屏不可见不聚焦。
 // 用法：node tools/gen-special-thumbs.mjs [玩法id…]
@@ -23,10 +23,11 @@ const PLAN = {
   caterpillar: { w: 520, h: 300, cmd: { operation: 'add', count: 2, color: 'green' }, ms: 4200, blank: [[0, 0, 220, 70]], params: { sizePercent: 170 }, seed: 23 },
   fan_call: { w: 1280, h: 720, cmd: { operation: 'show', count: 1, username: '示例观众' }, ms: 900 },
   fan_video_call: { w: 405, h: 720, cmd: { operation: 'show', count: 1, username: '示例观众' }, ms: 900, round: 44 },
-  music_ball: { w: 1280, h: 720, cmd: { operation: 'start' }, ms: 5200 }
+  tug_of_war: { w: 1280, h: 720, cmd: { operation: 'add', count: 4, username: '示例观众' }, ms: 700, params: { statsPanel: 'off', showNames: false } },
+  bomb_defuse: { w: 1280, h: 720, cmd: { operation: 'add', count: 1, username: '示例观众' }, ms: 700, params: { statsPanel: 'off', showName: false, timerSec: 15 } }
 }
 // 锁链每套皮肤一张（皮肤选择器和卡片主图用）：chain-<皮肤>.png；静态帧（关掉动态光效），不带解锁提示
-for (const skin of ['neon', 'candy', 'rosegold', 'laser', 'ice', 'default', 'style_1', 'style_2']) {
+for (const skin of ['neon', 'candy', 'rosegold', 'laser', 'ice']) {
   PLAN['chain-' + skin] = { game: 'chain_challenge', w: 960, h: 540, cmd: { operation: 'add', count: 8 }, ms: 900, params: { visualStyle: skin, skinMotion: false, showUnlockHint: false } }
 }
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(PLAN)

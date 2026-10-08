@@ -9,7 +9,7 @@
 import fs from 'fs'
 import path from 'path'
 import { app } from 'electron'
-import { wheelLiveDir } from './bridge'
+import { connectorHomeDir } from './bridge'
 import { readDouyinCookie } from './douyin-login'
 import { findGiftImage, invalidateGiftImageCache } from './entertainment'
 import {
@@ -42,10 +42,9 @@ interface SyncState {
 
 let running: Promise<GiftImageSyncResult> | null = null
 
-/** 当前游戏 Mod 目录下的礼物图缓存目录（与连接器 GiftImageCache 同一处） */
+/** 连接器目录下的礼物图缓存目录（与连接器 GiftImageCache 同一处；没装游戏整蛊 mod 时在客户端自己的连接器目录） */
 export function giftImageCacheDir(): string {
-  const dir = wheelLiveDir()
-  return dir ? path.join(dir, '礼物图', '抖音') : ''
+  return path.join(connectorHomeDir(), '礼物图', '抖音')
 }
 
 function statePath(): string {
@@ -92,7 +91,7 @@ function headerSafe(value: string): string {
 async function cookieHeader(): Promise<string> {
   let cookie = ''
   try {
-    cookie = await readDouyinCookie(wheelLiveDir())
+    cookie = await readDouyinCookie(connectorHomeDir())
   } catch {
     cookie = ''
   }

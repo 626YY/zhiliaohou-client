@@ -38,6 +38,8 @@ function NumberParam({ spec, value, onChange }: { spec: SpecialParamSpec; value:
   useEffect(() => setDraft(String(value)), [value])
   const min = spec.min ?? 0
   const max = spec.max ?? 100
+  // 滑杆只到常用范围（sliderMax），手填可以一直填到 max（防爆上限；「数值不设上限」的项 max 给得很大）
+  const sliderMax = Math.min(max, spec.sliderMax ?? max)
   const commit = (text: string) => {
     const n = Number(text)
     if (text.trim() === '' || !Number.isFinite(n)) return
@@ -48,9 +50,9 @@ function NumberParam({ spec, value, onChange }: { spec: SpecialParamSpec; value:
       <input
         type="range"
         min={min}
-        max={max}
+        max={sliderMax}
         step={spec.step ?? 1}
-        value={Math.min(max, Math.max(min, value))}
+        value={Math.min(sliderMax, Math.max(min, value))}
         aria-label={spec.label}
         onChange={(e) => onChange(Number(e.target.value))}
         className="h-1.5 min-w-0 flex-1 cursor-pointer accent-[var(--accent)]"

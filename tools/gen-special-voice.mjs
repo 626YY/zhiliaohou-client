@@ -42,6 +42,7 @@ const COUNTS = {
   multiply: range(2, 10),
   divide: range(2, 10),
   accelerate: range(2, 10),
+  hasten: [...range(1, 30), 35, 40, 45, 50, 60],
   tornado: [5, 10, 15, 20, 25, 30, 40, 50]
 }
 

@@ -167,6 +167,8 @@ async function setSize(w, h) {
   const bw = await app.browserWindow(page)
   await bw.evaluate((x, s) => x.setContentSize(s.w, s.h), { w, h })
   await page.waitForFunction(({ w, h }) => innerWidth === w && innerHeight === h, { w, h })
+  // 等一帧真实渲染：窗口的 resize 事件是异步派发的，派发前页面里的尺寸还是旧的（玩法按旧尺寸报坐标、点击却按新尺寸判）
+  await page.evaluate(() => new Promise((r) => window.__realRaf(() => window.__realRaf(r))))
   await step(2)
 }
 // 往假麦克风里放 count 下真实的「啪」（素材 slap.mp3，−4 dB），放的同时按实时推帧
@@ -186,8 +188,34 @@ const slaps = (count, gapMs) => page.evaluate(async ({ count, gapMs, slapUrl }) 
   await new Promise((r) => { const iv = setInterval(() => window.__frameStep(40), 40); setTimeout(() => { clearInterval(iv); r() }, ms) })
 }, { count, gapMs, slapUrl })
 
+// 在一块糊的东西上按住来回擦（之字形扫过整块，含往下流的汁）
+const wipeOne = async (h) => {
+  const [cx, cy, sz] = h
+  const pts = []
+  for (let k = 0; k <= 10; k++) pts.push([cx - sz * 0.46 + sz * 0.92 * (k % 2), cy - sz * 0.46 + sz * 1.3 * k / 10])
+  await fire([['pointerdown', pts[0][0], pts[0][1], 1], ...pts.map((p) => ['pointermove', p[0], p[1], 1]), ['pointerup', pts[10][0], pts[10][1], 0]])
+}
 // —— 每个玩法怎么玩完一轮（返回一句说明）——
 const PLAY = {
+  async tug_of_war(id) {
+    // 观众拉 2 下开局（绳结往观众那边走），主播狂点画面拽回来赢，彩带放完一局收场
+    await apply({ game: id, operation: 'add', count: 2, username: '测试' })
+    const d = await dbg(id)
+    if (!d.round || !(d.round.p < 0)) throw new Error('送礼没开局 / 没往观众那边拉：' + JSON.stringify(d.round))
+    const r = await playUntil(id, (x) => x.round && x.round.result === 'streamer', async () => { await click(W * 0.5, H * 0.3) }, 200, 1)
+    return `观众拉 2 下，主播点 ${r.rounds} 下拽回来赢`
+  },
+  async bomb_defuse(id) {
+    // 扔一颗炸弹，落稳了剪对的那根线
+    await apply({ game: id, operation: 'add', count: 1, username: '测试' })
+    const d = (await playUntil(id, (x) => x.phase === 'armed', null, 100, 2)).d
+    const right = d.wires.find((w) => w[2])
+    await click(right[0], right[1])
+    if ((await dbg(id)).phase !== 'cut') throw new Error('剪下去应先停一下再揭晓')
+    const e = (await playUntil(id, (x) => x.phase !== 'cut', null, 60, 2)).d
+    if (e.phase !== 'ok') throw new Error('剪了对的线没拆掉：' + JSON.stringify({ phase: e.phase, wires: e.wires }))
+    return `${d.wires.length} 根线剪对一根，停顿后揭晓拆弹成功`
+  },
   async chain_challenge(id) {
     await apply({ game: id, operation: 'add', count: 5, username: '测试' })
     await playUntil(id, (d) => d.phase === 'sustain', null, 80, 5)
@@ -218,14 +246,6 @@ const PLAY = {
     await apply({ game: id, operation: 'add', count: 5, username: '测试' })
     const r = await playUntil(id, (d) => d.count === 0 && d.pending === 0, async (d) => { const h = firstHit(d); if (h) await click(h[0], h[1]) })
     return `5 条毛毛虫点着抓完（${r.d.caught}）`
-  },
-  async xiaoxin_hey(id) {
-    await apply({ game: id, operation: 'add', count: 3, username: '测试' })
-    // 先不碰它，看会不会自己结束；不会再点
-    let selfEnd = false
-    for (let i = 0; i < 300; i++) { await step(5); const d = await dbg(id); if (d.count === 0 && d.pending === 0) { selfEnd = true; break } }
-    if (!selfEnd) await playUntil(id, (d) => d.count === 0 && d.pending === 0, async (d) => { const h = firstHit(d); if (h) await click(h[0], h[1]) })
-    return selfEnd ? '3 个小新自己演完退场' : '3 个小新点掉'
   },
   async fan_call(id) {
     await apply({ game: id, operation: 'show', count: 1, username: '测试' })
@@ -310,19 +330,39 @@ const PLAY = {
     await apply({ game: id, operation: 'add', count: 5, username: '测试' })
     const r = await playUntil(id, (d) => !d.roundActive && d.remaining === 0 && d.field === 0 && d.flying === 0, async (d) => { const h = firstHit(d); if (h) await click(h[0], h[1]) }, 400, 3)
     return `5 片叶子点着扫进桶（${r.d.cleared}）`
-  },
-  async music_ball(id) {
-    await apply({ game: id, operation: 'start', count: 1, username: '测试' })
-    await playUntil(id, (d) => d.state === 'playing', async () => { await realWait(200) }, 100, 2)
-    await realWait(1500)
-    // 快进到歌曲结尾，看它自己收场
-    await page.evaluate((g) => { for (const m of (window.__game(g).debug().media || [])) if (m && m.duration > 3) m.currentTime = m.duration - 1.5 }, id)
-    const r = await playUntil(id, (d) => d.state !== 'playing' && d.state !== 'loading', async () => { await realWait(250) }, 120, 2)
-    return `音乐球放到结尾自己收场（${r.d.state}）`
   }
 }
 // —— 专项场景：两轮正常玩完以后再跑，最后同样要画面全空、停帧、不响、设备释放 ——
 const EXTRA = {
+  async tug_of_war(id) {
+    // 观众一口气拉满：主播挨砸（奶油 / 鸡蛋 / 番茄），按住鼠标来回擦，擦干净才算玩完
+    await apply({ game: id, operation: 'add', count: 20, username: '测试' })
+    const d = (await playUntil(id, (x) => x.splats >= 3 && x.flying === 0, null, 200, 3)).d
+    if (d.round && d.round.result !== 'viewers') throw new Error('观众拉满了没判观众赢：' + JSON.stringify(d.round))
+    const r = await playUntil(id, (x) => x.splats === 0 && x.flying === 0, async (x) => { const h = (x.hits || [])[0]; if (h) await wipeOne(h) }, 200, 2)
+    return `观众拉满，砸了 ${d.splats} 片，来回擦 ${r.rounds} 下擦干净`
+  },
+  async bomb_defuse(id) {
+    // 剪错一根 → 倒计时加速；观众送礼减时 → 爆炸；满屏黑灰按住来回擦干净
+    await apply({ game: id, operation: 'add', count: 1, username: '测试' })
+    let d = (await playUntil(id, (x) => x.phase === 'armed', null, 100, 2)).d
+    // 剪一根错线，按它暗藏的效果检查：加速线变快、哑线没事、雷管线当场炸、扣时线少几秒
+    const wrong = d.wires.find((w) => !w[2])
+    const before = d
+    await click(wrong[0], wrong[1])
+    d = (await playUntil(id, (x) => x.phase !== 'cut', null, 60, 2)).d
+    const role = wrong[4]
+    if (role === 'speed' && !(d.rate > 1.5 && d.phase === 'armed')) throw new Error('加速线没加速：' + JSON.stringify({ rate: d.rate, phase: d.phase }))
+    if (role === 'dud' && !(d.rate === 1 && d.phase === 'armed')) throw new Error('哑线不该有事：' + JSON.stringify({ rate: d.rate, phase: d.phase }))
+    if (role === 'boom' && !(d.exploded >= 1)) throw new Error('雷管线没炸：' + JSON.stringify({ phase: d.phase }))
+    if (role === 'minus' && !(d.left < before.left - 2000)) throw new Error('扣时线没扣时：' + JSON.stringify([before.left, d.left]))
+    const rate = `${role}→${d.phase}`
+    if (role !== 'boom') await apply({ game: id, operation: 'hasten', count: 60, username: '测试' })
+    d = (await playUntil(id, (x) => x.exploded >= 1 && x.splats >= 1, null, 200, 2)).d
+    const n = d.splats
+    const r = await playUntil(id, (x) => x.splats === 0 && x.phase === '', async (x) => { const h = (x.hits || [])[0]; if (h) await wipeOne(h) }, 300, 2)
+    return `剪一根错线（${rate}），引爆后 ${n} 块黑灰来回擦 ${r.rounds} 下擦干净`
+  },
   async catch_duck(id) {
     // 场上留一只不抓，每半秒来一份礼物：排队的也得在 1.2 秒一批的节奏里落下来（以前一直不落）
     await apply({ game: id, operation: 'add', count: 1, username: '测试' })
@@ -363,20 +403,6 @@ const EXTRA = {
     if (x.alive !== 0) throw new Error('拍手声控拍了 8 下还没打完：' + JSON.stringify({ alive: x.alive, hp: x.hpNow }))
     await config({ controlMode: 'mouse' }, id)
     return '拍手声控：对麦克风拍完 2 只'
-  },
-  async music_ball(id) {
-    // 播放中又点歌：排队，这首放完接着放，放完再收场（以前每次从头重放，礼物一密一首歌永远放不完）
-    await apply({ game: id, operation: 'start', count: 1, username: '测试' })
-    await playUntil(id, (d) => d.state === 'playing', async () => { await realWait(200) }, 100, 2)
-    await apply({ game: id, operation: 'start', count: 1, username: '测试二' })
-    const d = await dbg(id)
-    if (d.encore !== 1 || d.state !== 'playing') throw new Error('播放中又点歌没排队：' + JSON.stringify({ s: d.state, e: d.encore }))
-    const ff = () => page.evaluate((g) => { for (const m of (window.__game(g).debug().media || [])) if (m && m.duration > 3) m.currentTime = m.duration - 1.5 }, id)
-    await realWait(800); await ff()
-    await playUntil(id, (x) => x.encore === 0 && x.state === 'playing', async () => { await realWait(250) }, 160, 2)
-    await realWait(800); await ff()
-    await playUntil(id, (x) => x.state === 'idle', async () => { await realWait(250) }, 160, 2)
-    return '播放中又点一首：排队，第一首放完接着放第二首，放完收场'
   },
   async talisman_seal(id) {
     // 麦克风打不开：提示可以点画面，点一下破一点，点完碎裂收场

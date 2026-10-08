@@ -143,7 +143,7 @@ while (Date.now() < end && !crashed) {
         if (p.type === 'number' || p.type === 'toggle' || p.type === 'select') { await page.evaluate(({ id, k, v }) => window.__config({ [k]: v }, id), { id: meta.id, k: p.key, v }); counts.config++; (changed[meta.id] = changed[meta.id] || {})[p.key] = v }
       }
     } else if (r < 0.88) {
-      await page.evaluate(() => { if (window.__revealClear) window.__revealClear(); window.__applyMany(window.__loaded().map((g) => ({ game: g, operation: g === 'music_ball' ? 'stop' : 'clear', count: 1, wipe: true })), '', ''); if (window.__wipe) window.__wipe() })
+      await page.evaluate(() => { if (window.__revealClear) window.__revealClear(); window.__applyMany(window.__loaded().map((g) => ({ game: g, operation: 'clear', count: 1, wipe: true })), '', ''); if (window.__wipe) window.__wipe() })
       counts.wipe++
     } else if (r < 0.885) {
       ;[W, H] = [H, W]
@@ -167,7 +167,7 @@ if (crashed) fail('页面崩溃了')
 const pinned = Object.entries(changed).filter(([, c]) => c.statsPanel === 'always' || c.binShow === 'always').map(([id, c]) => `${id}（${Object.entries(c).filter(([k, v]) => v === 'always').map(([k]) => k).join('、')} = 一直显示）`)
 if (pinned.length) console.log('长跑里被随机改成「一直显示」的：' + pinned.join('；'))
 for (const meta of SPECIAL_GAMES) if (changed[meta.id]) await page.evaluate(({ id, cfg }) => window.__config(cfg, id), { id: meta.id, cfg: defaultSpecialConfig(meta).params })
-await page.evaluate(() => { if (window.__revealClear) window.__revealClear(); window.__applyMany(window.__loaded().map((g) => ({ game: g, operation: g === 'music_ball' ? 'stop' : 'clear', count: 1, wipe: true })), '', ''); if (window.__wipe) window.__wipe() })
+await page.evaluate(() => { if (window.__revealClear) window.__revealClear(); window.__applyMany(window.__loaded().map((g) => ({ game: g, operation: 'clear', count: 1, wipe: true })), '', ''); if (window.__wipe) window.__wipe() })
 await page.waitForTimeout(3000)
 await gc()
 await page.waitForTimeout(1000)

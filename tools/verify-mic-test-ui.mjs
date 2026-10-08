@@ -1,5 +1,5 @@
 // 特色整蛊详情页「麦克风测试」端到端：隐藏启动真实构建的客户端（独立 userData，不碰正式配置，不抢前台、静音），
-// 用 Chromium 的假麦克风循环播放一段真实的「啪」（素材 xiaoxin_slap.wav，峰值 −4 dB，垫着 −55 dB 底噪），
+// 用 Chromium 的假麦克风循环播放一段真实的「啪」（素材 caterpillar/slap.wav，峰值 −4 dB，垫着 −55 dB 底噪），
 //   1. 声控拍蚊子详情页：「开始测试」后音量条在动、认出拍手（带一次灭几只）；「停止测试」后测试页关掉
 //   2. 符咒封印详情页：听的是喊声，音量条在动；拍手的音量够不着默认阈值 240，不算喊
 //   3. 手势拍蚊子默认是鼠标挥拍，不显示麦克风测试
@@ -22,7 +22,7 @@ const userDataDir = await fs.mkdtemp(path.join(output, 'userdata-'))
 // 路径用纯英文（中文路径会让 Chromium 的假设备静默失败）
 const SR = 48000
 async function slapTrack() {
-  const buf = await fs.readFile(path.join(root, 'assets/special-games/xiaoxin/xiaoxin_slap.wav'))
+  const buf = await fs.readFile(path.join(root, 'assets/special-games/caterpillar/slap.wav'))
   let off = 12, fmt = null, data = null
   while (off + 8 <= buf.length) {
     const id = buf.toString('ascii', off, off + 4), size = buf.readUInt32LE(off + 4)

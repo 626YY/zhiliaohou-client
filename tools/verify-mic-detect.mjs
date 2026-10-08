@@ -1,6 +1,6 @@
 // 麦克风玩法的检测回归：把各种声音按不同音量喂给真的检测代码（shared.ts 的 ZL.startClap / ZL.startShout，
 // 数每一档认出几次。
-//   声音：合成掌声、两段真实的「啪」（拍蚊子 / 小新巴掌素材）、短元音（像说一个字）、长元音（像喊）、
+//   声音：合成掌声、两段真实的「啪」（拍蚊子 / 毛毛虫拖鞋拍打素材）、短元音（像说一个字）、长元音（像喊）、
 //         键盘咔哒、蚊子嗡嗡（玩法自己的声音从音箱漏进麦克风）
 //   音量：峰值 −30 / −24 / −20 / −15 / −10 / −6 / −3 dBFS，每档 3 次，底下一直垫着 −55 dB 的房间底噪
 //   检测：同一路声音同时跑四套——拍手默认阈值 180 / 调低到 110，喊叫默认阈值 240 / 调低到 160
@@ -78,7 +78,7 @@ const GAP = 1.3
 const KINDS = [
   { id: 'clap', name: '合成掌声' },
   { id: 'slap1', name: '真实「啪」·拍蚊子', src: asset('big_mosquito/slap.mp3') },
-  { id: 'slap2', name: '真实「啪」·小新巴掌', src: asset('xiaoxin/xiaoxin_slap.wav') },
+  { id: 'slap2', name: '真实「啪」·拖鞋拍打', src: asset('caterpillar/slap.wav') },
   { id: 'word', name: '说一个字（短元音）' },
   { id: 'shout', name: '喊（长元音 0.7 秒）' },
   { id: 'click', name: '键盘咔哒' },

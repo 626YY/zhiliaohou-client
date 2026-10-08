@@ -9,7 +9,7 @@ import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { readJson, writeJson } from './db'
-import { wheelLiveDir } from './bridge'
+import { connectorHomeDir } from './bridge'
 import type { ConnectorEvent, ViewerListResult, ViewerRow } from '@shared/types'
 
 const STORE = 'viewers'
@@ -78,7 +78,7 @@ export function probeCachedAvatar(name: string): string {
   const hit = probeCache.get(key)
   if (hit && now - hit.at < PROBE_TTL_MS) return hit.path
   let found = ''
-  const dir = wheelLiveDir()
+  const dir = connectorHomeDir()
   if (dir) {
     const base = crypto.createHash('md5').update(key, 'utf8').digest('hex').slice(0, 16)
     for (const ext of AVATAR_EXTS) {

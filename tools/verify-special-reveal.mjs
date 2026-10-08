@@ -186,12 +186,12 @@ try {
   assert.equal((await state()).current, null)
   ok('全部清屏：排着的开奖丢掉')
   await page.evaluate(() => window.__revealConfig({ maxQueue: 20 }))
-  const more = [item('xiaoxin_hey|add|2', 'xiaoxin_hey', 'add', 2), item('leaf_pickup|add|10', 'leaf_pickup', 'add', 10), item('gesture_fly|add|3', 'gesture_fly', 'add', 3)]
+  const more = [item('bomb_defuse|add|1', 'bomb_defuse', 'add', 1), item('leaf_pickup|add|10', 'leaf_pickup', 'add', 10), item('gesture_fly|add|3', 'gesture_fly', 'add', 3)]
   await page.evaluate(([items]) => window.__reveal(items, [], '', ''), [more])
   await sleep(50)
   await page.evaluate(() => window.__revealConfig({ enabled: false }))
   const l5 = await loaded()
-  assert.ok(['xiaoxin_hey', 'leaf_pickup', 'gesture_fly'].every((id) => l5.includes(id)), `关掉开奖画面时排着的应立刻生效：${l5}`)
+  assert.ok(['bomb_defuse', 'leaf_pickup', 'gesture_fly'].every((id) => l5.includes(id)), `关掉开奖画面时排着的应立刻生效：${l5}`)
   assert.equal((await state()).pending, 0)
   ok('关掉开奖画面：排着的 3 条立刻生效，一份不丢')
   await page.evaluate(() => window.__revealConfig({ enabled: true }))

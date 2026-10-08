@@ -2,17 +2,15 @@
 // 窗口中央一副 X 形交叉锁链 + 计数牌；礼物加环数（上锁音 + 抖动），主播点击/空格逐点挣脱；
 // 归零后锁链切两半坠落飞散。
 // 操作：add 加环 / reduce 直接扣环 / multiply、divide 按倍数改剩余（只在锁链挂着时生效，没锁链时忽略）/ clear 直接断开。
-// 皮肤（cfg.visualStyle）：
-//   现代款（全部 Canvas 程序化绘制，不用图片）：neon 霓虹（默认）/ candy 甜心 / rosegold 玫瑰金 / laser 赛博光束 / ice 冰晶。
-//     每套是一整套视觉：链本体 + X 中心的锁 + 计数牌 + 解锁提示 + 点击冲击 + 断裂坠落；cfg.skinMotion 开关呼吸/闪烁/电流/闪光小动画。
-//   经典款（素材图，行为与旧版一致）：default = 金色整图，style_1 / style_2 = 链节平铺（青/紫冲击光）。
+// 皮肤（cfg.visualStyle，全部 Canvas 程序化绘制，不用图片）：neon 霓虹（默认）/ candy 甜心 / rosegold 玫瑰金 / laser 赛博光束 / ice 冰晶。
+//   每套是一整套视觉：链本体 + X 中心的锁 + 计数牌 + 解锁提示 + 点击冲击 + 断裂坠落；cfg.skinMotion 开关呼吸/闪烁/电流/闪光小动画。
+//   以前的三款素材皮肤（经典金属 / 经典青蓝 / 经典紫）已下线，设置里还存着它们的按霓虹画。
 // 现代款性能：整副 X 锁链（含发光）按「皮肤 + 窗口尺寸 + 粗细 + 像素密度 + 底色」烘焙成离屏 canvas，锁 / 粒子贴图同样预烘焙，
 //   计数牌按数字缓存；每帧只 drawImage + 少量叠加动画，断裂也用缓存切两半。skinMotion 关掉时完全静态（常态无冲击时 tick 返回 false 停 rAF）。
 //   烘焙在 CPU 画布上画完再整张交出去（显卡 / 兼容 / 平衡三种渲染模式都稳定在几十毫秒），光晕和投影每层只整体模糊一次；断完空闲一分钟释放缓存。
 // 绿幕安全：配色全部避开绿色系（色相 90°~160°，青色往天蓝偏），光晕收紧、主体边缘实、卡片实心（半透明大光晕叠在 #00FF00 上抠完发绿发脏）；
 //   透明底（OBS 直接叠）时光晕放柔、玻璃卡半透明。
-// 素材（经典款）：chain/chain_effect_cross.png、chain_counter_frame.png、chain_style_1_tile.png、chain_style_2_tile.png；
-//      音效（全部皮肤共用）：chain_lock.ogg（上锁）、chain_tap.ogg（点击）、chain_impact.ogg（断裂）。
+// 音效（全部皮肤共用）：chain/chain_lock.ogg（上锁）、chain_tap.ogg（点击）、chain_impact.ogg（断裂）。
 // ★禁止在本字符串里使用反引号或 ${…}（主进程按模板串注入）。
 import { SHARED_JS } from './shared'
 
@@ -22,7 +20,6 @@ window.registerGame((function(){
   var api=null;
   var OPS=['add','reduce','multiply','divide','clear'];
   var MAXN=999999999;      // 防爆夹紧：剩余环数上限
-  var crossImg=null, counterImg=null, tileImgs={};
   var remaining=0;
   var phase='idle';        // idle / locking / sustain / unlocking
   var phaseT=0;            // 当前阶段已进行 ms
@@ -38,8 +35,8 @@ window.registerGame((function(){
   var SK={};               // 现代款皮肤表（下面逐套定义）
   var releaseTimer=0;      // 现代款：空闲一阵后放掉缓存
 
-  var LOCK_MS=400, UNLOCK_MS=400, SHAKE_MS=140;
-  var MODERN_UNLOCK_MS=560;  // 现代款断裂稍长一点（两半坠落 + 锁弹开 + 迸散都看得清）
+  var LOCK_MS=400, SHAKE_MS=140;
+  var UNLOCK_MS=560;       // 断裂：两半坠落 + 锁弹开 + 迸散都看得清
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
   function decrement(){ return Math.max(1,Math.trunc(num(api.cfg.decrementPerClick,1))); }
@@ -47,15 +44,9 @@ window.registerGame((function(){
   function opacity(){ return Math.max(10,Math.min(100,num(api.cfg.opacity,100)))/100; }
   function unlockMode(){ return String(api.cfg.unlockMode||'mouse'); }
   function style(){ return String(api.cfg.visualStyle||'neon'); }
-  // 现代款返回皮肤 id；经典款（default / style_1 / style_2）返回 ''；不认识的值按默认霓虹
-  function modern(){ var s=style(); if(s==='default'||s==='style_1'||s==='style_2') return ''; return SK[s]?s:'neon'; }
-  function unlockMs(){ return modern()?MODERN_UNLOCK_MS:UNLOCK_MS; }
-  function impactColor(){
-    var s=style();
-    if(s==='style_1') return '82,224,255';
-    if(s==='style_2') return '199,77,255';
-    return '255,171,54';
-  }
+  // 当前皮肤 id；不认识的值（包括已下线的三款素材皮肤）按默认霓虹
+  function modern(){ var s=style(); return SK[s]?s:'neon'; }
+  function unlockMs(){ return UNLOCK_MS; }
   // 锁链挂着（出现中 / 常态）才能扣减、乘除
   function locked(){ return phase==='locking'||phase==='sustain'; }
 
@@ -87,136 +78,6 @@ window.registerGame((function(){
     if(phase!=='sustain') return;
     remaining=Math.max(0, remaining-decrement());
     afterHit();
-  }
-
-  // —— 经典款绘制 ——
-  function drawCrossDefault(ctx,alpha){
-    var g=geom();
-    var im=crossImg;
-    if(ZL.imgOk(im)){
-      ctx.save();
-      ctx.globalAlpha*=alpha;
-      // 整图按窗口铺（素材 16:9），居中裁切
-      var s=Math.max(api.W/im.naturalWidth, api.H/im.naturalHeight)*thickness()/0.6;
-      var dw=im.naturalWidth*s, dh=im.naturalHeight*s;
-      ctx.drawImage(im, g.cx-dw/2, g.cy-dh/2, dw, dh);
-      ctx.restore();
-    }else{
-      drawCrossTiles(ctx, tileImgs['style_1'], alpha);
-    }
-  }
-
-  // 链节平铺（style_1/style_2）：两条对角线上一节节链环
-  function drawCrossTiles(ctx,tile,alpha){
-    var g=geom();
-    ctx.save();
-    ctx.globalAlpha*=alpha;
-    var tileH=72*thickness();    // 链节显示高度
-    for(var si=0;si<g.strands.length;si++){
-      var a=g.strands[si][0], b=g.strands[si][1];
-      var dx=b[0]-a[0], dy=b[1]-a[1];
-      var len=Math.sqrt(dx*dx+dy*dy);
-      var ang=Math.atan2(dy,dx);
-      var step=tileH*1.35;
-      for(var d=step/2;d<len;d+=step){
-        var px=a[0]+dx*d/len, py=a[1]+dy*d/len;
-        ctx.save();
-        ctx.translate(px,py); ctx.rotate(ang);
-        if(ZL.imgOk(tile)){
-          var ar=tile.naturalWidth/tile.naturalHeight;
-          ctx.drawImage(tile, -tileH*ar/2, -tileH/2, tileH*ar, tileH);
-        }else{
-          ctx.strokeStyle='#9aa3b1'; ctx.lineWidth=tileH*0.24; ctx.lineCap='round';
-          ctx.beginPath(); ctx.moveTo(-tileH*0.6,0); ctx.lineTo(tileH*0.6,0); ctx.stroke();
-        }
-        ctx.restore();
-      }
-    }
-    ctx.restore();
-  }
-
-  function drawHalves(ctx,p){
-    // 断裂：左右两半坠落分离（fade 68% 后、fall=h*1.18*p²、spread=w*0.07*p、旋转∓14°）
-    var g=geom();
-    var fade=1-Math.max(0,(p-0.68)/0.32);
-    var fall=api.H*1.18*p*p, spread=api.W*0.07*p;
-    for(var side=0;side<2;side++){
-      ctx.save();
-      ctx.globalAlpha*=Math.max(0,fade);
-      ctx.translate(g.cx+(side?spread:-spread), g.cy+fall);
-      ctx.rotate((side?1:-1)*14*p*Math.PI/180);
-      // 用裁剪画半边
-      ctx.beginPath();
-      ctx.rect(side?0:-g.hw*2.2, -g.hh*2.2, g.hw*2.2, g.hh*4.4);
-      ctx.clip();
-      ctx.translate(-g.cx,-g.cy);
-      if(style()==='default'&&ZL.imgOk(crossImg)) drawCrossDefault(ctx,1);
-      else drawCrossTiles(ctx, tileImgs[style()==='style_2'?'style_2':'style_1']||tileImgs['style_1'], 1);
-      ctx.restore();
-    }
-  }
-
-  function drawCounter(ctx){
-    if(remaining<=0) return;
-    var W=api.W,H=api.H;
-    var baseW=Math.max(190,Math.min(520,W*0.31));
-    var im=counterImg;
-    var ar=ZL.imgOk(im)? im.naturalWidth/im.naturalHeight : 3.25;
-    var bw=baseW, bh=bw/ar;
-    var cx=W/2, cy=H*0.68;
-    ctx.save();
-    if(ZL.imgOk(im)) ctx.drawImage(im, cx-bw/2, cy-bh/2, bw, bh);
-    else { ZL.roundRect(ctx,cx-bw/2,cy-bh/2,bw,bh,bh/2); ctx.fillStyle='rgba(20,22,28,0.78)'; ctx.fill(); }
-    var label=String(remaining);
-    var fs=Math.max(18,bh*0.36);
-    ctx.font='700 '+fs+'px "Microsoft YaHei",sans-serif';
-    while(ctx.measureText(label).width>bw*0.6 && fs>12){ fs-=1; ctx.font='700 '+fs+'px "Microsoft YaHei",sans-serif'; }
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,fs*0.14); ctx.strokeStyle='rgba(0,0,0,0.6)';
-    ctx.strokeText(label,cx,cy);
-    ctx.fillStyle='#ffd34d';
-    ctx.fillText(label,cx,cy);
-    ctx.restore();
-    // 解锁提示（计数牌上方）
-    if(String(api.cfg.showUnlockHint)!=='false' && api.cfg.showUnlockHint!==false){
-      var mode=unlockMode();
-      var hint=mode==='space'?'按空格键解锁':(mode==='both'?'点击绿幕或按空格键解锁':'点击绿幕解锁');
-      var hf=Math.max(13,Math.min(23,bh*0.26));
-      ctx.save();
-      ctx.font='700 '+hf+'px "Microsoft YaHei",sans-serif';
-      ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,hf*0.16); ctx.strokeStyle='rgba(0,0,0,0.6)';
-      var hy=cy-bh/2-Math.max(8,H*0.012)-hf/2;
-      ctx.strokeText(hint,cx,hy);
-      ctx.fillStyle='#f4f6fb';
-      ctx.fillText(hint,cx,hy);
-      ctx.restore();
-    }
-  }
-
-  function drawImpact(ctx){
-    if(impact<=0.02) return;
-    var g=geom();
-    var size=Math.min(api.W,api.H);
-    var r=size*(0.08+impact*0.07)*2.2;
-    var grad=ctx.createRadialGradient(g.cx,g.cy,0,g.cx,g.cy,r);
-    grad.addColorStop(0,'rgba('+impactColor()+','+(0.65*impact)+')');
-    grad.addColorStop(1,'rgba('+impactColor()+',0)');
-    ctx.save();
-    ctx.fillStyle=grad;
-    ctx.beginPath(); ctx.arc(g.cx,g.cy,r,0,6.2832); ctx.fill();
-    // 十道火花
-    ctx.strokeStyle='rgba('+impactColor()+','+(0.9*impact)+')';
-    ctx.lineWidth=Math.max(1.5,size*0.006); ctx.lineCap='round';
-    for(var i=0;i<10;i++){
-      var a=i/10*6.2832+nowMs*0.002;
-      var r0=r*0.35, r1=r*(0.75+0.2*Math.sin(i*3.7));
-      ctx.beginPath();
-      ctx.moveTo(g.cx+Math.cos(a)*r0, g.cy+Math.sin(a)*r0);
-      ctx.lineTo(g.cx+Math.cos(a)*r1, g.cy+Math.sin(a)*r1);
-      ctx.stroke();
-    }
-    ctx.restore();
   }
 
   // ================= 现代款：公共小工具 =================
@@ -1240,15 +1101,11 @@ window.registerGame((function(){
   return {
     init:function(a){
       api=a; ZL.bind(a);
-      crossImg=ZL.img('chain/chain_effect_cross.png');
-      counterImg=ZL.img('chain/chain_counter_frame.png');
-      tileImgs['style_1']=ZL.img('chain/chain_style_1_tile.png');
-      tileImgs['style_2']=ZL.img('chain/chain_style_2_tile.png');
       hookKeys();
     },
     resize:function(){},
-    // 换成经典款时放掉现代款缓存（换皮肤 / 尺寸等由缓存键自己发现，下一帧重烤）
-    config:function(){ if(!modern()){ C=null; CC=null; } },
+    // 换皮肤 / 尺寸等由缓存键自己发现，下一帧重烤
+    config:function(){},
     apply:function(cmd){
       var op=ZL.op(cmd,OPS);
       var name=ZL.who(cmd);
@@ -1332,37 +1189,9 @@ window.registerGame((function(){
       // 常态：只有抖动/冲击光/按住空格时刷帧，其余时间停 rAF 等点击
       return phase==='sustain' && (shakeT>0||impact>0||spaceHeld);
     },
-    draw:function(ctx){
-      var md=modern();
-      if(md){ drawModern(ctx,md); return; }
-      if(phase==='idle') return;
-      if(phase!=='unlocking' && remaining<=0) return;
-      var g=geom();
-      var shakeX=0,shakeY=0;
-      if(shakeT>0){
-        var sp=shakeT/SHAKE_MS;
-        shakeX=Math.sin(nowMs*0.09)*8*sp; shakeY=Math.cos(nowMs*0.13)*5*sp;
-      }
-      ctx.save();
-      ctx.globalAlpha*=opacity();
-      ctx.translate(shakeX,shakeY);
-      if(phase==='unlocking'){
-        drawHalves(ctx, Math.min(1,phaseT/UNLOCK_MS));
-      }else{
-        var scaleIn=1;
-        if(phase==='locking') scaleIn=ZL.easeOutBack(phaseT/LOCK_MS);
-        ctx.save();
-        ctx.translate(g.cx,g.cy); ctx.scale(Math.max(0.01,scaleIn),Math.max(0.01,scaleIn)); ctx.translate(-g.cx,-g.cy);
-        if(style()==='default'&&ZL.imgOk(crossImg)) drawCrossDefault(ctx,1);
-        else drawCrossTiles(ctx, tileImgs[style()==='style_2'?'style_2':'style_1'], 1);
-        ctx.restore();
-        drawCounter(ctx);
-      }
-      drawImpact(ctx);
-      ctx.restore();
-    },
+    draw:function(ctx){ drawModern(ctx,modern()); },
     // 只读调试钩子（离线验收用，生产不调用）
-    debug:function(){ return { phase:phase, remaining:remaining, skin:modern()||style(), fx:fx.length, motion:skinMotion(), bakeMs:C?C.bakeMs:0 }; }
+    debug:function(){ return { phase:phase, remaining:remaining, skin:modern(), fx:fx.length, motion:skinMotion(), bakeMs:C?C.bakeMs:0 }; }
   };
 })());
 `

@@ -34,14 +34,14 @@ export {GAME_CODE} from './src/main/special-games';`,
 const { SPECIAL_GAMES, SPECIAL_GAME_MAP, SPECIAL_LAYER_ORDER, DEFAULT_SPECIAL_WINDOW, defaultSpecialConfig, buildSpecialPage, buildSpecialWindowPage, GAME_CODE } = createRequire(import.meta.url)(bundle)
 
 const W = 1280, H = 720
-// 一直在动的玩法（飞来飞去 / 爬来爬去 / 循环动画 / 音乐球），用来压满渲染
+// 一直在动的玩法（飞来飞去 / 爬来爬去 / 循环动画 / 拔河倒计时 / 炸弹倒计时），用来压满渲染
 const BUSY = [
   { game: 'gesture_fly', operation: 'add', count: 40 },
   { game: 'caterpillar', operation: 'add', count: 12 },
-  { game: 'music_ball', operation: 'start', count: 1 },
+  { game: 'tug_of_war', operation: 'add', count: 1 },
   { game: 'chain_challenge', operation: 'add', count: 6 },
   { game: 'big_mosquito', operation: 'add', count: 30 },
-  { game: 'xiaoxin_hey', operation: 'add', count: 6 }
+  { game: 'bomb_defuse', operation: 'add', count: 3 }
 ]
 const SCENARIOS = [3, 6]
 

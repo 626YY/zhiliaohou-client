@@ -220,6 +220,68 @@ try {
   if (idle < 0) problems.push('没停帧')
   if (problems.length) bad(`17 个一起后整窗清屏：${problems.join('；')}`)
   else ok(`17 个一起后整窗清屏：${(await residue()).length} 层画布全空、设备全释放、乱点乱拖不画东西，${idle} 帧停帧`)
+
+  // ---- C. 新玩法最难收的时刻清屏：刚炸（闪白、烟、满屏黑灰、爆炸长音）/ 剪线停顿（心跳）/ 后面还排着炸弹 /
+  //         拔河观众赢了蛋糕正在飞、已经糊了几块 / 主播赢了满天彩带 ----
+  const dbgOf = (id) => page.evaluate((g) => JSON.parse(JSON.stringify(window.__game(g).debug())), id)
+  const MOMENTS = [
+    ['炸弹刚炸（闪白、烟、黑灰、爆炸声）', async () => {
+      await page.evaluate(() => window.__apply({ game: 'bomb_defuse', operation: 'add', count: 3, username: '测试' }))
+      await step(25)
+      await page.evaluate(() => window.__apply({ game: 'bomb_defuse', operation: 'hasten', count: 99, username: '测试' }))
+      await step(4)
+      const d = await dbgOf('bomb_defuse')
+      return d.exploded === 1 && d.splats > 0 && d.queue === 2
+    }],
+    ['剪线停顿中（心跳、问号）', async () => {
+      await page.evaluate(() => window.__apply({ game: 'bomb_defuse', operation: 'add', count: 1, username: '测试' }))
+      await step(25)
+      const d = await dbgOf('bomb_defuse')
+      const w = d.wires.find((x) => !x[2])
+      await page.evaluate(({ x, y }) => { const hit = document.getElementById('hit'); for (const [t, b] of [['pointerdown', 1], ['pointerup', 0]]) hit.dispatchEvent(new PointerEvent(t, { clientX: x, clientY: y, pointerId: 3, bubbles: true, cancelable: true, isPrimary: true, button: 0, buttons: b, pointerType: 'mouse' })) }, { x: w[0], y: w[1] })
+      await step(4)
+      return (await dbgOf('bomb_defuse')).phase === 'cut'
+    }],
+    ['拔河观众赢了：蛋糕在飞、已经糊了几块', async () => {
+      await page.evaluate(() => window.__apply({ game: 'tug_of_war', operation: 'add', count: 20, username: '测试' }))
+      await step(32)
+      const d = await dbgOf('tug_of_war')
+      return d.round && d.round.result === 'viewers' && d.flying > 0 && d.splats > 0
+    }],
+    ['拔河主播赢了：满天彩带', async () => {
+      await page.evaluate(() => window.__config({ clickPull: 20 }, 'tug_of_war'))
+      await page.evaluate(() => window.__apply({ game: 'tug_of_war', operation: 'add', count: 1, username: '测试' }))
+      await step(2)
+      for (let i = 0; i < 6; i++) await page.evaluate(() => { const hit = document.getElementById('hit'); for (const [t, b] of [['pointerdown', 1], ['pointerup', 0]]) hit.dispatchEvent(new PointerEvent(t, { clientX: 300, clientY: 200, pointerId: 4, bubbles: true, cancelable: true, isPrimary: true, button: 0, buttons: b, pointerType: 'mouse' })) })
+      await step(6)
+      const d = await dbgOf('tug_of_war')
+      return d.round && d.round.result === 'streamer' && d.paper > 0
+    }]
+  ]
+  for (const [name, setup] of MOMENTS) {
+    await fresh()
+    const ready = await setup()
+    if (!ready) { bad(`${name}：没摆出这个时刻`); continue }
+    await clearAll()
+    const idle = await untilIdle()
+    await step(3)
+    const left = (await residue()).filter((r) => r.n > 0)
+    await page.evaluate(() => new Promise((r) => setTimeout(r, 1200)))
+    const snd = await sounding()
+    await step(150)   // 排着的炸弹 / 下一局不该冒出来
+    const later = (await residue()).filter((r) => r.n > 0)
+    await pointerStorm()
+    await step(8)
+    const after = (await residue()).filter((r) => r.n > 0)
+    const problems = []
+    if (left.length) problems.push(`清屏后还剩 ${left.map((r) => `${r.id}${r.hud ? '·面板' : ''} ${r.n}点`).join('；')}`)
+    if (snd.length) problems.push(`还在响 ${snd.join('、')}`)
+    if (later.length) problems.push(`过一会儿又冒出 ${later.map((r) => `${r.id} ${r.n}点`).join('；')}`)
+    if (after.length) problems.push(`乱点乱拖又画出 ${after.map((r) => `${r.id} ${r.n}点`).join('；')}`)
+    if (idle < 0) problems.push('没停帧')
+    if (problems.length) { await shot('C-' + name.slice(0, 6)); bad(`${name} 时清屏：${problems.join('；')}`) }
+    else ok(`${name} 时清屏：画面全空、声音停了、排着的不再冒出来、乱点乱拖不画东西，${idle} 帧停帧`)
+  }
 } catch (e) {
   bad(String(e && e.stack || e))
 } finally {

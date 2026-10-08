@@ -7,12 +7,13 @@ import { ruleActions } from '@shared/entertainmentActions'
 // 第一张是主图（居中大图），后面的是点缀（左下、右下各一张小图，拼出「一屏都是」的感觉）
 const ART: Record<SpecialGameId, string[]> = {
   chain_challenge: ['_thumbs/chain-neon.png'],
+  tug_of_war: ['_thumbs/tug_of_war.png', 'tug_of_war/cake.png', 'tug_of_war/tomato.png'],
+  bomb_defuse: ['_thumbs/bomb_defuse.png'],
   catch_duck: ['duck/duck_angle_1.png', 'duck/duck_angle_3.png', 'duck/duck_angle_5.png'],
   throw_poop: ['throw_poop/default.png'],
   throw_trash: ['throw_trash/burger.png', 'throw_trash/cola_plastic.png', 'throw_trash/old_shoe.png'],
   catch_bullet: ['catch_bullet/catch_bullet_default.png'],
   caterpillar: ['_thumbs/caterpillar.png'],
-  xiaoxin_hey: ['xiaoxin/frames/f015.png'],
   fan_call: ['_thumbs/fan_call.png'],
   fan_video_call: ['_thumbs/fan_video_call.png'],
   talisman_seal: ['talisman_break/talisman_ivory.png', 'talisman_break/talisman_rose.png'],
@@ -21,8 +22,7 @@ const ART: Record<SpecialGameId, string[]> = {
   gesture_fly: ['gesture_fly/fly.png', 'gesture_fly/fly_crawl_1.png'],
   fruit_slice: ['fruit_slice/watermelon.png', 'fruit_slice/banana.png', 'fruit_slice/strawberry.png'],
   coin_bump: ['coin_bump/brick.png', 'coin_bump/coin.png'],
-  leaf_pickup: ['leaf_pickup/leaf_sprite_03.png', 'leaf_pickup/leaf_sprite_06.png', 'leaf_pickup/leaf_sprite_01.png'],
-  music_ball: ['_thumbs/music_ball.png']
+  leaf_pickup: ['leaf_pickup/leaf_sprite_03.png', 'leaf_pickup/leaf_sprite_06.png', 'leaf_pickup/leaf_sprite_01.png']
 }
 
 /** 卡片美术 URL（主图在前）；素材目录不在（开发机没拷素材）时返回空数组，卡片退回 emoji。 */

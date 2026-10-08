@@ -165,9 +165,10 @@ try {
   await page.getByRole('radiogroup', { name: '锁链皮肤' }).scrollIntoViewIfNeeded()
   await page.waitForTimeout(600)
   const skinImgs = await api(() => [...document.querySelectorAll('[role="radiogroup"][aria-label="锁链皮肤"] img')].map((i) => i.naturalWidth))
-  assert.equal(skinImgs.filter((w) => w > 0).length, 8, `皮肤缩略图应 8 张都加载：${JSON.stringify(skinImgs)}`)
+  assert.equal(skinImgs.length, 5, `锁链皮肤应是 5 套（原版素材皮肤已下线）：${JSON.stringify(skinImgs)}`)
+  assert.equal(skinImgs.filter((w) => w > 0).length, 5, `皮肤缩略图应 5 张都加载：${JSON.stringify(skinImgs)}`)
   await capture('02b-chain-skins')
-  ok('锁链皮肤选择器 8 张缩略图全部加载')
+  ok('锁链皮肤选择器 5 张缩略图全部加载')
   await api(() => { window.location.hash = '#/special?tool=catch_duck' })
   await page.getByText('怎么玩', { exact: true }).waitFor()
 
@@ -413,12 +414,12 @@ try {
     return {
       winini: await st('zlspecial://app/file/C%3A/Windows/win.ini'),
       escape: await st('zlspecial://app/assets/..%2F..%2Fpackage.json'),
-      beats: await st('zlspecial://app/assets/music_ball/default_beats.json')
+      beats: await st('zlspecial://app/assets/tug_of_war/cake.png')
     }
   })
   assert.notEqual(sec.winini, 200, `不该读到 win.ini：${JSON.stringify(sec)}`)
   assert.notEqual(sec.escape, 200, `不该跳出素材目录：${JSON.stringify(sec)}`)
-  assert.equal(sec.beats, 200, `素材目录里的节拍数据应能读：${JSON.stringify(sec)}`)
+  assert.equal(sec.beats, 200, `素材目录里的图片应能读：${JSON.stringify(sec)}`)
   ok(`zlspecial 协议：非媒体文件 ${sec.winini}、越界 ${sec.escape}、素材 ${sec.beats}`)
   const closed = await api(() => window.api.specialCloseAll())
   assert.equal(closed.closed, 1)

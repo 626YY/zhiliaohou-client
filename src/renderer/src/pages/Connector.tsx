@@ -44,7 +44,6 @@ export default function Connector() {
   // 直播平台：抖音(默认，走扫码登录链路) / B站(公开直播间免登录)。更多平台陆续接入。
   const [platform, setPlatform] = useState<'douyin' | 'bilibili'>('douyin')
   const [biliRoom, setBiliRoom] = useState('')
-  const [scriptReady, setScriptReady] = useState(true)
   const [logs, setLogs] = useState<ConnectorLogLine[]>([])
   const boxRef = useRef<HTMLDivElement>(null)
   const stickRef = useRef(true)
@@ -66,19 +65,12 @@ export default function Connector() {
     void refreshState()
     const timer = setInterval(refreshState, 1000)
     window.api.connectorLog().then(setLogs)
-    // 连接器脚本由 mod 内置，配好游戏路径即可自动定位
-    window.api.getSettings().then(({ settings }) => {
-      const gid = settings.currentGameId ?? ''
-      const p =
-        settings.gamePaths?.[gid] ||
-        (gid === '4wheel-challenge' ? settings.gamePath : '')
-      setScriptReady(!!p)
-      // 直播间号默认取自 mod 配置（仅当它是本账号已授权的号）
-      window.api.readConfig().then((cfg) => {
-        const cfgRoom = cfg.ok ? String(cfg.values.LiveRoomId ?? '') : ''
-        if (cfgRoom && rooms.includes(cfgRoom)) setRoomId(cfgRoom)
-      })
-    })
+    // 连接器：装了游戏整蛊 mod 用 mod 里的，没装用客户端自带的，不用先配游戏路径
+    // 直播间号默认取自 mod 配置（仅当它是本账号已授权的号）
+    window.api.readConfig().then((cfg) => {
+      const cfgRoom = cfg.ok ? String(cfg.values.LiveRoomId ?? '') : ''
+      if (cfgRoom && rooms.includes(cfgRoom)) setRoomId(cfgRoom)
+    }).catch(() => {})
     return () => { alive = false; clearInterval(timer) }
   }, [])
 
@@ -191,18 +183,6 @@ export default function Connector() {
           }
         />
       </div>
-
-      {!scriptReady && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-[var(--accent-soft-2)] bg-[var(--accent-soft)] px-4 py-2 text-sm text-[var(--accent-2)]">
-          未找到游戏路径，连接器无法启动。请先到「启动游戏」页搜索本机游戏。
-          <button
-            onClick={() => navigate('/launch')}
-            className="ml-1 underline underline-offset-2 hover:text-[var(--text)]"
-          >
-            查找游戏
-          </button>
-        </div>
-      )}
 
       {/* 平台选择：抖音走扫码登录链路；B站公开直播间免登录；更多平台陆续接入 */}
       <div className="mb-3 flex flex-wrap items-center gap-3">

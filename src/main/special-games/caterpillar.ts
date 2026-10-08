@@ -164,7 +164,7 @@ window.registerGame((function(){
     init:function(a){
       api=a; ZL.bind(a);
       pending=ZL.queue();
-      slipperImg=ZL.img('xiaoxin/xiaoxin_slipper.png');
+      slipperImg=ZL.img('caterpillar/slipper.png');
       caught=ZL.loadTotal('caterpillar');
     },
     resize:function(){},
@@ -208,7 +208,7 @@ window.registerGame((function(){
         // 拖鞋拍到 150ms 后开始坠落
         if(w.striking && !w.falling && now>=w.strikeAt){
           w.falling=true; w.vy=70; w.rotV=(Math.random()<0.5?-1:1)*(2+Math.random()*3);
-          ZL.snd('xiaoxin/xiaoxin_slap.wav');
+          ZL.snd('caterpillar/slap.wav');
           caught++; ZL.saveTotal('caterpillar',caught);
         }
         // 自动掉落

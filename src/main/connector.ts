@@ -8,7 +8,7 @@ import path from 'path'
 import { app, BrowserWindow } from 'electron'
 import { getSettings } from './settings'
 import { currentGameId, listGames } from './games'
-import { wheelLiveDir, bridgePath } from './bridge'
+import { wheelLiveDir, connectorBridgePath, standaloneConnectorDir } from './bridge'
 import { installedVersionForGame } from './mods'
 import {
   Ipc,
@@ -110,7 +110,7 @@ function classify(text: string): ConnectorLogLevel {
 
 export function findScript(): { script: string; modDir: string } {
   const settings = getSettings()
-  // 优先用 mod 内置连接器，其次才用设置页手动选的脚本
+  // 优先用 mod 内置连接器，其次才用设置页手动选的脚本，都没有就用客户端自带的那份（没装游戏整蛊 mod 也能连直播间）
   const dir = wheelLiveDir()
   if (dir) {
     const bundled = fs.existsSync(`${dir}\\connector.py`)
@@ -119,7 +119,29 @@ export function findScript(): { script: string; modDir: string } {
   if (settings.connectorPath && fs.existsSync(settings.connectorPath)) {
     return { script: settings.connectorPath, modDir: '' }
   }
-  return { script: '', modDir: dir }
+  const own = prepareStandaloneConnector()
+  return own ? { script: own, modDir: path.dirname(own) } : { script: '', modDir: dir }
+}
+
+/** 没装游戏整蛊 mod：没有游戏，连接器只往客户端报礼物事件，不按游戏查 mod 更新（--game 给个不是任何游戏的 id）。 */
+function connectorGame(): string {
+  return wheelLiveDir() ? currentGameId() : 'zhiliao-client'
+}
+
+/** 把客户端自带的连接器放进 userData/connector（缺了补、旧了换），返回 connector.py 的路径；放不进去返回空。 */
+function prepareStandaloneConnector(): string {
+  const dir = standaloneConnectorDir()
+  const script = path.join(dir, 'connector.py')
+  const source = path.join(connectorAssetDir(), 'connector.py')
+  try {
+    fs.mkdirSync(dir, { recursive: true })
+    const have = readText(script)
+    // 自己目录里的副本只跟客户端自带的走：没有就放，版本不一样就换（主播不会改这里的文件）
+    if (have === null || moduleVersion(script) !== moduleVersion(source)) fs.copyFileSync(source, script)
+  } catch {
+    return fs.existsSync(script) ? script : ''
+  }
+  return script
 }
 
 /** 客户端自带的嵌入式 python（打包在 resources/pyembed，开发时在项目根目录 pyembed/）。 */
@@ -210,7 +232,9 @@ function gameLabel(id: string): string {
 
 async function spawnOnce(): Promise<boolean> {
   const epoch=cardEpoch(),game=currentGameId()
-  if(cardModeEnabled()){
+  const withGame = !!wheelLiveDir()
+  // 没装游戏整蛊 mod 时不走游戏授权（没有游戏可授权），客户端自己连直播间
+  if(cardModeEnabled()&&withGame){
     try{await (await import('./card-auth')).cardRequireGameUse(game)}catch(error){push('error',error instanceof Error?error.message:'卡密授权不可用');return false}
     if(manualStop||cardEpoch()!==epoch||currentGameId()!==game)return false
   }
@@ -219,23 +243,25 @@ async function spawnOnce(): Promise<boolean> {
     push('error', '自动重启失败：未找到连接器脚本')
     return false
   }
-  if (!bridgePath()) {
-    push('error', '自动重启失败：未找到整蛊 Mod 目录 / bridge.txt')
-    return false
-  }
+  const bridge = connectorBridgePath()
+  try { fs.mkdirSync(path.dirname(bridge), { recursive: true }) } catch { /* 目录建不了下面连接器自己会报 */ }
   ensureConnectorModules(path.dirname(script))
   liveEnded = false
   const py = findPython(modDir)
   // 连接器跟着「当前游戏」走：把用的是哪款游戏、哪份脚本（完整版 / 精简版）明说出来——
   // 2026-09-13 用户选着图书管理员却以为在用完整连接器，大哥进场查了一下午才发现是精简连接器没有进场行
-  try {
-    const head = fs.readFileSync(script, 'utf8').slice(0, 6000)
-    const flavor = /darkmage-connector|DARKMAGE_CONNECTOR_VERSION/.test(head) ? '图书管理员专用版' : /CONNECTOR_VERSION\s*=/.test(head) ? '标准版' : '自定义脚本'
-    push('info', `使用「${gameLabel(game)}」整蛊器目录里的连接器（${flavor}）`)
-  } catch { /* 读不到脚本头就不标注 */ }
-  const args = [script, '--bridge', bridgePath(), '--game', currentGameId()]
+  if (!withGame) {
+    push('info', '没装游戏整蛊器，用客户端自带的连接器直接连直播间（特色整蛊、转盘、盲盒等照常触发）')
+  } else {
+    try {
+      const head = fs.readFileSync(script, 'utf8').slice(0, 6000)
+      const flavor = /darkmage-connector|DARKMAGE_CONNECTOR_VERSION/.test(head) ? '图书管理员专用版' : /CONNECTOR_VERSION\s*=/.test(head) ? '标准版' : '自定义脚本'
+      push('info', `使用「${gameLabel(game)}」整蛊器目录里的连接器（${flavor}）`)
+    } catch { /* 读不到脚本头就不标注 */ }
+  }
+  const args = [script, '--bridge', bridge, '--game', connectorGame()]
   // 本机 mod 版本：不传的话连接器按 0.0.0 算，每次开播都把服务器上的老安装包当新版本下载并提示更新
-  const localVersion = installedVersionForGame(currentGameId())
+  const localVersion = withGame ? installedVersionForGame(currentGameId()) : ''
   if (localVersion) args.push('--version', localVersion)
   if (roomId) args.push('--room', roomId)
   if (activePlatform !== 'douyin') args.push('--platform', activePlatform)
@@ -356,9 +382,9 @@ export async function startConnector(
     return { ok: false, error: '连接器已在运行' }
   if (!wantSim && !room.trim()) return { ok: false, error: '请先选择直播间号' }
   const target = findScript()
-  const targetBridge = bridgePath()
+  const targetBridge = connectorBridgePath()
   const gameId = currentGameId()
-  if (!target.script || !targetBridge) return { ok: false, error: '未找到连接器或 Mod 目录，请先安装 Mod' }
+  if (!target.script || !targetBridge) return { ok: false, error: '连接器组件缺失，请重新安装客户端' }
   // 用户主动启动：取消可能还挂着的自动重启计划
   if (restartTimer) {
     clearTimeout(restartTimer)
@@ -382,7 +408,7 @@ export async function startConnector(
         push('error', prepared.error)
         return { ok: false, error: prepared.error }
       }
-      if (currentGameId() !== gameId || findScript().script !== target.script || bridgePath() !== targetBridge) {
+      if (currentGameId() !== gameId || findScript().script !== target.script || connectorBridgePath() !== targetBridge) {
         return { ok: false, error: '游戏或连接器路径已更改，请重新点击连接' }
       }
       saveDouyinCookie(path.dirname(target.script), prepared.cookie)
@@ -390,7 +416,7 @@ export async function startConnector(
       push('info', '直播间绑定已确认，抖音登录状态已写入连接器目录，正在启动连接器')
       // 轮椅：主播明确选了这个直播间、平台也确认了绑定 → 只把 mod 参数里的 LiveRoomId 同步成它（其余参数原样），
       // 否则 mod 授权会按参数里的旧房号申请、被平台拒 room_not_bound
-      if (gameId === '4wheel-challenge') {
+      if (gameId === '4wheel-challenge' && wheelLiveDir()) {
         const { syncWheelRoomIdForConnection } = await import('./card-rooms')
         if (generation !== startGeneration) return { ok: false, error: '已取消连接' }
         const synced = syncWheelRoomIdForConnection(targetRoom)
@@ -409,7 +435,7 @@ export async function startConnector(
       if (!verified.ok) push('warn', '暂未读取到直播间资料，将使用已保存的登录状态继续连接')
       const cookie = await readDouyinCookie(target.modDir)
       if (generation !== startGeneration) return { ok: false, error: '已取消连接' }
-      if (currentGameId() !== gameId || findScript().script !== target.script || bridgePath() !== targetBridge) {
+      if (currentGameId() !== gameId || findScript().script !== target.script || connectorBridgePath() !== targetBridge) {
         return { ok: false, error: '游戏或连接器路径已更改，请重新点击连接' }
       }
       if (!cookie) return { ok: false, error: '抖音登录已失效，请重新连接' }

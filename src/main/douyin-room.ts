@@ -1,5 +1,5 @@
 // 抖音直播间身份验证：绑定前读取直播间主播昵称+头像，防止乱填房号
-import { wheelLiveDir } from './bridge'
+import { connectorHomeDir } from './bridge'
 import { loginDouyin, readDouyinCookie, saveDouyinCookie } from './douyin-login'
 import type { DouyinRoomLookup } from '@shared/types'
 
@@ -79,7 +79,7 @@ function loggedInUser(t: string): DouyinRoomLookup | null {
 export async function lookupRoom(room: string, interactive = false): Promise<DouyinRoomLookup> {
   const r = room.trim()
   if (!r) return { ok: false, error: '请先输入直播间号' }
-  const dir = wheelLiveDir()
+  const dir = connectorHomeDir()
   try {
     let cookie = await readDouyinCookie(dir)
     let loggedIn = false

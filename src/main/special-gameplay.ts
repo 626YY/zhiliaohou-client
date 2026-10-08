@@ -26,6 +26,7 @@ import {
   DEFAULT_SPECIAL_REVEAL,
   DEFAULT_SPECIAL_WINDOW,
   LEGACY_DEFAULT_BOX_EVENT_IDS,
+  RETIRED_SPECIAL_GAMES,
   SPECIAL_BOX_DEFAULT_NAME,
   SPECIAL_BOX_DEFAULTS_LEVEL,
   SPECIAL_GAMES,
@@ -74,6 +75,7 @@ interface LegacyBox { id: string; name: string; entries: { param: string; weight
 // legacyMigrated：0.3.63 测试版玩法自带「触发礼物」，已搬进礼物规则（只搬一次）
 // chainSkinV2：锁链默认皮肤从「经典金属」换成「霓虹」（存着的 default 都是自动落盘的默认值，换一次）
 // boxDefaults：事件库里的默认事件补到第几版（SPECIAL_BOX_DEFAULTS_LEVEL）；0.3.65 测试包第一包写的是 boxEventsV2=true（= 第 2 版）
+// retired1008：2026-10-08 下线小新哎嘿、音乐球——它们的事件读事件库时就去掉了，奖池里还勾着的 id 清一次
 type Store = {
   games: Partial<Record<SpecialGameId, Partial<SpecialGameConfig>>>
   window?: SpecialWindowConfig
@@ -84,6 +86,7 @@ type Store = {
   chainSkinV2?: boolean
   boxDefaults?: number
   boxEventsV2?: boolean
+  retired1008?: boolean
 }
 const rawStore = readJson<Store>(STORE, { games: {} })
 let store: Store = normalizeStore(rawStore)
@@ -229,6 +232,7 @@ function normalizeStore(value?: Partial<Store>): Store {
     ...(boxes.length ? { boxes } : {}),
     legacyMigrated: value?.legacyMigrated === true,
     chainSkinV2: value?.chainSkinV2 === true,
+    retired1008: value?.retired1008 === true,
     boxDefaults: boxDefaultsLevel(value)
   }
 }
@@ -458,7 +462,7 @@ function ensureOpen(force: boolean): { ok: boolean; error?: string } {
 /** 动作命令 special-play 的执行入口：param = 玩法|操作|数量|选项；times = 礼物规则合并的执行次数（数量 ×times） */
 export function runSpecialAction(param: string, viewer?: SpecialViewer, times = 1, force = false): { ok: boolean; error?: string } {
   const p = parseSpecialParam(param)
-  if (!p.id) return { ok: false, error: '没有选择特色整蛊玩法' }
+  if (!p.id) return { ok: false, error: RETIRED_SPECIAL_GAMES[String(param || '').split('|')[0].trim()] ? '这个特色整蛊已下线' : '没有选择特色整蛊玩法' }
   if (memoryLevel() === 'critical') return { ok: false, error: '内存告急，暂不生成新的特色整蛊' }
   const meta = SPECIAL_GAME_MAP[p.id]
   const cfg = specialConfig(p.id)
@@ -835,7 +839,7 @@ export function testSpecialGame(id: SpecialGameId, action?: SpecialTestAction): 
   return { ok: true }
 }
 
-/** 全部清屏：窗口里用过的玩法统统清掉场上的东西（音乐球是停止），窗口留着。保护主播 / 特色整蛊页的「全部清屏」用。 */
+/** 全部清屏：窗口里用过的玩法统统清掉场上的东西，窗口留着。保护主播 / 特色整蛊页的「全部清屏」用。 */
 export function clearAllSpecial(): { ok: boolean; cleared: number } {
   if (!specialWindowOpen()) return { ok: true, cleared: 0 }
   // 排着没播的开奖一起清掉（不再生效）
@@ -878,6 +882,14 @@ export async function migrateLegacySpecialTriggers(): Promise<number> {
     for (const meta of SPECIAL_GAMES) {
       try { fs.rmSync(path.join(app.getPath('userData'), `special-${meta.id}.html`), { force: true }) } catch { /* 删不掉不影响 */ }
     }
+  }
+  if (!store.retired1008) {
+    const raw = Array.isArray(rawStore.boxEvents) ? rawStore.boxEvents : []
+    const gone = new Set(raw.filter((e) => RETIRED_SPECIAL_GAMES[String(e?.param || '').split('|')[0].trim()]).map((e) => String(e.id)))
+    for (const id of Object.keys(RETIRED_SPECIAL_GAMES)) gone.add(`sbe-default-${id}`)
+    store.retired1008 = true
+    persist()
+    if (gone.size) await rewriteBoxPools((p) => (p.ids.some((id) => gone.has(id)) ? p.ids.filter((id) => !gone.has(id)) : null)).catch(() => {})
   }
   const level = store.boxDefaults ?? 1
   if (level < SPECIAL_BOX_DEFAULTS_LEVEL) await mergeDefaultBoxEvents(level).catch((e) => console.warn('[special-gameplay] 补默认盲盒事件失败', (e as Error).message))

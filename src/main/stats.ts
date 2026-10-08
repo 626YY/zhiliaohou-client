@@ -5,7 +5,7 @@
 import fs from 'fs'
 import { join } from 'path'
 import { app } from 'electron'
-import { wheelLiveDir } from './bridge'
+import { connectorHomeDir, wheelLiveDir } from './bridge'
 import { liveSessionRunning, readLiveSession } from './live-session'
 import type { LiveSessionStats, LiveStatsResult, LiveBoardCell } from '@shared/types'
 
@@ -153,7 +153,8 @@ function pickSession(dir: string): LiveSessionStats | null {
 }
 
 export function readLiveStats(): LiveStatsResult {
-  const dir = wheelLiveDir()
+  // 连接器把 live_stats.json 写在 bridge.txt 同目录：有游戏整蛊 mod 是 mod 目录，没有是客户端自己的连接器目录
+  const dir = connectorHomeDir()
   const session = pickSession(dir)
   let remotePranks = 0
   if (session?.started) {

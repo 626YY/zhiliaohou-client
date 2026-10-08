@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef } from 'react'
 import { Loading } from './components/ui'
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from './stores/auth'
+import { useGames } from './stores/games'
 import { useToast } from './stores/ui'
 import { useNotify } from './stores/notify'
 import { usePrankStore } from './stores/pranks'
@@ -274,6 +275,15 @@ export default function App() {
   const toastRef = useRef(toast)
   toastRef.current = toast
   const loggedIn = !!user
+  // 有没有可用的游戏整蛊：登录后问一次，之后每 5 分钟再问（后台上架 / 下架 mod 不用重启就跟上）
+  const games = useGames()
+  useEffect(() => {
+    if (!loggedIn) return
+    void useGames.getState().refresh()
+    const timer = window.setInterval(() => void useGames.getState().refresh(), 5 * 60 * 1000)
+    return () => clearInterval(timer)
+  }, [loggedIn])
+  const noGames = games.known && !games.hasGames
   useEffect(() => {
     if (!loggedIn || autoOpened.current) return
     autoOpened.current = true
@@ -344,11 +354,11 @@ export default function App() {
         <main className="zl-scroll min-h-0 flex-1 overflow-y-auto">
           <PageErrorBoundary>
           <Suspense fallback={<Loading text="正在加载页面…" />}><Routes>
-            <Route path="/" element={<Library />} />
-            <Route path="/mod/:id" element={<ModDetail />} />
-            <Route path="/config" element={<ConfigEditor />} />
-            <Route path="/launch" element={<LaunchGame />} />
-            <Route path="/remote" element={<PrankControl />} />
+            <Route path="/" element={noGames ? <Navigate to="/ent" replace /> : <Library />} />
+            <Route path="/mod/:id" element={noGames ? <Navigate to="/ent" replace /> : <ModDetail />} />
+            <Route path="/config" element={noGames ? <Navigate to="/ent" replace /> : <ConfigEditor />} />
+            <Route path="/launch" element={noGames ? <Navigate to="/ent" replace /> : <LaunchGame />} />
+            <Route path="/remote" element={noGames ? <Navigate to="/ent" replace /> : <PrankControl />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="/ent" element={<><EntertainmentCardBar /><Entertainment /></>} />
             <Route path="/special" element={<Special />} />

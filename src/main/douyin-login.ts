@@ -57,10 +57,12 @@ export function saveDouyinCookie(modDir: string, cookie: string): void {
   const target = join(modDir, 'douyin_cookie.txt')
   const temp = `${target}.${randomUUID()}.tmp`
   try {
+    // 没装游戏整蛊 mod 时这里是客户端自己的连接器目录，第一次连可能还没建
+    fs.mkdirSync(modDir, { recursive: true })
     fs.writeFileSync(temp, cookie, { encoding: 'utf8', mode: 0o600 })
     fs.renameSync(temp, target)
   } catch {
-    throw new Error('登录状态保存失败，请检查 Mod 目录是否可写后重试')
+    throw new Error('登录状态保存失败，请检查连接器目录是否可写后重试')
   } finally {
     try { fs.unlinkSync(temp) } catch { /* 已重命名或未创建 */ }
   }

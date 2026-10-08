@@ -169,7 +169,7 @@ async function canvasInk() {
     return n
   })
 }
-// 清场操作：音乐球是 stop，其余 clear
+// 清场操作：有 clear 用 clear（现在全部玩法都有）
 const clearOp = (meta) => (meta.ops.some((o) => o.value === 'clear') ? 'clear' : 'stop')
 const who = { username: '测试员', avatar: '' }
 // 点第一颗能点的东西（debug().hits），返回是否点到
@@ -185,6 +185,225 @@ function avg(a) { return a.reduce((s, x) => s + x, 0) / Math.max(1, a.length) }
 
 // —— 玩法专属语义检查 ——
 const SEMANTIC = {
+  async tug_of_war() {
+    await apply({ operation: 'reduce', count: 3, ...who })
+    assert.equal((await dbg()).round, null, '拔河：没在比时「帮主播拉」应忽略')
+    await apply({ operation: 'add', count: 2, ...who })
+    let d = await dbg()
+    assert.ok(d.round && Math.abs(d.round.p + 0.16) < 1e-6 && d.round.vp === 2 && d.team === 1, `拔河：观众拉 2 下（每下 8%）应到 −0.16（${JSON.stringify(d.round)}）`)
+    await pointer('down', 640, 200); await pointer('up', 640, 200)
+    d = await dbg()
+    assert.ok(Math.abs(d.round.p + 0.145) < 1e-6 && d.round.sp === 1, `拔河：主播点一下往回 1.5%（${JSON.stringify(d.round)}）`)
+    await page.keyboard.press('Space')
+    assert.equal((await dbg()).round.sp, 2, '拔河：按空格也算拉一下')
+    await config({ spacePull: false })
+    await page.keyboard.press('Space')
+    assert.equal((await dbg()).round.sp, 2, '拔河：关掉「空格也能拉」后空格不算')
+    await apply({ operation: 'reduce', count: 2, ...who })
+    assert.equal((await dbg()).round.sp, 4, '拔河：帮主播拉 2 下')
+    await config({ giftPull: 50 })
+    await apply({ operation: 'add', count: 1, ...who })
+    d = await dbg()
+    assert.ok(Math.abs(d.round.p + 0.6) < 1e-6, `拔河：礼物拉力调成 50% 生效（${d.round.p}）`)
+    // 时间到：绳结在观众那边 → 观众赢 → 砸 3 个（默认）
+    await config({ roundSec: 5 })
+    await stepFast(300, 20)
+    d = await dbg()
+    assert.ok(d.round && d.round.result === 'viewers' && d.wins.viewers === 1, `拔河：时间到绳结在观众那边应判观众赢（${JSON.stringify(d.round)}）`)
+    d = await waitDbg((x) => x.flying === 0 && x.splats === 3, '观众赢了砸 3 个糊在屏幕上', 8000)
+    // 擦：按住拖过一块 → 这块淡掉
+    const h = d.hits[0]
+    await pointer('down', h[0] - h[2] * 0.45, h[1] - h[2] * 0.45)
+    for (let k = 0; k <= 10; k++) await pointer('move', h[0] - h[2] * 0.46 + h[2] * 0.92 * (k % 2), h[1] - h[2] * 0.46 + h[2] * 1.3 * k / 10)
+    await pointer('up', h[0], h[1])
+    d = await waitDbg((x) => x.splats <= 2, '擦干净一块')
+    // 新一局：主播拽到终点 → 主播赢（放彩带）
+    await apply({ operation: 'clear' })
+    await config({ giftPull: 8, roundSec: 30, clickPull: 20 })
+    await apply({ operation: 'add', count: 1, ...who })
+    for (let i = 0; i < 6; i++) { await pointer('down', 640, 200); await pointer('up', 640, 200) }
+    d = await dbg()
+    assert.ok(d.round.result === 'streamer' && d.wins.streamer === 1 && d.paper > 0, `拔河：主播拉到终点应赢并放彩带（${JSON.stringify(d)}）`)
+    // 出结果期间又来礼物：攒着，下一局一开就拉
+    await apply({ operation: 'add', count: 3, ...who })
+    assert.equal((await dbg()).round.next, 3, '拔河：出结果时来的礼物攒到下一局')
+    await stepFast(250, 20)
+    d = await dbg()
+    assert.ok(d.round && !d.round.result && d.round.vp === 3, `拔河：下一局开局就带着攒的 3 下（${JSON.stringify(d.round)}）`)
+    // 砸几个 / 砸什么 / 自己消失
+    await apply({ operation: 'clear' })
+    await config({ penaltyCount: 5, penalty: 'egg', clickPull: 1.5 })
+    await apply({ operation: 'add', count: 20, ...who })
+    d = await waitDbg((x) => x.flying === 0 && x.splats === 5, '砸 5 个', 8000)
+    await apply({ operation: 'clear' })
+    await config({ penaltyCount: 1, autoClearSec: 1 })
+    await apply({ operation: 'add', count: 20, ...who })
+    d = await waitDbg((x) => x.flying === 0 && x.splats === 1, '砸 1 个', 8000)
+    await page.waitForTimeout(200)
+    for (let i = 0; i < 20; i++) await stepSlow(1, 100)
+    d = await waitDbg((x) => x.splats === 0, '「自己消失」1 秒后糊的东西没了', 5000)
+    await capture('tug_of_war-semantic')
+    // 数值不设上限：砸 1000 个、一块 300% 大、一局 99999 秒也不崩（一次最多飞 200 个、同屏糊块封顶 60）
+    await apply({ operation: 'clear' })
+    await config({ penaltyCount: 1000, splatSize: 300, roundSec: 99999, autoClearSec: 0, giftPull: 500 })
+    await apply({ operation: 'add', count: 1, ...who })
+    d = await dbg()
+    assert.ok(d.round && d.round.result === 'viewers' && d.round.dur === 99999000 && d.flying === 200, `拔河：拉力 500% 一下拉满、一次最多飞 200 个（${JSON.stringify({ r: d.round, f: d.flying })}）`)
+    await stepFast(300, 33)
+    d = await dbg()
+    assert.ok(d.splats <= 60 && d.splats > 0, `拔河：同屏糊块防爆封顶 60（${d.splats}）`)
+    await apply({ operation: 'clear' })
+    await settleIdle('大数值拔河清场')
+  },
+  async bomb_defuse() {
+    // 只留一种错线：剪到的错线一定是这种
+    const only = (role) => config({ roleSpeed: role === 'speed' ? 100 : 0, roleBoom: role === 'boom' ? 100 : 0, roleDud: role === 'dud' ? 100 : 0, roleMinus: role === 'minus' ? 100 : 0 })
+    const cutAt = async (w) => { await pointer('down', w[0], w[1]) }
+    const settle = (label) => waitDbg((x) => x.phase !== 'cut', label)
+    await apply({ operation: 'hasten', count: 5, ...who })
+    assert.equal((await dbg()).phase, '', '炸弹：没有炸弹时减时应忽略')
+    // —— 定时炸弹：加速线 ——
+    await only('speed')
+    await apply({ operation: 'add', count: 2, kind: 'dynamite', ...who })
+    let d = await dbg()
+    assert.ok(d.phase === 'in' && d.queue === 1 && d.kind === 'dynamite', `炸弹：扔 2 颗定时炸弹 → 一颗上场一颗排队（${JSON.stringify({ p: d.phase, q: d.queue, k: d.kind })}）`)
+    d = await waitDbg((x) => x.phase === 'armed', '落稳开始倒计时')
+    assert.equal(d.wires.length, 4, '炸弹：默认 4 根线')
+    assert.equal(d.wires.filter((w) => w[4] === 'defuse').length, 1, '炸弹：只有一根拆除线')
+    assert.ok(d.wires.filter((w) => w[4] !== 'defuse').every((w) => w[4] === 'speed'), `炸弹：只开加速线时错线都是加速线（${d.wires.map((w) => w[4])}）`)
+    const left0 = d.left
+    await apply({ operation: 'hasten', count: 5, ...who })
+    d = await dbg()
+    assert.ok(left0 - d.left >= 4900 && left0 - d.left <= 5200, `炸弹：减时 5 秒（${left0} → ${d.left}）`)
+    const wrong = d.wires.find((w) => !w[2])
+    await cutAt(wrong)
+    d = await dbg()
+    assert.ok(d.phase === 'cut' && d.rate === 1, `炸弹：剪下去先停一下、还没揭晓（${JSON.stringify({ rate: d.rate, phase: d.phase })}）`)
+    const frozen = d.left
+    await stepFast(20)
+    assert.equal((await dbg()).left, frozen, '炸弹：停顿期间倒计时停住')
+    await cutAt(d.wires.find((w) => w[2]))
+    assert.equal((await dbg()).defused, 0, '炸弹：停顿期间不能再剪')
+    d = await settle('停顿后揭晓')
+    assert.ok(d.rate === 2 && d.phase === 'armed' && d.wires.find((w) => w[0] === wrong[0] && w[1] === wrong[1])[3], `炸弹：加速线揭晓，计时 ×2（${JSON.stringify({ rate: d.rate, phase: d.phase })}）`)
+    await cutAt(d.wires.find((w) => w[2]))
+    d = await settle('停顿后揭晓')
+    assert.ok(d.phase === 'ok' && d.defused === 1 && !d.extreme, `炸弹：剪对拆弹成功（${JSON.stringify({ phase: d.phase, defused: d.defused })}）`)
+    d = await waitDbg((x) => x.phase === 'armed' && x.queue === 0, '下一颗上场')
+    // —— 哑线：剪了什么也没发生 ——
+    await only('dud')
+    await apply({ operation: 'clear' })
+    await apply({ operation: 'add', count: 1, kind: 'cartoon', ...who })
+    d = await waitDbg((x) => x.phase === 'armed', '卡通炸弹落稳')
+    assert.equal(d.kind, 'cartoon', '炸弹：指定卡通炸弹')
+    const lDud = d.left
+    await cutAt(d.wires.find((w) => !w[2]))
+    d = await settle('哑线揭晓')
+    assert.ok(d.phase === 'armed' && d.rate === 1 && Math.abs(lDud - d.left) < 200 && d.wires.filter((w) => w[3]).length === 1, `炸弹：哑线剪了什么也没发生（${JSON.stringify({ p: d.phase, r: d.rate, l: [lDud, d.left] })}）`)
+    // —— 扣时线 ——
+    await only('minus')
+    await config({ wrongMinus: 3, suspenseMs: 0 })
+    await apply({ operation: 'clear' })
+    await apply({ operation: 'add', count: 1, kind: 'gift', ...who })
+    d = await waitDbg((x) => x.phase === 'armed', '礼物炸弹落稳')
+    assert.equal(d.kind, 'gift', '炸弹：指定礼物炸弹')
+    const l1 = d.left
+    await cutAt(d.wires.find((w) => !w[2]))
+    d = await dbg()
+    assert.ok(l1 - d.left >= 2900 && l1 - d.left <= 3200 && d.rate === 1, `炸弹：扣时线扣 3 秒、停顿设 0 立刻揭晓（${l1} → ${d.left}）`)
+    // 帮拆
+    await apply({ operation: 'reduce', count: 1, ...who })
+    d = await dbg()
+    assert.ok(d.phase === 'ok' && d.defused === 2, `炸弹：帮拆 1 颗（${JSON.stringify({ phase: d.phase, defused: d.defused })}）`)
+    await stepFast(200, 20)
+    // —— 雷管线：一剪就炸，炸了抽惩罚、溅黑灰 ——
+    await only('boom')
+    await config({ sootCount: 2, suspenseMs: 800 })
+    await apply({ operation: 'add', count: 1, kind: 'dynamite', ...who })
+    d = await waitDbg((x) => x.phase === 'armed', '第三颗落稳')
+    await cutAt(d.wires.find((w) => !w[2]))
+    d = await settle('雷管线揭晓')
+    assert.ok(d.exploded === 1 && d.splats === 3, `炸弹：雷管线一剪就炸，炸弹那一块 + 2 块黑灰（${JSON.stringify({ e: d.exploded, s: d.splats, phase: d.phase })}）`)
+    assert.ok(['唱一首歌', '学猫叫三声', '做十个深蹲', '给大家比个心', '用方言说一句话'].includes(d.punish), `炸弹：炸了从默认列表抽一条惩罚（${d.punish}）`)
+    const h = d.hits[1]
+    await pointer('down', h[0] - h[2] * 0.45, h[1] - h[2] * 0.45)
+    for (let k = 0; k <= 10; k++) await pointer('move', h[0] - h[2] * 0.46 + h[2] * 0.92 * (k % 2), h[1] - h[2] * 0.46 + h[2] * 0.92 * k / 10)
+    await pointer('up', h[0], h[1])
+    d = await waitDbg((x) => x.splats <= 2, '擦干净一块黑灰')
+    // —— 超级炸弹：多两根线、时间长一半、黑灰翻倍 ——
+    await apply({ operation: 'clear' })
+    await only('speed')
+    await config({ timerSec: 10, sootCount: 2 })
+    await apply({ operation: 'add', count: 1, kind: 'mega', ...who })
+    d = await waitDbg((x) => x.phase === 'armed', '超级炸弹落稳')
+    assert.ok(d.kind === 'mega' && d.wires.length === 6 && d.total === 15000, `炸弹：超级炸弹 6 根线、10 秒 ×1.5（${JSON.stringify({ k: d.kind, w: d.wires.length, t: d.total })}）`)
+    await apply({ operation: 'hasten', count: 60, ...who })
+    await stepFast(3)
+    d = await dbg()
+    assert.ok(d.exploded === 2 && d.splats === 5, `炸弹：超级炸弹炸出 1 + 2×2 块黑灰（${JSON.stringify({ e: d.exploded, s: d.splats })}）`)
+    // 随机种类
+    await apply({ operation: 'clear' })
+    const seen = new Set()
+    for (let i = 0; i < 24; i++) { await apply({ operation: 'add', count: 1, ...who }); seen.add((await dbg()).kind); await apply({ operation: 'clear' }) }
+    assert.ok(seen.size >= 3 && [...seen].every((k) => ['dynamite', 'cartoon', 'gift', 'mega'].includes(k)), `炸弹：随机种类应四种都会出（${[...seen]}）`)
+    // C4 那种滴声：放炸弹有按键声；一开始约一秒一滴，越到最后越急；真实剩 0.7 秒放一次长鸣，然后炸
+    await config({ timerSec: 15 })
+    const plays = (name) => page.evaluate((n) => window.__plays.filter((p) => p.src.includes('bomb_defuse/' + n)).length, name)
+    const plant0 = await plays('plant.wav')
+    await apply({ operation: 'add', count: 1, kind: 'dynamite', ...who })
+    assert.equal(await plays('plant.wav'), plant0 + 1, '炸弹：上场时有放炸弹的按键声')
+    await waitDbg((x) => x.phase === 'armed', '滴声那颗落稳')
+    let b0 = await plays('beep.wav')
+    await stepFast(188, 16)   // 前 3 秒
+    const early = (await plays('beep.wav')) - b0
+    d = await dbg()
+    await stepFast(Math.max(0, Math.floor((d.left - 2600) / 16)), 16)   // 推到只剩约 2.6 秒
+    b0 = await plays('beep.wav')
+    const fin0 = await plays('final.wav')
+    await stepFast(118, 16)   // 再走 1.9 秒
+    const late = (await plays('beep.wav')) - b0
+    assert.ok(early >= 2 && early <= 5 && late >= early * 2, `炸弹：滴声越到最后越急（前 3 秒 ${early} 下，最后 1.9 秒 ${late} 下）`)
+    await stepFast(60, 16)
+    d = await dbg()
+    assert.ok((await plays('final.wav')) === fin0 + 1 && d.exploded >= 1, `炸弹：炸之前放一次长鸣（${JSON.stringify({ e: d.exploded, phase: d.phase })}）`)
+    notes.push(`拆炸弹滴声：前 3 秒 ${early} 下，最后 1.9 秒 ${late} 下，最后 0.7 秒长鸣`)
+    await apply({ operation: 'clear' })
+    // 最后 1 秒剪对 = 极限拆弹
+    await config({ timerSec: 3, suspenseMs: 800 })
+    await apply({ operation: 'add', count: 1, kind: 'dynamite', ...who })
+    d = await waitDbg((x) => x.phase === 'armed', '极限那颗落稳')
+    await stepFast(130, 16)
+    d = await dbg()
+    assert.ok(d.phase === 'armed' && d.left > 0 && d.left < 1000, `炸弹：推到最后 1 秒（${d.left}）`)
+    await cutAt(d.wires.find((w) => w[2]))
+    d = await settle('停顿后揭晓')
+    assert.ok(d.phase === 'ok' && d.extreme, `炸弹：最后 1 秒剪对是「极限拆弹」（${JSON.stringify({ phase: d.phase, extreme: d.extreme })}）`)
+    // 惩罚列表清空：炸了不抽；倒计时走完自己炸 + 黑灰自己散 + 线的根数
+    await apply({ operation: 'clear' })
+    await config({ timerSec: 3, sootCount: 0, sootFadeSec: 1, wireCount: 6, punishList: '' })
+    await apply({ operation: 'add', count: 1, kind: 'dynamite', ...who })
+    d = await waitDbg((x) => x.phase === 'armed', '第四颗落稳')
+    assert.equal(d.wires.length, 6, '炸弹：线的根数调成 6')
+    const ex0 = d.exploded
+    await stepFast(220, 16)
+    d = await dbg()
+    assert.ok(d.exploded === ex0 + 1 && d.splats === 1 && !d.punish, `炸弹：3 秒倒计时走完自己炸、惩罚清空就不抽（${JSON.stringify({ e: d.exploded, s: d.splats, phase: d.phase, left: d.left, p: d.punish })}）`)
+    await stepFast(100, 16)
+    d = await waitDbg((x) => x.splats === 0, '「黑灰自己散」1 秒后散掉', 5000)
+    await capture('bomb_defuse-semantic')
+    // 数值不设上限（用户：「所有数值默认无上限」）：填很大也不崩，代码只做防爆夹紧
+    await apply({ operation: 'clear' })
+    await config({ wireCount: 20, sootCount: 500, timerSec: 99999, suspenseMs: 0, roleBoom: 100, roleSpeed: 0, roleDud: 0, roleMinus: 0, bombSize: 150 })
+    await apply({ operation: 'add', count: 1, kind: 'mega', ...who })
+    d = await waitDbg((x) => x.phase === 'armed', '大数值炸弹落稳')
+    assert.ok(d.wires.length === 22 && d.total === 99999 * 1500, `炸弹：20 根线（超级 +2）、超长倒计时（${d.wires.length} 根 / ${d.total}）`)
+    await pointer('down', d.wires.find((w) => !w[2])[0], d.wires.find((w) => !w[2])[1])
+    await stepFast(4)
+    d = await dbg()
+    assert.ok(d.exploded >= 1 && d.splats <= 60, `炸弹：溅 500 块黑灰按防爆封顶 60（${d.splats}）`)
+    await apply({ operation: 'clear' })
+    await settleIdle('大数值炸弹清场')
+  },
   async chain_challenge() {
     await apply({ operation: 'multiply', count: 3 })
     assert.equal((await dbg()).remaining, 0, '锁链：没挂锁链时乘法应忽略')
@@ -208,8 +427,16 @@ const SEMANTIC = {
     assert.ok(d.remaining === 0 && d.phase === 'unlocking', `锁链：÷ 到 0 应断裂（${JSON.stringify(d)}）`)
     const banner = await page.evaluate(() => document.getElementById('btx').textContent)
     assert.ok(!/undefined|null/.test(banner) && banner.length > 0, `锁链：无昵称横幅异常「${banner}」`)
-    // 8 套皮肤逐个过一遍（现代款 5 套 + 经典款 3 套）
+    // 5 套皮肤逐个过一遍
     for (const skin of CHAIN_SKINS) await chainSkin(skin)
+    // 下线的原版皮肤（老设置里还存着）按霓虹画
+    for (const old of ['default', 'style_1', 'style_2']) {
+      await load('chain_challenge', { params: { visualStyle: old } })
+      await apply({ operation: 'add', count: 3, ...who })
+      await stepFast(40)
+      const o = await dbg()
+      assert.ok(o.skin === 'neon' && o.phase === 'sustain', `锁链：下线的皮肤 ${old} 应按霓虹画（${JSON.stringify(o)}）`)
+    }
   },
   async talisman_seal() {
     await apply({ operation: 'add', count: 6, ...who })
@@ -290,13 +517,6 @@ const SEMANTIC = {
     await apply({ operation: 'add', count: 30, color: 'random', ...who })
     await stepFast(40)
     assert.ok((await dbg()).colors.length >= 3, '毛毛虫：随机颜色应有多种')
-  },
-  async xiaoxin_hey() {
-    await apply({ operation: 'add', count: 30, ...who })   // 不再写死 20 上限（countCap=60 测试值内）
-    await stepFast(400)
-    const d = await dbg()
-    assert.equal(d.count + d.pending, 30, `小新：30 个都应在（场上+排队），得到 ${d.count}+${d.pending}`)
-    assert.ok(await clickFirst(), '小新：应能点到')
   },
   async fan_call() {
     // 自定义铃声 / 接听语音（拿别的内置音效当「用户选的文件」，好区分）
@@ -466,68 +686,6 @@ const SEMANTIC = {
     await apply({ operation: 'add', count: 60, ...who })
     await apply({ operation: 'clear' })
     assert.equal((await stats()).value, 0, '捡叶子：clear 后本轮已清扫归零')
-  },
-  async music_ball() {
-    await config({ countdownSec: 3 })
-    await apply({ operation: 'start', ...who })
-    const bi = await waitDbg((d) => d.state === 'countdown' && d.beats > 100, '内置节拍加载')
-    notes.push(`音乐球内置节拍：${bi.beats} 拍，其中 ${bi.bursts} 拍放大招，四色分布 ${bi.bands.join('/')}`)
-    await apply({ operation: 'pause' })
-    assert.equal((await dbg()).state, 'paused', '音乐球：暂停')
-    assert.equal(await page.evaluate(() => window.__step(16)), false, '音乐球：暂停时停帧')
-    await apply({ operation: 'resume' })
-    assert.equal((await dbg()).state, 'countdown', '音乐球：继续倒计时')
-    await stepFast(200, 20)   // 走完倒计时开播
-    let d = await waitDbg((x) => x.state === 'playing' && x.position > 0, '音乐开播（时钟 = audio.currentTime）')
-    await page.evaluate(() => window.__mute(true))
-    assert.ok((await mediaMuted()).every(Boolean), '音乐球：mute(true)')
-    const p1 = (await dbg()).position
-    await page.waitForTimeout(400)
-    await stepSlow(3)
-    assert.ok((await dbg()).position > p1, '音乐球：静音时时钟照走')
-    await page.evaluate(() => window.__mute(false))
-    await apply({ operation: 'pause' })
-    await apply({ operation: 'start' })   // 播放中（含暂停）又点歌：默认排队，这首放完接着放（2026-10-07 起，以前每次从头重放）
-    d = await dbg()
-    assert.ok(d.state === 'paused' && d.encore === 1, `音乐球：播放中又点歌默认排队（${JSON.stringify([d.state, d.encore])}）`)
-    await config({ whilePlaying: 'restart' })
-    await apply({ operation: 'start' })   // 「从头重新放」
-    d = await dbg()
-    assert.ok(d.state === 'loading' || d.state === 'countdown', '音乐球：设成从头重新放时 start 重开')
-    await config({ whilePlaying: 'queue' })
-    await apply({ operation: 'clear' })   // 旧值 clear = stop
-    assert.equal((await dbg()).state, 'idle', '音乐球：clear 兼容为 stop')
-    // 自定义音乐：节拍分析（拿内置歌当「用户选的歌」）
-    await config({ musicPath: assetPath('music_ball/default_music.mp3'), countdownSec: 0, beatSensitivity: 65 })
-    const t0 = Date.now()
-    await apply({ operation: 'start' })
-    d = await waitDbg((x) => x.state !== 'loading', '自定义音乐节拍分析', 30000)
-    const ms = Date.now() - t0
-    assert.equal(d.source, 'analyzed', `音乐球：自定义音乐应走分析（${d.source}）`)
-    assert.ok(d.beats >= 40 && d.loudness > 600, `音乐球：分析出的节拍/响度太少（${d.beats}/${d.loudness}）`)
-    for (const k of ['time_ms', 'strength', 'pitch', 'pitch_band', 'burst_score']) assert.ok(k in d.sample, `音乐球：节拍缺字段 ${k}`)
-    notes.push(`音乐球自定义分析：内置歌 60s → ${d.beats} 拍（预分析 167 拍），其中 ${d.bursts} 拍放大招，四色分布 ${d.bands.join('/')}，${d.loudness} 个响度点，用时 ${ms}ms`)
-    assert.ok(d.bands.filter((n) => n > 0).length >= 3, `音乐球：分析出的音高颜色太单一（${d.bands}）`)
-    await page.waitForTimeout(300)
-    await stepSlow(10)
-    await capture('music_ball-analyzed')
-    // 灵敏度：越高越密
-    await apply({ operation: 'stop' })
-    await config({ beatSensitivity: 15 })
-    await apply({ operation: 'start' })
-    const low = await waitDbg((x) => x.state !== 'loading', '低灵敏度分析', 30000)
-    await apply({ operation: 'stop' })
-    await config({ beatSensitivity: 95 })
-    await apply({ operation: 'start' })
-    const high = await waitDbg((x) => x.state !== 'loading', '高灵敏度分析', 30000)
-    assert.ok(high.beats > low.beats, `音乐球：灵敏度越高球越密（15→${low.beats}，95→${high.beats}）`)
-    notes.push(`音乐球节拍灵敏度：15 → ${low.beats} 拍，65 → ${d.beats} 拍，95 → ${high.beats} 拍`)
-    await apply({ operation: 'stop' })
-    // 放不了的自定义音乐：回退内置
-    await config({ musicPath: assetPath(`music_ball/${MISSING}.mp3`) })
-    await apply({ operation: 'start' })
-    d = await waitDbg((x) => x.state !== 'loading' && x.state !== 'idle', '坏文件回退内置', 15000)
-    assert.ok(d.source === 'builtin' || d.source === 'fallback', `音乐球：坏文件应回退内置（${d.source}）`)
   }
 }
 
@@ -590,8 +748,8 @@ async function swatFlow(id, bigKey, smallKey, bigHpKey, smallHpKey) {
   await config({ controlMode: 'mouse', customImage: '' })
 }
 
-// 锁链皮肤：现代款（程序化绘制）5 套 + 经典款（素材图）3 套
-const CHAIN_SKINS = ['neon', 'candy', 'rosegold', 'laser', 'ice', 'default', 'style_1', 'style_2']
+// 锁链皮肤：5 套（全部程序化绘制；原版素材皮肤 2026-10-08 下线）
+const CHAIN_SKINS = ['neon', 'candy', 'rosegold', 'laser', 'ice']
 const CHAIN_MODERN = ['neon', 'candy', 'rosegold', 'laser', 'ice']
 // 冻结页面自己的 rAF：只靠 __step 推帧，断裂中途帧之类的截图才确定；截图前用原 rAF 等两帧让合成器把画布交上来
 const freezeRaf = () => page.evaluate(() => { window.__origRAF = window.__origRAF || window.requestAnimationFrame.bind(window); window.requestAnimationFrame = () => 0 })
@@ -724,8 +882,7 @@ for (const id of builtIds) {
     const previewParams = {
       big_mosquito: { controlMode: 'both' },
       gesture_fly: { controlMode: 'both' },
-      fan_video_call: { cameraEnabled: true },
-      music_ball: { countdownSec: 0 }
+      fan_video_call: { cameraEnabled: true }
     }[id] || {}
     await load(id, { preview: true, params: previewParams })
     assert.equal(await page.evaluate(() => window.__MUTED), true, `${meta.name}：预览默认静音`)
@@ -736,7 +893,6 @@ for (const id of builtIds) {
       await pointer('down', d.answerAt[0], d.answerAt[1])
       await stepSlow(10)
     }
-    if (id === 'music_ball') await waitDbg((d) => d.state === 'playing', '预览开播')
     if (id === 'talisman_seal' || id === 'mosquito' || id === 'big_mosquito' || id === 'gesture_fly') {
       await waitDbg((d) => d.micKind === 'preview', '预览提示不收音', 3000)
     }

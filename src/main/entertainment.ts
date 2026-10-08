@@ -12,7 +12,7 @@ import path from 'path'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { isRealGift } from '../shared/giftFilter'
 import { createCollection } from './db'
-import { wheelLiveDir } from './bridge'
+import { connectorHomeDir } from './bridge'
 import { getSettings } from './settings'
 import {
   Ipc,
@@ -814,7 +814,7 @@ export function listGiftImages(): EntertainmentGiftImage[] {
 }
 
 function scanGiftImages(): EntertainmentGiftImage[] {
-  const externalDir = wheelLiveDir() ? path.join(wheelLiveDir(), '礼物图', '抖音') : ''
+  const externalDir = path.join(connectorHomeDir(), '礼物图', '抖音')
   const builtInDirs = [builtInGiftImageDir(), path.join(process.resourcesPath, 'gift-assets', 'douyin')]
     .filter((dir, index, all) => !!dir && all.indexOf(dir) === index)
   const found: EntertainmentGiftImage[] = []

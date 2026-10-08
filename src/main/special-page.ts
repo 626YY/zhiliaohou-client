@@ -276,10 +276,17 @@ export const HARNESS_JS = `(function(){
       kick(); e.stopPropagation();
     },true);
     hit.addEventListener('pointermove',function(e){
-      var p=mapPt(e);
-      if(tap&&(Math.abs(p[0]-tap.x)>12||Math.abs(p[1]-tap.y)>12)) tap=null;
-      if(owner){ send(owner,'move',p[0],p[1]); return; }
-      for(var i=list.length-1;i>=0;i--){ var s=list[i]; if(s.g&&s.g.pointer&&s.interactive){ try{ s.g.pointer('move',p[0],p[1]); }catch(_){} } }
+      // 窗口限帧（默认 30 帧）时浏览器把一帧里的鼠标移动合成一个点：拿回中间的点逐个交给玩法，
+      // 快速划过时擦屏、挥刀、挥拍才不会只剩起点终点一条直线
+      var evs=(e.getCoalescedEvents&&e.getCoalescedEvents())||[];
+      if(!evs.length) evs=[e];
+      if(evs.length>24) evs=evs.slice(evs.length-24);
+      for(var c=0;c<evs.length;c++){
+        var p=mapPt(evs[c]);
+        if(tap&&(Math.abs(p[0]-tap.x)>12||Math.abs(p[1]-tap.y)>12)) tap=null;
+        if(owner){ send(owner,'move',p[0],p[1]); continue; }
+        for(var i=list.length-1;i>=0;i--){ var s=list[i]; if(s.g&&s.g.pointer&&s.interactive){ try{ s.g.pointer('move',p[0],p[1]); }catch(_){} } }
+      }
     },true);
     function finish(e,cancel){
       var p=cancel?[-1,-1]:mapPt(e);
