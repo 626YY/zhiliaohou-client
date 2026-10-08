@@ -21,7 +21,7 @@ window.registerGame((function(){
   var ringAu=null;
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
-  function durationSec(){ return Math.max(3,Math.min(600,num(api.cfg.durationSec,10))); }
+  function durationSec(){ return Math.max(3,Math.min(1000000,num(api.cfg.durationSec,10))); }
   function showAvatar(){ return api.cfg.showAvatar!==false; }
   function queueCalls(){ return api.cfg.queueCalls!==false; }
   function ringVol(){ return Math.max(0,Math.min(100,num(api.cfg.ringtoneVolume,100))); }

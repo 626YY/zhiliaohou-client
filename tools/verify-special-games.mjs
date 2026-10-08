@@ -878,6 +878,23 @@ for (const id of builtIds) {
       await settleIdle(`${meta.name} 语义检查后清场`)
     }
 
+    // 3b) 数值不设上限（用户：「所有数值默认无上限」）：每个数值项都填到防爆上限，照样生成、能点、推帧、清得干净
+    const huge = {}
+    for (const p of meta.params || []) if (p.type === 'number' && typeof p.max === 'number') huge[p.key] = p.max
+    await load(id, { params: huge })
+    await apply({ operation: 'spawn', count: 3, ...who })
+    const tHuge = Date.now()
+    for (let i = 0; i < 4; i++) {
+      await stepFast(15)
+      await page.evaluate(({ x, y }) => { const g = window.__GAME; if (g && g.pointer) { g.pointer('down', x, y); g.pointer('move', x + 40, y + 12); g.pointer('up', x + 40, y + 12) } }, { x: meta.width / 2, y: meta.height / 2 })
+    }
+    const hugeFrameMs = (Date.now() - tHuge) / 60
+    await apply({ operation: clearOp(meta) })
+    await settleIdle(`${meta.name} 数值填到上限后清场`)
+    const inkHuge = await canvasInk()
+    assert.ok(inkHuge <= Math.max(60, inkAfter), `${meta.name}：数值填到上限后清场应清干净（墨量 ${inkHuge}）`)
+    notes.push(`${meta.name}：${Object.keys(huge).length} 个数值项填到上限（${Object.entries(huge).map(([k, v]) => k + '=' + v).join(' ')}），每帧约 ${hugeFrameMs.toFixed(1)}ms，清场后墨量 ${inkHuge}`)
+
     // 4) 预览模式：无错误、不调 getUserMedia、媒体全部静音播放
     const previewParams = {
       big_mosquito: { controlMode: 'both' },

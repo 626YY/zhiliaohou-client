@@ -100,7 +100,8 @@ try {
   })
   assert.equal(login.ok, true, login.error || '本地测试账号登录失败')
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.getByRole('link', { name: '游戏库', exact: true }).waitFor({ timeout: 20_000 })
+  // 没装游戏 mod 时侧边栏不放游戏库（0.3.69 起），等一直都在的「特色整蛊」
+  await page.getByRole('link', { name: '特色整蛊', exact: true }).waitFor({ timeout: 20_000 })
   await page.setViewportSize?.({ width: 1440, height: 1000 }).catch(() => {})
   const mainWin = await app.browserWindow(page)
   await mainWin.evaluate((w) => w.setContentSize(1440, 1000))
@@ -246,9 +247,18 @@ try {
   await api(() => window.api.specialCloseAll())
   await until(async () => !(await windowOpen()), '先关掉特色整蛊窗口')
   await api(() => { window.location.hash = '#/remote' })
-  await page.getByText('整蛊遥控', { exact: true }).first().waitFor({ timeout: 15_000 })
-  const gated = await page.getByText('礼物联动', { exact: true }).count() === 0
-  if (gated) {
+  await page.waitForTimeout(800)
+  const remoteHash = await api(() => window.location.hash)
+  // 0.3.69 起没装游戏 mod 时，整蛊遥控这类游戏页不出现，直接打开会回到娱乐助手
+  const noGames = !remoteHash.startsWith('#/remote')
+  if (noGames) {
+    assert.ok(remoteHash.startsWith('#/ent'), `没装游戏 mod 时打开整蛊遥控应回到娱乐助手：${remoteHash}`)
+    ok('没装游戏 mod：整蛊遥控属于游戏页，直接打开会回到娱乐助手（游戏 mod 上架、装好后才出现）')
+  } else await page.getByText('整蛊遥控', { exact: true }).first().waitFor({ timeout: 15_000 })
+  const gated = noGames || await page.getByText('礼物联动', { exact: true }).count() === 0
+  if (noGames) {
+    // 上面已经验过
+  } else if (gated) {
     console.log('SKIP 整蛊遥控：测试账号没有游戏授权，看不到遥控页（只验礼物触发侧）')
   } else {
     const remoteText = await api(() => document.body.innerText)
@@ -321,13 +331,14 @@ try {
   ok(`模拟送「嘉年华×3 by 阿彪」→ 一次抽 3 份、逐条开奖（第一条「${firstText}」带配音），只开出奖池里的（${got.join('、')}）：「${announce}」`)
 
   // 开奖设置：存得上、越界夹紧；设置页试听拿得到随包的锣和配音
-  const cfg1 = await api(() => window.api.specialRevealConfigure({ rate: -10, gapMs: 999999, position: 'nowhere' }))
+  const cfg1 = await api(() => window.api.specialRevealConfigure({ rate: -10, gapMs: 999999, holdMs: 1e12, position: 'nowhere' }))
   assert.equal(cfg1.reveal.rate, -10)
-  assert.equal(cfg1.reveal.gapMs, 3000, `锣后停顿应夹到上限：${cfg1.reveal.gapMs}`)
+  assert.equal(cfg1.reveal.gapMs, 999999, `锣后停顿不设上限，填多少存多少：${cfg1.reveal.gapMs}`)
+  assert.equal(cfg1.reveal.holdMs, 10000000, `离谱的值只防爆夹到 1e7：${cfg1.reveal.holdMs}`)
   assert.equal(cfg1.reveal.position, 'top', `认不出的位置回默认：${cfg1.reveal.position}`)
   const live = (await inSpecialWindow('window.__revealConfig && (window.__revealConfig({}), true)')).value
   assert.equal(live, true)
-  await api(() => window.api.specialRevealConfigure({ rate: 0, gapMs: 565 }))
+  await api(() => window.api.specialRevealConfigure({ rate: 0, gapMs: 565, holdMs: 300 }))
   const pv = await api(() => window.api.specialVoicePreview({ param: 'chain_challenge|add|5' }))
   assert.ok(pv.ok && pv.line === '锁链加5' && pv.text === '锁链+5', `试听：${JSON.stringify(pv)}`)
   assert.ok(pv.voiceUrl.startsWith('zlspecial://app/assets/box_voice/') && pv.gongUrl.endsWith('box_voice/gong.mp3'), `试听地址：${JSON.stringify(pv)}`)
@@ -335,7 +346,7 @@ try {
   assert.ok(fetched[0] === 200 && fetched[1] > 2000 && fetched[2] === 200, `试听文件读不到：${fetched}`)
   const silent = await api(() => window.api.specialVoicePreview({ param: 'fan_call|show|1' }))
   assert.ok(silent.ok && silent.line === '' && silent.text === '粉丝来电', `没数量的不念：${JSON.stringify(silent)}`)
-  ok(`开奖设置：语速 -10% 存上、锣后停顿夹到 3000 毫秒、乱写的位置回默认；试听「${pv.line}」读的是随包配音（${fetched[1]} 字节），粉丝来电只敲锣不念`)
+  ok(`开奖设置：语速 -10% 存上、锣后停顿 999999 毫秒照存（离谱值防爆夹到 1e7）、乱写的位置回默认；试听「${pv.line}」读的是随包配音（${fetched[1]} 字节），粉丝来电只敲锣不念`)
 
   const row = page.locator(`[data-box-rule="${boxRule.id}"]`)
   await row.waitFor({ timeout: 10_000 })

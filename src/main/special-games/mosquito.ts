@@ -26,7 +26,7 @@ window.registerGame((function(){
   function killPerClap(){ return Math.max(1,Math.trunc(num(api.cfg.killPerClap,1))); }
   function scaled(){ return api.cfg.volumeScaledKill!==false; }
   function sensitivity(){ return Math.max(1,Math.min(100,num(api.cfg.clapSensitivity,70))); }
-  function cooldown(){ return Math.max(50,Math.min(5000,num(api.cfg.cooldownMs,260))); }
+  function cooldown(){ return Math.max(50,Math.min(10000000,num(api.cfg.cooldownMs,260))); }
   // 识别方式：clap = 识别拍手（掌声识别）；volume = 只看音量（任何声音够响就算）
   function triggerMode(){ return String(api.cfg.triggerMode||'clap')==='volume'?'volume':'clap'; }
   function maxVisible(){ return Math.max(1,Math.trunc(num(api.cfg.maxVisible,1000))); }

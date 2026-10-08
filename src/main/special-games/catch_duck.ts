@@ -21,7 +21,7 @@ window.registerGame((function(){
   var prompts=[];          // 触发气泡 {name,avatarImg,count,until}
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
-  function pct(v,d){ return Math.max(5,Math.min(100,num(v,d))); }
+  function pct(v,d){ return Math.max(5,Math.min(400,num(v,d))); }
   function maxVisible(){ return Math.max(1,Math.trunc(num(api.cfg.maxVisible,300))); }
   // 大小选项 → 窗口高度百分比
   function sizeFor(size){

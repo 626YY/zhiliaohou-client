@@ -30,7 +30,7 @@ window.registerGame((function(){
   var BIN_FADE_MS=300;
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
-  function pct(v,d){ return Math.max(3,Math.min(100,num(v,d))); }
+  function pct(v,d){ return Math.max(3,Math.min(400,num(v,d))); }
   function leavesPerClick(){ return Math.max(1,Math.trunc(num(api.cfg.leavesPerClick,1))); }
   // 大小选项 → 窗口高度百分比
   function sizeFor(size){

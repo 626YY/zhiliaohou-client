@@ -119,7 +119,8 @@ try {
   })
   assert.equal(login.ok, true, login.error || '本地测试账号登录失败')
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.getByRole('link', { name: '游戏库', exact: true }).waitFor({ timeout: 20_000 })
+  // 没装游戏 mod 时侧边栏不放游戏库（0.3.69 起），等一直都在的「特色整蛊」
+  await page.getByRole('link', { name: '特色整蛊', exact: true }).waitFor({ timeout: 20_000 })
   const mainWin = await app.browserWindow(page)
   await mainWin.evaluate((w) => w.setContentSize(1440, 1000))
 

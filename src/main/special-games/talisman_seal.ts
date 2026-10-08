@@ -27,7 +27,7 @@ window.registerGame((function(){
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
   function threshold(){ return Math.max(1,Math.min(500,num(api.cfg.threshold,240))); }
   function decrement(){ return Math.max(1,Math.trunc(num(api.cfg.decrementPerShout,1))); }
-  function cooldown(){ return Math.max(50,Math.min(5000,num(api.cfg.cooldownMs,220))); }
+  function cooldown(){ return Math.max(50,Math.min(10000000,num(api.cfg.cooldownMs,220))); }
   function sealed(){ return phase==='locking'||phase==='sustain'; }
 
   // 确定性随机（种子=7319+W*3+H：同尺寸窗口布局相同）

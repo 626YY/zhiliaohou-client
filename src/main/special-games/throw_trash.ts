@@ -22,20 +22,20 @@ window.registerGame((function(){
   var BIN_FADE_MS=300;
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
-  function pct(v,d){ return Math.max(5,Math.min(100,num(v,d))); }
+  function pct(v,d){ return Math.max(5,Math.min(400,num(v,d))); }
   function maxVisible(){ return Math.max(1,Math.trunc(num(api.cfg.maxVisible,300))); }
   function spawnInterval(){ return Math.max(10,num(api.cfg.spawnIntervalMs,100)); }
-  function binPct(){ return Math.max(10,Math.min(60,num(api.cfg.binSizePercent,45))); }
+  function binPct(){ return Math.max(10,Math.min(100,num(api.cfg.binSizePercent,45))); }
   // 大小选项 → 窗口短边百分比
   function sizeFor(size){
     return ZL.sizePct(size, pct(api.cfg.bigTrashSize,14), pct(api.cfg.smallTrashSize,8), pct(api.cfg.randomSizeMin,8), pct(api.cfg.randomSizeMax,14));
   }
   function sameOpt(a,b){ return a.size===b.size&&a.kind===b.kind; }
 
-  // 垃圾桶矩形：宽=clamp(100, 窗口宽*60%, 窗口宽*bin%)，高=宽*1.15，底部居中，底距 max(12, 3.5%H)
+  // 垃圾桶矩形：宽=clamp(100, 窗口宽, 窗口宽*bin%)，高=宽*1.15，底部居中，底距 max(12, 3.5%H)
   function binRect(){
     var W=api.W,H=api.H;
-    var bw=Math.max(100,Math.min(W*0.6, W*binPct()/100));
+    var bw=Math.max(100,Math.min(W, W*binPct()/100));
     var bh=bw*1.15;
     return { x:(W-bw)/2, y:Math.max(0,H-bh-Math.max(12,H*0.035)), w:bw, h:bh };
   }
@@ -67,7 +67,7 @@ window.registerGame((function(){
 
   function makeItem(opt){
     var base=Math.min(api.W,api.H);
-    var size=Math.max(28,Math.min(300,Math.round(base*sizeFor(opt&&opt.size)/100)));
+    var size=Math.max(28,Math.min(base*4,Math.round(base*sizeFor(opt&&opt.size)/100)));
     var kind=opt&&opt.kind;
     var id=TRASH.indexOf(kind)>=0?kind:TRASH[Math.floor(Math.random()*TRASH.length)];
     var img=ZL.img('throw_trash/'+id+'.png');

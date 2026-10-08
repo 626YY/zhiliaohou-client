@@ -25,10 +25,10 @@ window.registerGame((function(){
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
   // 地上的金币落地后停多久自动收走（秒，0 = 一直留着等主播点）
-  function staySec(){ return Math.max(0,Math.min(600,num(api.cfg.coinStaySec,8))); }
+  function staySec(){ return Math.max(0,Math.min(1000000,num(api.cfg.coinStaySec,8))); }
   // 计数：场上有东西时显示（默认）/ 一直显示 / 不显示
   function counterShown(){ var m=String(api.cfg.statsPanel||'active'); if(m==='off') return false; if(m==='always') return total>0||remaining>0; return remaining>0||coins.length>0; }
-  function coinR(){ return Math.max(4, Math.min(api.W,api.H)*Math.max(1,Math.min(20,num(api.cfg.coinSize,5)))/200); }
+  function coinR(){ return Math.max(4, Math.min(api.W,api.H)*Math.max(1,Math.min(200,num(api.cfg.coinSize,5)))/200); }
 
   // 自定义金币图：路径变了才重新加载；加载失败（complete 但没像素）退回内置
   function syncCustom(){

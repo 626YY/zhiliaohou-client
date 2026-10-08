@@ -20,8 +20,8 @@ window.registerGame((function(){
   var slipperImg=null;
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
-  function sizePct(){ return Math.max(50,Math.min(180,num(api.cfg.sizePercent,100)))/100; }
-  function speedPct(){ return Math.max(30,Math.min(200,num(api.cfg.speedPercent,100)))/100; }
+  function sizePct(){ return Math.max(50,Math.min(1000,num(api.cfg.sizePercent,100)))/100; }
+  function speedPct(){ return Math.max(30,Math.min(10000,num(api.cfg.speedPercent,100)))/100; }
   function maxVisible(){ return Math.max(1,Math.trunc(num(api.cfg.maxVisible,100))); }
   function autoDropMs(){ return Math.max(0,num(api.cfg.autoDropSeconds,30))*1000; }
   function segR(){ return Math.min(api.W,api.H)*0.021*sizePct(); }

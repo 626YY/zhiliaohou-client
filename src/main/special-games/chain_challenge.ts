@@ -40,7 +40,7 @@ window.registerGame((function(){
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
   function decrement(){ return Math.max(1,Math.trunc(num(api.cfg.decrementPerClick,1))); }
-  function thickness(){ return Math.max(30,Math.min(150,num(api.cfg.thicknessPercent,60)))/100; }
+  function thickness(){ return Math.max(30,Math.min(1000,num(api.cfg.thicknessPercent,60)))/100; }
   function opacity(){ return Math.max(10,Math.min(100,num(api.cfg.opacity,100)))/100; }
   function unlockMode(){ return String(api.cfg.unlockMode||'mouse'); }
   function style(){ return String(api.cfg.visualStyle||'neon'); }

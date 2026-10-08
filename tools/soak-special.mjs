@@ -137,7 +137,8 @@ while (Date.now() < end && !crashed) {
       const meta = pick(SPECIAL_GAMES), p = pick(meta.params)
       if (p) {
         let v = p.def
-        if (p.type === 'number') v = (p.min ?? 0) + rnd() * ((p.max ?? 100) - (p.min ?? 0))
+        // 数值：九成在滑杆常用范围里取，一成取到防爆上限（数值不设上限后 max 动辄 1e6，均匀取几乎全是离谱值）
+        if (p.type === 'number') { const lo = p.min ?? 0, hi = rnd() < 0.1 ? (p.max ?? 100) : (p.sliderMax ?? p.max ?? 100); v = lo + rnd() * (hi - lo) }
         else if (p.type === 'toggle') v = rnd() < 0.5
         else if (p.type === 'select') v = pick(p.options).value
         if (p.type === 'number' || p.type === 'toggle' || p.type === 'select') { await page.evaluate(({ id, k, v }) => window.__config({ [k]: v }, id), { id: meta.id, k: p.key, v }); counts.config++; (changed[meta.id] = changed[meta.id] || {})[p.key] = v }

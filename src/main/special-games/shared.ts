@@ -374,7 +374,7 @@ function clapDetector(threshold,sensitivity,cooldownMs){
 //   deviceLabel, onClap(音量), onState(state), onLevel(音量)?, onCandidate(特征)? }
 ZL.startClap=function(opts){
   var th=Math.max(1,Math.min(500,Number(opts.threshold)||180));
-  var cd=Math.max(100,Math.min(5000,Math.trunc(Number(opts.cooldownMs))||260));
+  var cd=Math.max(100,Math.min(10000000,Math.trunc(Number(opts.cooldownMs))||260));
   var volumeOnly=String(opts.triggerMode||'clap')==='volume';
   var det=clapDetector(th,opts.sensitivity==null?70:opts.sensitivity,cd);
   var armed=true, last=-1e9, release=Math.max(5,th*0.55);
@@ -402,7 +402,7 @@ ZL.startShout=function(opts){
     for(var i=0;i<q.length;i++) if(q[i]>level) level=q[i];
     q.length=0;
     if(opts.onLevel){ try{ opts.onLevel(level); }catch(e){} }
-    var th=val(opts.threshold,240,1,500), cd=val(opts.cooldownMs,220,50,5000), now=performance.now()/1000;
+    var th=val(opts.threshold,240,1,500), cd=val(opts.cooldownMs,220,50,10000000), now=performance.now()/1000;
     if(armed&&level>=th&&(now-last)*1000>=cd){ armed=false; last=now; try{ opts.onShout(level); }catch(e){} }
     else if(!armed&&level<=Math.max(5,th*0.55)) armed=true;
   },45);

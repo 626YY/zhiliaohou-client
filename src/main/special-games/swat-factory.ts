@@ -57,21 +57,21 @@ window.registerGame((function(){
   var buzzAu=null, buzzCheckAt=0;
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
-  function bigSize(){ return Math.max(10,Math.min(100,num(api.cfg[CONF.sizeKey],55))); }
-  function smallSize(){ return Math.max(5,Math.min(100,num(api.cfg[CONF.smallSizeKey],18))); }
-  function bigHp(){ return Math.max(1,Math.min(50,Math.trunc(num(api.cfg[CONF.hpKey],3)))); }
-  function smallHp(){ return Math.max(1,Math.min(50,Math.trunc(num(api.cfg[CONF.smallHpKey],1)))); }
-  function flightSpeed(){ return Math.max(10,Math.min(300,num(api.cfg.flightSpeed,50))); }
-  function hitRadius(){ return Math.max(5,Math.min(40,num(api.cfg.hitRadius,13))); }
-  function gestureSpeed(){ return Math.max(5,Math.min(100,num(api.cfg.gestureSpeed,30))); }
+  function bigSize(){ return Math.max(10,Math.min(400,num(api.cfg[CONF.sizeKey],55))); }
+  function smallSize(){ return Math.max(5,Math.min(400,num(api.cfg[CONF.smallSizeKey],18))); }
+  function bigHp(){ return Math.max(1,Math.min(1000000,Math.trunc(num(api.cfg[CONF.hpKey],3)))); }
+  function smallHp(){ return Math.max(1,Math.min(1000000,Math.trunc(num(api.cfg[CONF.smallHpKey],1)))); }
+  function flightSpeed(){ return Math.max(10,Math.min(10000,num(api.cfg.flightSpeed,50))); }
+  function hitRadius(){ return Math.max(5,Math.min(400,num(api.cfg.hitRadius,13))); }
+  function gestureSpeed(){ return Math.max(5,Math.min(10000,num(api.cfg.gestureSpeed,30))); }
   function killPerClap(){ return Math.max(1,Math.trunc(num(api.cfg.killPerClap,1))); }
   function threshold(){ return Math.max(1,Math.min(500,num(api.cfg.threshold,180))); }
   function sensitivity(){ return Math.max(1,Math.min(100,num(api.cfg.clapSensitivity,70))); }
-  function cooldown(){ return Math.max(50,Math.min(5000,num(api.cfg.cooldownMs,260))); }
+  function cooldown(){ return Math.max(50,Math.min(10000000,num(api.cfg.cooldownMs,260))); }
   // 识别方式：clap = 识别拍手（掌声识别）；volume = 只看音量（任何声音够响就算）
   function triggerMode(){ return String(api.cfg.triggerMode||'clap')==='volume'?'volume':'clap'; }
   function maxVisible(){ return Math.max(1,Math.trunc(num(api.cfg.maxVisible,300))); }
-  function textSize(){ return Math.max(12,Math.min(96,num(api.cfg.textSize,32))); }
+  function textSize(){ return Math.max(12,Math.min(1000,num(api.cfg.textSize,32))); }
   function controlMode(){ return String(api.cfg.controlMode||'mouse'); }
   function showTrigger(){ return api.cfg.showTriggerUser!==false; }
   function sameOpt(a,b){ return a.size===b.size&&a.name===b.name; }

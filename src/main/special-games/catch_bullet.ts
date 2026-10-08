@@ -25,7 +25,7 @@ window.registerGame((function(){
   var DEFAULT_ASPECT=941/1672;   // 内置子弹图宽高比（图没加载好时用）
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
-  function sizePct(){ return Math.max(50,Math.min(200,num(api.cfg.sizePercent,100)))/100; }
+  function sizePct(){ return Math.max(50,Math.min(1000,num(api.cfg.sizePercent,100)))/100; }
   function maxVisible(){ return Math.max(1,Math.trunc(num(api.cfg.maxVisible,300))); }
   function boxScale(){ return sizePct()*Math.min(1.4, api.H/720); }
 
@@ -82,7 +82,7 @@ window.registerGame((function(){
     for(i=0;i<bullets.length;i++) stacks[bullets[i].column]+=bullets[i].h*0.32;   // 还在落的也算，马上就落到那一列
     var best=1e9;
     for(c=0;c<COLS;c++) if(stacks[c]<best) best=stacks[c];
-    return api.H-10-best-h>=0;
+    return best<=0 || api.H-10-best-h>=0;   // 子弹比窗口还高时空着的列照样落一颗，不然永远排队
   }
 
   function spawnOne(){

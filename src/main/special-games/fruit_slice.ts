@@ -27,14 +27,14 @@ window.registerGame((function(){
   var MAXQ=1000000;        // 防爆夹紧：待抛队列上限（队列存的是水果种类，一项一个）
 
   function num(v,d){ var n=Number(v); return isFinite(n)?n:d; }
-  function throwSpeed(){ return Math.max(20,Math.min(300,num(api.cfg.throwSpeed,100))); }
-  function throwInterval(){ return Math.max(50,Math.min(2000,num(api.cfg.throwIntervalMs,150))); }
+  function throwSpeed(){ return Math.max(20,Math.min(10000,num(api.cfg.throwSpeed,100))); }
+  function throwInterval(){ return Math.max(50,Math.min(10000000,num(api.cfg.throwIntervalMs,150))); }
   // 怎么算切：both = 按住拖动或快速挥动（默认）；drag = 只认按住拖动；hover = 鼠标划过就切
   function sliceMode(){ var m=String(api.cfg.sliceMode||'both'); return (m==='drag'||m==='hover')?m:'both'; }
   // 不按住时鼠标多快算挥了一刀（窗口短边百分比 / 秒）
-  function swipeSpeed(){ return Math.max(5,Math.min(300,num(api.cfg.swipeSpeed,30))); }
-  function missRetry(){ return Math.max(0,Math.min(99,Math.trunc(num(api.cfg.missRetry,1)))); }
-  function fruitPx(){ return Math.max(24, Math.min(api.W,api.H)*Math.max(5,Math.min(40,num(api.cfg.fruitSize,18)))/100); }
+  function swipeSpeed(){ return Math.max(5,Math.min(10000,num(api.cfg.swipeSpeed,30))); }
+  function missRetry(){ return Math.max(0,Math.min(1000000,Math.trunc(num(api.cfg.missRetry,1)))); }
+  function fruitPx(){ return Math.max(24, Math.min(api.W,api.H)*Math.max(5,Math.min(400,num(api.cfg.fruitSize,18)))/100); }
 
   function speedScale(){ return Math.max(0.2,Math.min(3, throwSpeed()/100)); }
 

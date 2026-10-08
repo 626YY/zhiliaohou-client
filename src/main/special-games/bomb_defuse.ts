@@ -532,7 +532,7 @@ window.registerGame((function(){
         B.t+=step;
         if(B.hurt>0) B.hurt=Math.max(0,B.hurt-step/420);
         for(var w=0;w<B.wires.length;w++) if(B.wires[w].cut>=0) B.wires[w].cutT+=step;
-        if(B.phase==='in'&&B.t>=650){ B.phase='armed'; B.t=0; }
+        if(B.phase==='in'&&B.t>=650){ B.phase='armed'; B.t=0; B.beepAcc=1e9; }   // 落稳当下先滴一声（C4 装好那一下），之后按节奏滴
         if(B.phase==='cut'&&B.t>=B.suspense){ reveal(B.cutIdx); }
         if(B.led>0) B.led=Math.max(0,B.led-step/140);
         if(B.phase==='armed'){
@@ -591,9 +591,17 @@ window.registerGame((function(){
       for(var j=0;j<texts.length;j++){
         var t=texts[j], ta=1-t.t/t.max;
         ctx.save(); ctx.globalAlpha*=Math.max(0,ta);
-        ctx.font='900 '+Math.round(t.size)+'px "Microsoft YaHei",sans-serif'; ctx.textAlign=t.align||'center'; ctx.textBaseline='middle';
-        ctx.lineJoin='round'; ctx.lineWidth=Math.max(4,t.size*0.2); ctx.strokeStyle='rgba(0,0,0,0.8)';
-        var yy=t.y-t.t*0.04; ctx.strokeText(t.text,t.x,yy); ctx.fillStyle='rgba('+t.color+',1)'; ctx.fillText(t.text,t.x,yy);
+        // 实测宽度：炸弹旁边放不下（竖屏窄窗口）就缩字号（最小六成），还放不下就整段夹回画面里，不让字被画面边缘切掉
+        var tfs=t.size, tfont=function(s){ ctx.font='900 '+Math.round(s)+'px "Microsoft YaHei",sans-serif'; };
+        tfont(tfs);
+        var tm=tfs*0.3, tw=ctx.measureText(t.text).width, avail=t.align==='left'?api.W-tm-t.x:t.align==='right'?t.x-tm:api.W-tm*2;
+        if(tw>avail&&avail>0){ tfs=Math.max(t.size*0.6,tfs*avail/tw); tfont(tfs); tw=ctx.measureText(t.text).width; }
+        var tx=t.x;
+        if(t.align==='left') tx=Math.max(tm,Math.min(tx,api.W-tm-tw));
+        else if(t.align==='right') tx=Math.min(api.W-tm,Math.max(tx,tm+tw));
+        ctx.textAlign=t.align||'center'; ctx.textBaseline='middle';
+        ctx.lineJoin='round'; ctx.lineWidth=Math.max(4,tfs*0.2); ctx.strokeStyle='rgba(0,0,0,0.8)';
+        var yy=t.y-t.t*0.04; ctx.strokeText(t.text,tx,yy); ctx.fillStyle='rgba('+t.color+',1)'; ctx.fillText(t.text,tx,yy);
         ctx.restore();
       }
       if(B&&B.phase==='ok'){

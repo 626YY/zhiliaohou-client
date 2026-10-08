@@ -279,8 +279,8 @@ const OP_DIV: SpecialOpSpec = { value: 'divide', label: '除以', sign: '÷', co
 const volumeParam = (def: number, hint: string): SpecialParamSpec => ({
   key: 'volume', label: '音效音量', type: 'number', min: 0, max: 100, step: 5, unit: '%', def, hint, group: 'sound'
 })
-const maxVisibleParam = (def: number, max: number, unit: string, what: string): SpecialParamSpec => ({
-  key: 'maxVisible', label: '同屏上限', type: 'number', min: 1, max, step: 10, unit, def, hint: `同时在场的${what}数上限，多出来的排队等空位`, advanced: true
+const maxVisibleParam = (def: number, sliderMax: number, unit: string, what: string): SpecialParamSpec => ({
+  key: 'maxVisible', label: '同屏上限', type: 'number', min: 1, max: 20000, sliderMax, step: 10, unit, def, hint: `同时在场的${what}数上限，多出来的排队等空位`, advanced: true
 })
 // 左上角计数面板（已经抓几只、还剩几只）：全部玩法同在一个窗口，默认只在场上有东西时显示，几个同时在场会上下排开
 const STATS_PANEL_PARAM: SpecialParamSpec = {
@@ -337,9 +337,9 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
         }
       },
       { key: 'skinMotion', label: '皮肤动态光效', type: 'toggle', def: true, hint: '霓虹闪烁、光束电流、冰晶闪光这类小动画；关掉更省电脑', advanced: true, group: 'look' },
-      { key: 'thicknessPercent', label: '锁链粗细', type: 'number', min: 30, max: 150, step: 5, unit: '%', def: 60, hint: '锁链相对画面的粗细', group: 'look' },
+      { key: 'thicknessPercent', label: '锁链粗细', type: 'number', min: 30, max: 1000, sliderMax: 150, step: 5, unit: '%', def: 60, hint: '锁链相对画面的粗细', group: 'look' },
       { key: 'opacity', label: '整体不透明度', type: 'number', min: 10, max: 100, step: 5, unit: '%', def: 100, hint: '锁链和计数牌的不透明度', advanced: true, group: 'look' },
-      { key: 'decrementPerClick', label: '每次点击减少', type: 'number', min: 1, max: 20, step: 1, unit: '环', def: 1, hint: '主播点一下减掉的环数' },
+      { key: 'decrementPerClick', label: '每次点击减少', type: 'number', min: 1, max: 1000000, sliderMax: 20, step: 1, unit: '环', def: 1, hint: '主播点一下减掉的环数' },
       { key: 'unlockMode', label: '解锁方式', type: 'select', def: 'mouse', options: [ { value: 'mouse', label: '点击绿幕' }, { value: 'space', label: '按空格键' }, { value: 'both', label: '点击或空格' } ], hint: '主播怎么解锁' },
       { key: 'showUnlockHint', label: '显示解锁提示', type: 'toggle', def: true, hint: '计数牌上方显示「点击绿幕解锁」', group: 'look' },
       volumeParam(80, '上锁/断裂/点击音效的音量')
@@ -455,10 +455,10 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     statLabel: '累计抓到',
     params: [
       STATS_PANEL_PARAM,
-      { key: 'bigDuckSize', label: '大鸭子大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 14, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
-      { key: 'smallDuckSize', label: '小鸭子大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 8, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
-      { key: 'randomSizeMin', label: '随机最小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 8, hint: '随机大小的下限', advanced: true, group: 'look' },
-      { key: 'randomSizeMax', label: '随机最大', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 14, hint: '随机大小的上限', advanced: true, group: 'look' },
+      { key: 'bigDuckSize', label: '大鸭子大小', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 14, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
+      { key: 'smallDuckSize', label: '小鸭子大小', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 8, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
+      { key: 'randomSizeMin', label: '随机最小', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 8, hint: '随机大小的下限', advanced: true, group: 'look' },
+      { key: 'randomSizeMax', label: '随机最大', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 14, hint: '随机大小的上限', advanced: true, group: 'look' },
       maxVisibleParam(300, 1000, '只', '鸭子'),
       volumeParam(100, '鸭子出现/被抓的音量')
     ]
@@ -483,11 +483,11 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     statLabel: '累计清理',
     params: [
       STATS_PANEL_PARAM,
-      { key: 'bigPoopSize', label: '大粑粑大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 14, hint: '占窗口短边的百分比', group: 'look' },
-      { key: 'smallPoopSize', label: '小粑粑大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 8, hint: '占窗口短边的百分比', group: 'look' },
-      { key: 'randomSizeMin', label: '随机最小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 8, hint: '随机大小的下限', advanced: true, group: 'look' },
-      { key: 'randomSizeMax', label: '随机最大', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 14, hint: '随机大小的上限', advanced: true, group: 'look' },
-      { key: 'spawnIntervalMs', label: '飞入间隔', type: 'number', min: 10, max: 2000, step: 10, unit: '毫秒', def: 100, hint: '一批里连续飞入的间隔', advanced: true },
+      { key: 'bigPoopSize', label: '大粑粑大小', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 14, hint: '占窗口短边的百分比', group: 'look' },
+      { key: 'smallPoopSize', label: '小粑粑大小', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 8, hint: '占窗口短边的百分比', group: 'look' },
+      { key: 'randomSizeMin', label: '随机最小', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 8, hint: '随机大小的下限', advanced: true, group: 'look' },
+      { key: 'randomSizeMax', label: '随机最大', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 14, hint: '随机大小的上限', advanced: true, group: 'look' },
+      { key: 'spawnIntervalMs', label: '飞入间隔', type: 'number', min: 10, max: 10000000, sliderMax: 2000, step: 10, unit: '毫秒', def: 100, hint: '一批里连续飞入的间隔', advanced: true },
       maxVisibleParam(300, 1000, '个', '粑粑'),
       volumeParam(100, '飞入音效的音量'),
       { key: 'customImage', label: '自定义粑粑图', type: 'file', fileKind: 'image', def: '', hint: '换成自己的图片，留空用内置粑粑', group: 'media' },
@@ -517,13 +517,13 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     statLabel: '累计扔进桶',
     params: [
       STATS_PANEL_PARAM,
-      { key: 'bigTrashSize', label: '大垃圾大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 14, hint: '占窗口短边的百分比', group: 'look' },
-      { key: 'smallTrashSize', label: '小垃圾大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 8, hint: '占窗口短边的百分比', group: 'look' },
-      { key: 'randomSizeMin', label: '随机最小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 8, hint: '随机大小的下限', advanced: true, group: 'look' },
-      { key: 'randomSizeMax', label: '随机最大', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 14, hint: '随机大小的上限', advanced: true, group: 'look' },
-      { key: 'binSizePercent', label: '垃圾桶大小', type: 'number', min: 10, max: 60, step: 1, unit: '%', def: 45, hint: '垃圾桶宽占窗口宽的比例', group: 'look' },
+      { key: 'bigTrashSize', label: '大垃圾大小', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 14, hint: '占窗口短边的百分比', group: 'look' },
+      { key: 'smallTrashSize', label: '小垃圾大小', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 8, hint: '占窗口短边的百分比', group: 'look' },
+      { key: 'randomSizeMin', label: '随机最小', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 8, hint: '随机大小的下限', advanced: true, group: 'look' },
+      { key: 'randomSizeMax', label: '随机最大', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 14, hint: '随机大小的上限', advanced: true, group: 'look' },
+      { key: 'binSizePercent', label: '垃圾桶大小', type: 'number', min: 10, max: 100, sliderMax: 60, step: 1, unit: '%', def: 45, hint: '垃圾桶宽占窗口宽的比例', group: 'look' },
       BIN_SHOW_PARAM,
-      { key: 'spawnIntervalMs', label: '飞入间隔', type: 'number', min: 10, max: 2000, step: 10, unit: '毫秒', def: 100, hint: '一批里连续飞入的间隔', advanced: true },
+      { key: 'spawnIntervalMs', label: '飞入间隔', type: 'number', min: 10, max: 10000000, sliderMax: 2000, step: 10, unit: '毫秒', def: 100, hint: '一批里连续飞入的间隔', advanced: true },
       maxVisibleParam(300, 1000, '件', '垃圾'),
       volumeParam(80, '飞入/进桶音效的音量')
     ]
@@ -547,7 +547,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     statLabel: '累计抓到',
     params: [
       STATS_PANEL_PARAM,
-      { key: 'sizePercent', label: '子弹大小', type: 'number', min: 50, max: 200, step: 5, unit: '%', def: 100, hint: '子弹贴图的缩放比例', group: 'look' },
+      { key: 'sizePercent', label: '子弹大小', type: 'number', min: 50, max: 1000, sliderMax: 200, step: 5, unit: '%', def: 100, hint: '子弹贴图的缩放比例', group: 'look' },
       maxVisibleParam(300, 2000, '颗', '子弹'),
       volumeParam(100, '子弹落地音效的音量'),
       { key: 'customImages', label: '自定义子弹图', type: 'files', fileKind: 'image', def: '', hint: '可选多张，每颗随机用一张；留空用内置子弹', group: 'media' },
@@ -575,9 +575,9 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     params: [
       STATS_PANEL_PARAM,
       { key: 'caterpillarColor', label: '毛毛虫颜色', type: 'select', def: 'green', options: CATERPILLAR_COLORS, hint: '毛毛虫身体的颜色', group: 'look' },
-      { key: 'sizePercent', label: '虫子大小', type: 'number', min: 50, max: 180, step: 5, unit: '%', def: 100, hint: '毛毛虫体型缩放', group: 'look' },
-      { key: 'speedPercent', label: '爬行速度', type: 'number', min: 30, max: 200, step: 10, unit: '%', def: 100, hint: '毛毛虫爬动的快慢' },
-      { key: 'autoDropSeconds', label: '自动掉落', type: 'number', min: 0, max: 600, step: 5, unit: '秒', def: 30, hint: '0 = 不自动掉落；否则到时自己掉出屏幕', advanced: true },
+      { key: 'sizePercent', label: '虫子大小', type: 'number', min: 50, max: 1000, sliderMax: 180, step: 5, unit: '%', def: 100, hint: '毛毛虫体型缩放', group: 'look' },
+      { key: 'speedPercent', label: '爬行速度', type: 'number', min: 30, max: 10000, sliderMax: 200, step: 10, unit: '%', def: 100, hint: '毛毛虫爬动的快慢' },
+      { key: 'autoDropSeconds', label: '自动掉落', type: 'number', min: 0, max: 1000000, sliderMax: 600, step: 5, unit: '秒', def: 30, hint: '0 = 不自动掉落；否则到时自己掉出屏幕', advanced: true },
       maxVisibleParam(100, 1000, '条', '毛毛虫')
     ]
   },
@@ -597,7 +597,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     ringsItself: true,
     ops: [{ value: 'show', label: '打来电话', sign: '+' }, { value: 'clear', label: '挂断全部', count: false, hint: '收起当前来电并清空排队' }],
     params: [
-      { key: 'durationSec', label: '来电时长', type: 'number', min: 3, max: 600, step: 1, unit: '秒', def: 10, hint: '没人接多久后自动挂断' },
+      { key: 'durationSec', label: '来电时长', type: 'number', min: 3, max: 1000000, sliderMax: 600, step: 1, unit: '秒', def: 10, hint: '没人接多久后自动挂断' },
       { key: 'queueCalls', label: '来电排队', type: 'toggle', def: true, hint: '多通来电排队依次响；关掉则新来电挤掉当前', advanced: true },
       { key: 'showAvatar', label: '显示头像', type: 'toggle', def: true, hint: '来电卡片上显示送礼人头像', group: 'look' },
       { key: 'ringtoneEnabled', label: '来电铃声', type: 'toggle', def: true, hint: '响铃时循环播放铃声', group: 'sound' },
@@ -623,7 +623,7 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     ringsItself: true,
     ops: [{ value: 'show', label: '打来视频', sign: '+' }, { value: 'clear', label: '挂断全部', count: false, hint: '收起当前来电并清空排队' }],
     params: [
-      { key: 'durationSec', label: '来电时长', type: 'number', min: 3, max: 600, step: 1, unit: '秒', def: 10, hint: '没人接多久后自动挂断' },
+      { key: 'durationSec', label: '来电时长', type: 'number', min: 3, max: 1000000, sliderMax: 600, step: 1, unit: '秒', def: 10, hint: '没人接多久后自动挂断' },
       { key: 'queueCalls', label: '来电排队', type: 'toggle', def: true, hint: '多通来电排队依次响；关掉则新来电挤掉当前', advanced: true },
       { key: 'showAvatar', label: '显示头像', type: 'toggle', def: true, hint: '来电界面显示送礼人头像', group: 'look' },
       { key: 'cameraEnabled', label: '响铃时显示摄像头', type: 'toggle', def: false, hint: '响铃期间背景显示本机摄像头画面；摄像头被直播软件占用时会自动跳过', advanced: true, group: 'look' },
@@ -653,8 +653,8 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     ops: [OP_ADD, OP_REDUCE, OP_MUL, OP_DIV, { value: 'clear', label: '直接破解', count: false, hint: '符咒立刻全部碎掉' }],
     params: [
       { key: 'threshold', label: '喊叫音量阈值', type: 'number', min: 1, max: 500, step: 5, def: 240, hint: '喊声要多响才算喊了一声（0~500，越低越灵敏）' },
-      { key: 'decrementPerShout', label: '每声减少', type: 'number', min: 1, max: 20, step: 1, unit: '点', def: 1, hint: '每喊一声削减的封印点数' },
-      { key: 'cooldownMs', label: '两声间隔', type: 'number', min: 50, max: 5000, step: 10, unit: '毫秒', def: 220, hint: '两声喊叫至少隔多久才算两声', advanced: true },
+      { key: 'decrementPerShout', label: '每声减少', type: 'number', min: 1, max: 1000000, sliderMax: 20, step: 1, unit: '点', def: 1, hint: '每喊一声削减的封印点数' },
+      { key: 'cooldownMs', label: '两声间隔', type: 'number', min: 50, max: 10000000, sliderMax: 5000, step: 10, unit: '毫秒', def: 220, hint: '两声喊叫至少隔多久才算两声', advanced: true },
       micParam,
       volumeParam(100, '符咒音效的音量')
     ]
@@ -678,16 +678,16 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     params: [
       { key: 'threshold', label: '拍手音量阈值', type: 'number', min: 1, max: 500, step: 5, def: 180, hint: '拍手声要多响才算一次（0~500，越低越灵敏）' },
       CLAP_TRIGGER_PARAM,
-      { key: 'killPerClap', label: '每次拍手消灭', type: 'number', min: 1, max: 1000, step: 1, unit: '只', def: 1, hint: '一次拍手至少消灭的蚊子数' },
+      { key: 'killPerClap', label: '每次拍手消灭', type: 'number', min: 1, max: 1000000, sliderMax: 1000, step: 1, unit: '只', def: 1, hint: '一次拍手至少消灭的蚊子数' },
       { key: 'volumeScaledKill', label: '越响灭得越多', type: 'toggle', def: true, hint: '掌声越响一次消灭越多（按下面三档）' },
       { key: 'clapLevel2', label: '第二档音量', type: 'number', min: 1, max: 500, step: 5, def: 200, hint: '掌声到这个音量按第二档消灭', advanced: true },
-      { key: 'clapKill2', label: '第二档消灭', type: 'number', min: 1, max: 1000, step: 1, unit: '只', def: 2, hint: '第二档一次消灭几只', advanced: true },
+      { key: 'clapKill2', label: '第二档消灭', type: 'number', min: 1, max: 1000000, sliderMax: 1000, step: 1, unit: '只', def: 2, hint: '第二档一次消灭几只', advanced: true },
       { key: 'clapLevel3', label: '第三档音量', type: 'number', min: 1, max: 500, step: 5, def: 220, hint: '掌声到这个音量按第三档消灭', advanced: true },
-      { key: 'clapKill3', label: '第三档消灭', type: 'number', min: 1, max: 1000, step: 1, unit: '只', def: 4, hint: '第三档一次消灭几只', advanced: true },
+      { key: 'clapKill3', label: '第三档消灭', type: 'number', min: 1, max: 1000000, sliderMax: 1000, step: 1, unit: '只', def: 4, hint: '第三档一次消灭几只', advanced: true },
       { key: 'maxKillLevel', label: '最响一档音量', type: 'number', min: 1, max: 500, step: 5, def: 240, hint: '掌声到这个音量按最响一档消灭', advanced: true },
-      { key: 'loudClapMaxKill', label: '最响一档消灭', type: 'number', min: 1, max: 1000, step: 1, unit: '只', def: 8, hint: '最响一档一次消灭几只', advanced: true },
+      { key: 'loudClapMaxKill', label: '最响一档消灭', type: 'number', min: 1, max: 1000000, sliderMax: 1000, step: 1, unit: '只', def: 8, hint: '最响一档一次消灭几只', advanced: true },
       { key: 'clapSensitivity', label: '掌声识别灵敏度', type: 'number', min: 1, max: 100, step: 1, def: 70, hint: '越高越容易认出掌声，也更容易把别的声音当成掌声', advanced: true },
-      { key: 'cooldownMs', label: '两次拍手间隔', type: 'number', min: 50, max: 5000, step: 10, unit: '毫秒', def: 260, hint: '两次拍手至少隔多久', advanced: true },
+      { key: 'cooldownMs', label: '两次拍手间隔', type: 'number', min: 50, max: 10000000, sliderMax: 5000, step: 10, unit: '毫秒', def: 260, hint: '两次拍手至少隔多久', advanced: true },
       { key: 'showTriggerUser', label: '显示送礼观众', type: 'toggle', def: false, hint: '提示条上显示是谁放的蚊子', group: 'look' },
       maxVisibleParam(1000, 5000, '只', '蚊子'),
       micParam,
@@ -714,20 +714,20 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     fields: [{ ...SIZE_FIELD, options: [ { value: 'random', label: '大小随机' }, { value: 'big', label: '大蚊子' }, { value: 'small', label: '小蚊子' } ] }],
     params: [
       { key: 'controlMode', label: '控制方式', type: 'select', def: 'mouse', options: [ { value: 'mouse', label: '鼠标挥拍' }, { value: 'clap', label: '拍手声控' }, { value: 'both', label: '鼠标加声控' } ], hint: '鼠标挥拍：快速移动鼠标扫过蚊子；声控：拍手随机击落' },
-      { key: 'bigMosquitoSize', label: '大蚊子大小', type: 'number', min: 10, max: 100, step: 1, unit: '%', def: 55, hint: '占窗口短边的百分比', group: 'look' },
-      { key: 'smallMosquitoSize', label: '小蚊子大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 18, hint: '占窗口短边的百分比', group: 'look' },
-      { key: 'bigMosquitoHp', label: '大蚊子血量', type: 'number', min: 1, max: 50, step: 1, unit: '下', def: 3, hint: '大蚊子要拍几下才死' },
-      { key: 'smallMosquitoHp', label: '小蚊子血量', type: 'number', min: 1, max: 50, step: 1, unit: '下', def: 1, hint: '小蚊子要拍几下才死' },
-      { key: 'flightSpeed', label: '飞行速度', type: 'number', min: 10, max: 300, step: 10, unit: '%', def: 50, hint: '蚊子飞行的快慢' },
-      { key: 'hitRadius', label: '拍击半径', type: 'number', min: 5, max: 40, step: 1, unit: '%', def: 13, hint: '挥一下能拍到的范围（窗口短边百分比）', advanced: true },
-      { key: 'gestureSpeed', label: '挥拍速度门槛', type: 'number', min: 5, max: 100, step: 1, def: 30, hint: '鼠标移动多快才算挥了一巴掌', advanced: true },
-      { key: 'killPerClap', label: '每次拍手击中', type: 'number', min: 1, max: 1000, step: 1, unit: '只', def: 1, hint: '声控模式下一次拍手打中几只', advanced: true },
+      { key: 'bigMosquitoSize', label: '大蚊子大小', type: 'number', min: 10, max: 400, sliderMax: 100, step: 1, unit: '%', def: 55, hint: '占窗口短边的百分比', group: 'look' },
+      { key: 'smallMosquitoSize', label: '小蚊子大小', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 18, hint: '占窗口短边的百分比', group: 'look' },
+      { key: 'bigMosquitoHp', label: '大蚊子血量', type: 'number', min: 1, max: 1000000, sliderMax: 50, step: 1, unit: '下', def: 3, hint: '大蚊子要拍几下才死' },
+      { key: 'smallMosquitoHp', label: '小蚊子血量', type: 'number', min: 1, max: 1000000, sliderMax: 50, step: 1, unit: '下', def: 1, hint: '小蚊子要拍几下才死' },
+      { key: 'flightSpeed', label: '飞行速度', type: 'number', min: 10, max: 10000, sliderMax: 300, step: 10, unit: '%', def: 50, hint: '蚊子飞行的快慢' },
+      { key: 'hitRadius', label: '拍击半径', type: 'number', min: 5, max: 400, sliderMax: 40, step: 1, unit: '%', def: 13, hint: '挥一下能拍到的范围（窗口短边百分比）', advanced: true },
+      { key: 'gestureSpeed', label: '挥拍速度门槛', type: 'number', min: 5, max: 10000, sliderMax: 100, step: 1, def: 30, hint: '鼠标移动多快才算挥了一巴掌', advanced: true },
+      { key: 'killPerClap', label: '每次拍手击中', type: 'number', min: 1, max: 1000000, sliderMax: 1000, step: 1, unit: '只', def: 1, hint: '声控模式下一次拍手打中几只', advanced: true },
       { key: 'threshold', label: '拍手音量阈值', type: 'number', min: 1, max: 500, step: 5, def: 180, hint: '声控模式下拍手声要多响才算（0~500，越低越灵敏）', advanced: true },
       { ...CLAP_TRIGGER_PARAM, advanced: true },
       { key: 'clapSensitivity', label: '掌声识别灵敏度', type: 'number', min: 1, max: 100, step: 1, def: 70, hint: '越高越容易认出掌声', advanced: true },
-      { key: 'cooldownMs', label: '两次拍手间隔', type: 'number', min: 50, max: 5000, step: 10, unit: '毫秒', def: 260, hint: '两次拍手至少隔多久', advanced: true },
+      { key: 'cooldownMs', label: '两次拍手间隔', type: 'number', min: 50, max: 10000000, sliderMax: 5000, step: 10, unit: '毫秒', def: 260, hint: '两次拍手至少隔多久', advanced: true },
       { key: 'showTriggerUser', label: '显示送礼观众', type: 'toggle', def: true, hint: '蚊子上方显示送礼人昵称', group: 'look' },
-      { key: 'textSize', label: '昵称字号', type: 'number', min: 12, max: 96, step: 2, unit: 'px', def: 32, hint: '蚊子上方昵称的字号', advanced: true, group: 'look' },
+      { key: 'textSize', label: '昵称字号', type: 'number', min: 12, max: 1000, sliderMax: 96, step: 2, unit: 'px', def: 32, hint: '蚊子上方昵称的字号', advanced: true, group: 'look' },
       maxVisibleParam(300, 1000, '只', '蚊子'),
       micParam,
       volumeParam(100, '拍击与嗡嗡声的音量'),
@@ -753,20 +753,20 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     fields: [{ ...SIZE_FIELD, options: [ { value: 'random', label: '大小随机' }, { value: 'big', label: '大苍蝇' }, { value: 'small', label: '小苍蝇' } ] }],
     params: [
       { key: 'controlMode', label: '控制方式', type: 'select', def: 'mouse', options: [ { value: 'mouse', label: '鼠标挥拍' }, { value: 'clap', label: '拍手声控' }, { value: 'both', label: '鼠标加声控' } ], hint: '鼠标挥拍：快速移动鼠标扫过苍蝇；声控：拍手随机击落' },
-      { key: 'bigFlySize', label: '大苍蝇大小', type: 'number', min: 10, max: 100, step: 1, unit: '%', def: 55, hint: '占窗口短边的百分比', group: 'look' },
-      { key: 'smallFlySize', label: '小苍蝇大小', type: 'number', min: 5, max: 100, step: 1, unit: '%', def: 18, hint: '占窗口短边的百分比', group: 'look' },
-      { key: 'bigFlyHp', label: '大苍蝇血量', type: 'number', min: 1, max: 50, step: 1, unit: '下', def: 3, hint: '大苍蝇要拍几下才死' },
-      { key: 'smallFlyHp', label: '小苍蝇血量', type: 'number', min: 1, max: 50, step: 1, unit: '下', def: 1, hint: '小苍蝇要拍几下才死' },
-      { key: 'flightSpeed', label: '飞行速度', type: 'number', min: 10, max: 300, step: 10, unit: '%', def: 50, hint: '苍蝇飞行的快慢' },
-      { key: 'hitRadius', label: '拍击半径', type: 'number', min: 5, max: 40, step: 1, unit: '%', def: 13, hint: '挥一下能拍到的范围（窗口短边百分比）', advanced: true },
-      { key: 'gestureSpeed', label: '挥拍速度门槛', type: 'number', min: 5, max: 100, step: 1, def: 30, hint: '鼠标移动多快才算挥了一巴掌', advanced: true },
-      { key: 'killPerClap', label: '每次拍手击中', type: 'number', min: 1, max: 1000, step: 1, unit: '只', def: 1, hint: '声控模式下一次拍手打中几只', advanced: true },
+      { key: 'bigFlySize', label: '大苍蝇大小', type: 'number', min: 10, max: 400, sliderMax: 100, step: 1, unit: '%', def: 55, hint: '占窗口短边的百分比', group: 'look' },
+      { key: 'smallFlySize', label: '小苍蝇大小', type: 'number', min: 5, max: 400, sliderMax: 100, step: 1, unit: '%', def: 18, hint: '占窗口短边的百分比', group: 'look' },
+      { key: 'bigFlyHp', label: '大苍蝇血量', type: 'number', min: 1, max: 1000000, sliderMax: 50, step: 1, unit: '下', def: 3, hint: '大苍蝇要拍几下才死' },
+      { key: 'smallFlyHp', label: '小苍蝇血量', type: 'number', min: 1, max: 1000000, sliderMax: 50, step: 1, unit: '下', def: 1, hint: '小苍蝇要拍几下才死' },
+      { key: 'flightSpeed', label: '飞行速度', type: 'number', min: 10, max: 10000, sliderMax: 300, step: 10, unit: '%', def: 50, hint: '苍蝇飞行的快慢' },
+      { key: 'hitRadius', label: '拍击半径', type: 'number', min: 5, max: 400, sliderMax: 40, step: 1, unit: '%', def: 13, hint: '挥一下能拍到的范围（窗口短边百分比）', advanced: true },
+      { key: 'gestureSpeed', label: '挥拍速度门槛', type: 'number', min: 5, max: 10000, sliderMax: 100, step: 1, def: 30, hint: '鼠标移动多快才算挥了一巴掌', advanced: true },
+      { key: 'killPerClap', label: '每次拍手击中', type: 'number', min: 1, max: 1000000, sliderMax: 1000, step: 1, unit: '只', def: 1, hint: '声控模式下一次拍手打中几只', advanced: true },
       { key: 'threshold', label: '拍手音量阈值', type: 'number', min: 1, max: 500, step: 5, def: 180, hint: '声控模式下拍手声要多响才算（0~500，越低越灵敏）', advanced: true },
       { ...CLAP_TRIGGER_PARAM, advanced: true },
       { key: 'clapSensitivity', label: '掌声识别灵敏度', type: 'number', min: 1, max: 100, step: 1, def: 70, hint: '越高越容易认出掌声', advanced: true },
-      { key: 'cooldownMs', label: '两次拍手间隔', type: 'number', min: 50, max: 5000, step: 10, unit: '毫秒', def: 260, hint: '两次拍手至少隔多久', advanced: true },
+      { key: 'cooldownMs', label: '两次拍手间隔', type: 'number', min: 50, max: 10000000, sliderMax: 5000, step: 10, unit: '毫秒', def: 260, hint: '两次拍手至少隔多久', advanced: true },
       { key: 'showTriggerUser', label: '显示送礼观众', type: 'toggle', def: true, hint: '苍蝇上方显示送礼人昵称', group: 'look' },
-      { key: 'textSize', label: '昵称字号', type: 'number', min: 12, max: 96, step: 2, unit: 'px', def: 32, hint: '苍蝇上方昵称的字号', advanced: true, group: 'look' },
+      { key: 'textSize', label: '昵称字号', type: 'number', min: 12, max: 1000, sliderMax: 96, step: 2, unit: 'px', def: 32, hint: '苍蝇上方昵称的字号', advanced: true, group: 'look' },
       maxVisibleParam(300, 1000, '只', '苍蝇'),
       micParam,
       volumeParam(100, '拍击音量'),
@@ -792,11 +792,11 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     fields: [{ key: 'kind', label: '水果', def: 'random', options: [{ value: 'random', label: '随机水果' }, ...FRUIT_KINDS] }],
     params: [
       { key: 'sliceMode', label: '切水果方式', type: 'select', def: 'both', options: [{ value: 'both', label: '按住拖动或快速挥动' }, { value: 'drag', label: '只认按住拖动' }, { value: 'hover', label: '鼠标划过就切' }], hint: '鼠标怎样划过水果才算切到' },
-      { key: 'swipeSpeed', label: '挥刀速度门槛', type: 'number', min: 5, max: 300, step: 5, def: 30, hint: '不按住鼠标时，挥得多快才算一刀（越小越容易切到）', advanced: true },
-      { key: 'missRetry', label: '漏掉的再抛几次', type: 'number', min: 0, max: 99, step: 1, unit: '次', def: 1, hint: '没切到、掉出画面的水果再抛几次（0 = 漏了就不再抛）' },
-      { key: 'throwSpeed', label: '抛射速度', type: 'number', min: 20, max: 300, step: 10, unit: '%', def: 100, hint: '水果抛上来的速度' },
-      { key: 'throwIntervalMs', label: '连续抛出间隔', type: 'number', min: 10, max: 2000, step: 10, unit: '毫秒', def: 150, hint: '一波水果逐个抛出的间隔' },
-      { key: 'fruitSize', label: '水果大小', type: 'number', min: 5, max: 40, step: 1, unit: '%', def: 18, hint: '占窗口短边的百分比', group: 'look' },
+      { key: 'swipeSpeed', label: '挥刀速度门槛', type: 'number', min: 5, max: 10000, sliderMax: 300, step: 5, def: 30, hint: '不按住鼠标时，挥得多快才算一刀（越小越容易切到）', advanced: true },
+      { key: 'missRetry', label: '漏掉的再抛几次', type: 'number', min: 0, max: 1000000, sliderMax: 99, step: 1, unit: '次', def: 1, hint: '没切到、掉出画面的水果再抛几次（0 = 漏了就不再抛）' },
+      { key: 'throwSpeed', label: '抛射速度', type: 'number', min: 20, max: 10000, sliderMax: 300, step: 10, unit: '%', def: 100, hint: '水果抛上来的速度' },
+      { key: 'throwIntervalMs', label: '连续抛出间隔', type: 'number', min: 10, max: 10000000, sliderMax: 2000, step: 10, unit: '毫秒', def: 150, hint: '一波水果逐个抛出的间隔' },
+      { key: 'fruitSize', label: '水果大小', type: 'number', min: 5, max: 400, sliderMax: 40, step: 1, unit: '%', def: 18, hint: '占窗口短边的百分比', group: 'look' },
       volumeParam(100, '切割音效的音量')
     ]
   },
@@ -818,8 +818,8 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     ops: [OP_ADD, OP_CLEAR],
     params: [
       STATS_PANEL_PARAM,
-      { key: 'coinStaySec', label: '落地金币停留', type: 'number', min: 0, max: 600, step: 1, unit: '秒', def: 8, hint: '金币落地后多久自动收走（0 = 一直留着等主播点）' },
-      { key: 'coinSize', label: '金币大小', type: 'number', min: 1, max: 20, step: 1, unit: '档', def: 5, hint: '档位越大金币越大（1~20）', group: 'look' },
+      { key: 'coinStaySec', label: '落地金币停留', type: 'number', min: 0, max: 1000000, sliderMax: 600, step: 1, unit: '秒', def: 8, hint: '金币落地后多久自动收走（0 = 一直留着等主播点）' },
+      { key: 'coinSize', label: '金币大小', type: 'number', min: 1, max: 200, sliderMax: 20, step: 1, unit: '档', def: 5, hint: '档位越大金币越大', group: 'look' },
       volumeParam(80, '顶出/收金币音效的音量'),
       { key: 'customCoinImage', label: '自定义金币图', type: 'file', fileKind: 'image', def: '', hint: '换成自己的图片，留空用内置金币', group: 'media' },
       { key: 'customSound', label: '自定义顶出音效', type: 'file', fileKind: 'audio', def: '', hint: '留空用内置音效', group: 'media' }
@@ -851,11 +851,11 @@ export const SPECIAL_GAMES: SpecialGameMeta[] = [
     statLabel: '这一轮已清扫',
     params: [
       STATS_PANEL_PARAM,
-      { key: 'leavesPerClick', label: '每次点击收几片', type: 'number', min: 1, max: 100, step: 1, unit: '片', def: 1, hint: '点一片叶子实际收进桶的数量' },
-      { key: 'bigLeafSize', label: '大叶子大小', type: 'number', min: 3, max: 100, step: 1, unit: '%', def: 50, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
-      { key: 'smallLeafSize', label: '小叶子大小', type: 'number', min: 3, max: 100, step: 1, unit: '%', def: 10, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
-      { key: 'randomSizeMin', label: '随机最小', type: 'number', min: 3, max: 100, step: 1, unit: '%', def: 10, hint: '随机大小的下限', advanced: true, group: 'look' },
-      { key: 'randomSizeMax', label: '随机最大', type: 'number', min: 3, max: 100, step: 1, unit: '%', def: 50, hint: '随机大小的上限', advanced: true, group: 'look' },
+      { key: 'leavesPerClick', label: '每次点击收几片', type: 'number', min: 1, max: 1000000, sliderMax: 100, step: 1, unit: '片', def: 1, hint: '点一片叶子实际收进桶的数量' },
+      { key: 'bigLeafSize', label: '大叶子大小', type: 'number', min: 3, max: 400, sliderMax: 100, step: 1, unit: '%', def: 50, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
+      { key: 'smallLeafSize', label: '小叶子大小', type: 'number', min: 3, max: 400, sliderMax: 100, step: 1, unit: '%', def: 10, hint: '占窗口短边的百分比（横屏是高度，竖屏是宽度）', group: 'look' },
+      { key: 'randomSizeMin', label: '随机最小', type: 'number', min: 3, max: 400, sliderMax: 100, step: 1, unit: '%', def: 10, hint: '随机大小的下限', advanced: true, group: 'look' },
+      { key: 'randomSizeMax', label: '随机最大', type: 'number', min: 3, max: 400, sliderMax: 100, step: 1, unit: '%', def: 50, hint: '随机大小的上限', advanced: true, group: 'look' },
       BIN_SHOW_PARAM
     ]
   }
@@ -1148,12 +1148,12 @@ export const SPECIAL_REVEAL_PARAMS: SpecialParamSpec[] = [
   { key: 'gong', label: '开场锣声', type: 'toggle', def: true, hint: '念之前先「咣」一声', group: 'sound' },
   { key: 'gongVolume', label: '锣声音量', type: 'number', min: 0, max: 100, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.gongVolume, group: 'sound' },
   { key: 'gongPath', label: '自定义开场音效', type: 'file', fileKind: 'audio', def: '', hint: '换成自己的音效，留空用内置的锣', advanced: true, group: 'media' },
-  { key: 'gapMs', label: '锣后停顿', type: 'number', min: 0, max: 3000, step: 5, unit: '毫秒', def: DEFAULT_SPECIAL_REVEAL.gapMs, hint: '锣响后过多久开始念', advanced: true, group: 'sound' },
+  { key: 'gapMs', label: '锣后停顿', type: 'number', min: 0, max: 10000000, sliderMax: 3000, step: 5, unit: '毫秒', def: DEFAULT_SPECIAL_REVEAL.gapMs, hint: '锣响后过多久开始念', advanced: true, group: 'sound' },
   { key: 'position', label: '画面位置', type: 'select', def: DEFAULT_SPECIAL_REVEAL.position, options: SPECIAL_REVEAL_POSITIONS, group: 'look' },
-  { key: 'scale', label: '画面大小', type: 'number', min: 30, max: 300, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.scale, group: 'look' },
+  { key: 'scale', label: '画面大小', type: 'number', min: 30, max: 1000, sliderMax: 300, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.scale, group: 'look' },
   { key: 'showGong', label: '画面里的锣', type: 'toggle', def: true, hint: '大字左边那面被敲响的锣；关掉只出大字', group: 'look' },
-  { key: 'holdMs', label: '念完后停留', type: 'number', min: 0, max: 10000, step: 100, unit: '毫秒', def: DEFAULT_SPECIAL_REVEAL.holdMs, hint: '念完以后大字再留多久', advanced: true, group: 'look' },
-  { key: 'maxQueue', label: '排队上限', type: 'number', min: 0, max: 200, step: 1, unit: '条', def: DEFAULT_SPECIAL_REVEAL.maxQueue, hint: '等着开奖的超过这么多条，新开出的直接生效、不再敲锣念；0 = 不限', advanced: true },
+  { key: 'holdMs', label: '念完后停留', type: 'number', min: 0, max: 10000000, sliderMax: 10000, step: 100, unit: '毫秒', def: DEFAULT_SPECIAL_REVEAL.holdMs, hint: '念完以后大字再留多久', advanced: true, group: 'look' },
+  { key: 'maxQueue', label: '排队上限', type: 'number', min: 0, max: 1000000, sliderMax: 200, step: 1, unit: '条', def: DEFAULT_SPECIAL_REVEAL.maxQueue, hint: '等着开奖的超过这么多条，新开出的直接生效、不再敲锣念；0 = 不限', advanced: true },
   { key: 'videoScale', label: '开奖视频大小', type: 'number', min: 20, max: 100, step: 5, unit: '%', def: DEFAULT_SPECIAL_REVEAL.videoScale, hint: '事件配了开奖视频时，视频按比例放进窗口占多大', group: 'look' },
   { key: 'videoKeyAuto', label: '开奖视频自动抠底色', type: 'toggle', def: true, hint: '从视频四个角量出绿幕底色再抠掉；关掉就用下面的颜色', advanced: true, group: 'look' },
   { key: 'videoKeyColor', label: '开奖视频抠图颜色', type: 'color', def: DEFAULT_SPECIAL_REVEAL.videoKeyColor, hint: '关掉自动抠底色时用这个颜色', advanced: true, group: 'look' },
